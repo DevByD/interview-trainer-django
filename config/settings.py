@@ -127,7 +127,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 # ---------------------------------------------------------------------------
 # Database — MySQL (local default) or DATABASE_URL (production / cloud)
 # ---------------------------------------------------------------------------
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("MYSQL_PUBLIC_URL")
+    or os.getenv("MYSQL_URL")
+    or ""
+).strip()
 
 if DATABASE_URL:
     try:
