@@ -125,42 +125,109 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database — MySQL (local default) or DATABASE_URL (production / cloud)
+# Database — MySQL (local development) / Railway / Cloud MySQL (production)
 # ---------------------------------------------------------------------------
-DATABASE_URL = (
-    os.getenv("DATABASE_URL")
-    or os.getenv("MYSQL_PUBLIC_URL")
-    or os.getenv("MYSQL_URL")
-    or ""
-).strip()
+def _get_database_config(debug_mode: bool) -> dict:
+    """Resolve database configuration from environment variables.
 
-if DATABASE_URL:
-    try:
-        import dj_database_url
-        DATABASES = {
-            "default": dj_database_url.config(
-                default=DATABASE_URL,
-                conn_max_age=600,
-                conn_health_checks=True,
-            )
-        }
-    except ImportError:
-        pass
+    Supports:
+    1. Full connection URLs: DATABASE_URL, MYSQL_PUBLIC_URL, MYSQL_URL
+    2. Explicit discrete variables: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+    3. Railway default variables: MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD, MYSQLHOST, MYSQLPORT
+    4. Safe fallback to local MySQL only when DEBUG=True.
+    """
+    import dj_database_url
+    from django.core.exceptions import ImproperlyConfigured
 
-if "DATABASES" not in locals() or not DATABASES.get("default"):
-    DATABASES = {
-        "default": {
+    # 1. Connection string / URL lookup
+    for url_key in ("DATABASE_URL", "MYSQL_PUBLIC_URL", "MYSQL_URL"):
+        raw_url = os.getenv(url_key, "").strip().strip("'").strip('"').strip()
+        if raw_url:
+            try:
+                cfg = dj_database_url.parse(raw_url, conn_max_age=600, conn_health_checks=True)
+                if cfg and cfg.get("ENGINE"):
+                    if "OPTIONS" not in cfg:
+                        cfg["OPTIONS"] = {}
+                    cfg["OPTIONS"]["charset"] = "utf8mb4"
+                    return cfg
+            except Exception:
+                pass
+
+    # 2. Discrete environment variables lookup
+    db_host = (
+        os.getenv("DB_HOST")
+        or os.getenv("MYSQLHOST")
+        or os.getenv("MYSQL_HOST")
+        or ""
+    ).strip().strip("'").strip('"').strip()
+
+    db_port = (
+        os.getenv("DB_PORT")
+        or os.getenv("MYSQLPORT")
+        or os.getenv("MYSQL_PORT")
+        or ""
+    ).strip().strip("'").strip('"').strip()
+
+    db_name = (
+        os.getenv("DB_NAME")
+        or os.getenv("MYSQLDATABASE")
+        or os.getenv("MYSQL_DATABASE")
+        or ""
+    ).strip().strip("'").strip('"').strip()
+
+    db_user = (
+        os.getenv("DB_USER")
+        or os.getenv("MYSQLUSER")
+        or os.getenv("MYSQL_USER")
+        or ""
+    ).strip().strip("'").strip('"').strip()
+
+    db_password = (
+        os.getenv("DB_PASSWORD")
+        or os.getenv("MYSQLPASSWORD")
+        or os.getenv("MYSQL_PASSWORD")
+        or ""
+    ).strip().strip("'").strip('"').strip()
+
+    # 3. Discrete remote host provided
+    if db_host and db_host.lower() != "localhost":
+        return {
             "ENGINE": "django.db.backends.mysql",
-            "NAME": os.getenv("DB_NAME", "interview_trainer"),
-            "USER": os.getenv("DB_USER", "root"),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", "localhost"),
-            "PORT": os.getenv("DB_PORT", "3306"),
+            "NAME": db_name or "interview_trainer",
+            "USER": db_user or "root",
+            "PASSWORD": db_password,
+            "HOST": db_host,
+            "PORT": db_port or "3306",
             "OPTIONS": {
                 "charset": "utf8mb4",
             },
         }
-    }
+
+    # 4. Local development fallback (DEBUG = True)
+    if debug_mode:
+        return {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": db_name or "interview_trainer",
+            "USER": db_user or "root",
+            "PASSWORD": db_password,
+            "HOST": db_host or "localhost",
+            "PORT": db_port or "3306",
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
+
+    # 5. Production validation (DEBUG = False) — fail fast with descriptive error
+    raise ImproperlyConfigured(
+        "Production database is not configured. Please set DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT "
+        "(or DATABASE_URL / MYSQL_PUBLIC_URL) in your Vercel project environment variables."
+    )
+
+
+DATABASES = {
+    "default": _get_database_config(DEBUG),
+}
+
 
 # ---------------------------------------------------------------------------
 # Authentication
