@@ -25,10 +25,25 @@ def env_bool(key: str, default: str = "False") -> bool:
 # ---------------------------------------------------------------------------
 # Core security
 # ---------------------------------------------------------------------------
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-dev-only-key-change-me-in-production",
-)
+def _get_secret_key() -> str:
+    """Retrieve and sanitize Django SECRET_KEY from environment variables.
+
+    Checks SECRET_KEY, DJANGO_SECRET_KEY, and SECRET while stripping quotes and whitespace.
+    Guarantees a non-empty key fallback for development/preview environments to prevent
+    django.core.exceptions.ImproperlyConfigured errors.
+    """
+    for var_name in ("SECRET_KEY", "DJANGO_SECRET_KEY", "SECRET", "secret_key"):
+        val = os.getenv(var_name)
+        if val is not None:
+            cleaned = val.strip().strip("'").strip('"').strip()
+            if cleaned:
+                return cleaned
+
+    return "django-insecure-dev-only-key-change-me-in-production"
+
+
+SECRET_KEY = _get_secret_key()
+
 
 DEBUG = env_bool("DEBUG", "True")
 
