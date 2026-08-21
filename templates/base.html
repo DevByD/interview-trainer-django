@@ -1,0 +1,101 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Interview Trainer{% endblock %}</title>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="{% static 'css/global.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/responsive.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <div class="container navbar-inner">
+      <a href="{% url 'home' %}" class="brand">
+        <div class="brand-icon">IT</div>
+        <span>Interview Trainer</span>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          {% if user.is_authenticated %}
+            {% if user.candidate_profile %}
+              <li><span class="nav-role-badge">Candidate</span></li>
+              <li><a href="{% url 'candidates:candidate_dashboard' %}" class="nav-item">Dashboard</a></li>
+              <li><a href="{% url 'candidates:candidate_profile' %}" class="nav-item">My Profile</a></li>
+              <li>
+                <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                </form>
+              </li>
+            {% elif user.employer_profile %}
+              <li><span class="nav-role-badge">Employer: {{ user.employer_profile.company }}</span></li>
+              <li><a href="{% url 'dashboard:employer_dashboard' %}" class="nav-item">Dashboard</a></li>
+              <li><a href="{% url 'dashboard:employer_candidates_list' %}" class="nav-item">Candidates</a></li>
+              <li>
+                <form action="{% url 'accounts:employer_logout' %}" method="post" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                </form>
+              </li>
+            {% else %}
+              <li><a href="{% url 'admin:index' %}" class="nav-item">Admin</a></li>
+              <li>
+                <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                </form>
+              </li>
+            {% endif %}
+          {% else %}
+            <li><a href="{% url 'accounts:candidate_login' %}" class="nav-item">Candidate Login</a></li>
+            <li><a href="{% url 'accounts:candidate_register' %}" class="btn btn-outline-primary btn-sm">Candidate Sign Up</a></li>
+            <li><a href="{% url 'accounts:employer_login' %}" class="nav-item">Employer Login</a></li>
+            <li><a href="{% url 'accounts:employer_register' %}" class="btn btn-primary btn-sm">Employer Sign Up</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-content">
+    <div class="container">
+      <!-- Flash Messages -->
+      {% if messages %}
+        <div class="messages-container">
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }}">
+              <span>{{ message }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <strong>Interview Trainer</strong> &copy; 2026. Smarter Online Interview Assessments.
+      </div>
+      <div>
+        <span class="text-muted">Secure &bull; Timed Assessments &bull; Automated Grading</span>
+      </div>
+    </div>
+  </footer>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

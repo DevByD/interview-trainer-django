@@ -1,0 +1,140 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Candidate Dashboard — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="candidate-dashboard">
+  <!-- Page Header / Welcome -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Welcome, {{ user.first_name|default:user.username }}!</h1>
+      <p class="page-subtitle">Track your assigned online assessments, view results, and maintain your candidate profile.</p>
+    </div>
+    <div>
+      <a href="{% url 'candidates:candidate_profile' %}" class="btn btn-secondary btn-sm">Edit Profile</a>
+    </div>
+  </div>
+
+  <!-- Profile Completion Banner -->
+  <div class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--primary);">
+    <div class="card-body">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 0.25rem;">
+            Profile Completion: {{ completion_percentage }}%
+          </h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">
+            {% if profile.profile_completed %}
+              🎉 Your profile is complete and ready for employers to review!
+            {% else %}
+              Complete your contact details, education, skills, and resume to improve visibility for recruiters.
+            {% endif %}
+          </p>
+        </div>
+        <div>
+          <a href="{% url 'candidates:candidate_profile' %}" class="btn btn-outline-primary btn-sm">
+            {% if profile.profile_completed %}Update Details{% else %}Complete Profile Now{% endif %}
+          </a>
+        </div>
+      </div>
+
+      <div class="progress-bar-track" style="margin-top: 1rem;">
+        <div class="progress-bar-fill" style="width: {{ completion_percentage }}%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assessment Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-title">Upcoming Tests</span>
+      <span class="stat-value" style="color: var(--warning-dark);">{{ upcoming_count }}</span>
+      <span class="stat-desc">Scheduled assessments pending start</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Ongoing Tests</span>
+      <span class="stat-value" style="color: var(--info);">{{ ongoing_count }}</span>
+      <span class="stat-desc">Tests currently in progress</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Completed Tests</span>
+      <span class="stat-value" style="color: var(--success);">{{ completed_count }}</span>
+      <span class="stat-desc">Submitted and graded tests</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Missed Tests</span>
+      <span class="stat-value" style="color: var(--danger);">{{ missed_count }}</span>
+      <span class="stat-desc">Expired without attendance</span>
+    </div>
+  </div>
+
+  <!-- Assessments Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Assigned Assessments</h2>
+      <span class="badge badge-ongoing">{{ assessments|length }} Total</span>
+    </div>
+    <div class="table-responsive">
+      {% if assessments %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Assessment Title</th>
+              <th>Employer</th>
+              <th>Start Time</th>
+              <th>Expiry Time</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in assessments %}
+              <tr>
+                <td><strong>{{ item.title }}</strong></td>
+                <td>{{ item.employer.employer_profile.company|default:item.employer.get_full_name|default:item.employer.username }}</td>
+                <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.duration_minutes }} mins</td>
+                <td>
+                  {% if item.status == "PENDING" %}
+                    <span class="badge badge-pending">Pending</span>
+                  {% elif item.status == "ONGOING" %}
+                    <span class="badge badge-ongoing">Ongoing</span>
+                  {% elif item.status == "COMPLETED" %}
+                    <span class="badge badge-completed">Completed</span>
+                  {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-expired">Expired / Missed</span>
+                  {% else %}
+                    <span class="badge">{{ item.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.status == "PENDING" or item.status == "ONGOING" %}
+                    <button class="btn btn-primary btn-sm" disabled title="Exam engine will be activated in Phase 2">
+                      Start Test (Phase 2)
+                    </button>
+                  {% elif item.status == "COMPLETED" %}
+                    {% if item.result %}
+                      <span class="badge badge-completed">{{ item.result.percentage }}% Score</span>
+                    {% else %}
+                      <span class="badge badge-completed">Submitted</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <p style="font-size: 1.1rem; font-weight: 600; color: var(--dark-bg); margin-bottom: 0.5rem;">No assessments assigned yet.</p>
+          <p>When an employer schedules an assessment for you, it will appear here with instructions and start link.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,122 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Candidate Profile — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="candidate-profile" style="max-width: 800px; margin: 0 auto;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Candidate Profile</h1>
+      <p class="page-subtitle">Keep your professional background, skills, and resume updated for recruiters.</p>
+    </div>
+    <div>
+      <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary btn-sm">&larr; Back to Dashboard</a>
+    </div>
+  </div>
+
+  <!-- Profile Completion Progress Card -->
+  <div class="card" style="margin-bottom: 2rem;">
+    <div class="card-body">
+      <div class="progress-header">
+        <span>Profile Strength</span>
+        <span>{{ completion_percentage }}%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" style="width: {{ completion_percentage }}%;"></div>
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.6rem;">
+        {% if completion_percentage == 100 %}
+          <span style="color: var(--success-dark); font-weight: 600;">✓ Excellent! All profile sections and resume uploaded.</span>
+        {% else %}
+          <span>Complete all fields and upload your resume to reach 100% completion.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Form Card -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Edit Personal & Professional Details</h2>
+    </div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-error">
+            {% for err in form.non_field_errors %}<p>{{ err }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.name.id_for_label }}">Full Name</label>
+          {{ form.name }}
+          {% if form.name.errors %}
+            <ul class="form-errors">{% for err in form.name.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Registered Email</label>
+          <input type="text" class="form-input" value="{{ user.email }}" disabled style="background-color: var(--secondary-light); cursor: not-allowed;">
+          <div class="form-help">Email address is linked to your account authentication and cannot be changed here.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.phone.id_for_label }}">Phone Number</label>
+          {{ form.phone }}
+          {% if form.phone.errors %}
+            <ul class="form-errors">{% for err in form.phone.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.education.id_for_label }}">Highest Education / Degree</label>
+          {{ form.education }}
+          {% if form.education.errors %}
+            <ul class="form-errors">{% for err in form.education.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.skills.id_for_label }}">Key Skills</label>
+          {{ form.skills }}
+          {% if form.skills.help_text %}<div class="form-help">{{ form.skills.help_text }}</div>{% endif %}
+          {% if form.skills.errors %}
+            <ul class="form-errors">{% for err in form.skills.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.experience.id_for_label }}">Years of Experience</label>
+          {{ form.experience }}
+          {% if form.experience.help_text %}<div class="form-help">{{ form.experience.help_text }}</div>{% endif %}
+          {% if form.experience.errors %}
+            <ul class="form-errors">{% for err in form.experience.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="{{ form.resume.id_for_label }}">Resume Document</label>
+          {% if profile.resume %}
+            <div style="margin-bottom: 0.75rem; padding: 0.6rem 0.9rem; background-color: var(--secondary-light); border-radius: var(--radius-sm); font-size: 0.9rem; display: flex; align-items: center; justify-content: space-between;">
+              <span>📄 Current file: <a href="{{ profile.resume.url }}" target="_blank" style="font-weight: 600;">Download Current Resume</a></span>
+            </div>
+          {% endif %}
+          {{ form.resume }}
+          {% if form.resume.help_text %}<div class="form-help">{{ form.resume.help_text }}</div>{% endif %}
+          {% if form.resume.errors %}
+            <ul class="form-errors">{% for err in form.resume.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+          <button type="submit" class="btn btn-primary">Save Profile Changes</button>
+          <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+﻿/* ==========================================================================
+   Responsive Styles - Media Queries
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .navbar-inner {
+    height: auto;
+    padding: 1rem 0;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  
+  .hero-section {
+    padding: 3rem 1rem !important;
+  }
+  
+  .hero-title {
+    font-size: 2rem !important;
+  }
+  
+  .auth-card {
+    padding: 1.5rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}

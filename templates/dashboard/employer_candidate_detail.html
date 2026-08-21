@@ -1,0 +1,141 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Candidate Detail: {{ candidate.user.get_full_name|default:candidate.user.username }} — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="candidate-detail" style="max-width: 950px; margin: 0 auto;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ candidate.user.get_full_name|default:candidate.user.username }}</h1>
+      <p class="page-subtitle">Candidate Profile &bull; Joined {{ candidate.created_at|date:"M d, Y" }}</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-secondary btn-sm">&larr; Candidate Directory</a>
+      <button class="btn btn-primary btn-sm" disabled title="Assessment assignment will be enabled in Phase 2">
+        Assign Assessment (Phase 2)
+      </button>
+    </div>
+  </div>
+
+  <!-- Profile Overview Card -->
+  <div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+      <h2 class="card-title">Candidate Profile Details</h2>
+      <div>
+        {% if candidate.profile_completed %}
+          <span class="badge badge-completed">Profile Complete ({{ completion_percentage }}%)</span>
+        {% else %}
+          <span class="badge badge-pending">Profile Incomplete ({{ completion_percentage }}%)</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">Full Name</span>
+          <span class="detail-value">{{ candidate.user.get_full_name|default:candidate.user.username }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Email Address</span>
+          <span class="detail-value">{{ candidate.user.email }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Phone Number</span>
+          <span class="detail-value">{{ candidate.phone|default:"Not specified" }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Years of Experience</span>
+          <span class="detail-value">{{ candidate.experience }} year{{ candidate.experience|pluralize }}</span>
+        </div>
+        <div class="detail-item" style="grid-column: 1 / -1;">
+          <span class="detail-label">Education / Degree</span>
+          <span class="detail-value">{{ candidate.education|default:"Not specified" }}</span>
+        </div>
+        <div class="detail-item" style="grid-column: 1 / -1;">
+          <span class="detail-label">Skills</span>
+          <span class="detail-value">{{ candidate.skills|default:"Not specified" }}</span>
+        </div>
+        <div class="detail-item" style="grid-column: 1 / -1;">
+          <span class="detail-label">Resume</span>
+          <span class="detail-value">
+            {% if candidate.resume %}
+              <a href="{{ candidate.resume.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                📄 View / Download Candidate Resume
+              </a>
+            {% else %}
+              <span class="text-muted">No resume uploaded yet.</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assigned Assessments History by this Employer -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Assessments Assigned by You</h2>
+      <span class="badge badge-ongoing">{{ assigned_assessments|length }} Assigned</span>
+    </div>
+    <div class="table-responsive">
+      {% if assigned_assessments %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Start Time</th>
+              <th>Expiry Time</th>
+              <th>Status</th>
+              <th>Candidate Status</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in assigned_assessments %}
+              <tr>
+                <td><strong>{{ item.title }}</strong></td>
+                <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
+                <td>
+                  {% if item.status == "PENDING" %}
+                    <span class="badge badge-pending">Pending</span>
+                  {% elif item.status == "ONGOING" %}
+                    <span class="badge badge-ongoing">Ongoing</span>
+                  {% elif item.status == "COMPLETED" %}
+                    <span class="badge badge-completed">Completed</span>
+                  {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-expired">Expired / Missed</span>
+                  {% else %}
+                    <span class="badge">{{ item.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.candidate_status == "NOT_STARTED" %}
+                    <span class="badge badge-pending">Not Started</span>
+                  {% elif item.candidate_status == "ATTENDED" %}
+                    <span class="badge badge-attended">Attended</span>
+                  {% elif item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-not-attended">Not Attended (Missed)</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.result %}
+                    <strong>{{ item.result.percentage }}%</strong>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <p style="font-weight: 600; color: var(--dark-bg); margin-bottom: 0.25rem;">No assessments assigned yet to this candidate.</p>
+          <p style="font-size: 0.9rem;">You will be able to schedule tests for this candidate in Phase 2.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

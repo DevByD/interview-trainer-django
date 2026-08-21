@@ -1,0 +1,87 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Candidate Directory — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="employer-candidates">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Candidate Directory</h1>
+      <p class="page-subtitle">Search, view profiles, and evaluate registered candidates for assessments.</p>
+    </div>
+    <div>
+      <a href="{% url 'dashboard:employer_dashboard' %}" class="btn btn-secondary btn-sm">&larr; Back to Dashboard</a>
+    </div>
+  </div>
+
+  <!-- Search & Filter Form -->
+  <div class="card" style="margin-bottom: 1.75rem;">
+    <div class="card-body" style="padding: 1.25rem;">
+      <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search candidates by name, email, skills, education..." class="form-input" style="flex: 1; min-width: 260px;">
+        <button type="submit" class="btn btn-primary">Search</button>
+        {% if query %}
+          <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-secondary">Clear</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <!-- Candidates Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Registered Candidates ({{ total_count }})</h2>
+    </div>
+    <div class="table-responsive">
+      {% if candidates %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Education</th>
+              <th>Skills</th>
+              <th>Profile Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in candidates %}
+              <tr>
+                <td><strong>{{ c.user.get_full_name|default:c.user.username }}</strong></td>
+                <td>{{ c.user.email }}</td>
+                <td>{{ c.phone|default:"—" }}</td>
+                <td>{{ c.education|default:"—" }}</td>
+                <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ c.skills }}">
+                  {{ c.skills|default:"—" }}
+                </td>
+                <td>
+                  {% if c.profile_completed %}
+                    <span class="badge badge-completed">Completed ({{ c.completion_percentage }}%)</span>
+                  {% else %}
+                    <span class="badge badge-pending">Incomplete ({{ c.completion_percentage }}%)</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div style="display: flex; gap: 0.4rem;">
+                    <a href="{% url 'dashboard:employer_candidate_detail' c.id %}" class="btn btn-secondary btn-sm">View</a>
+                    <button class="btn btn-primary btn-sm" disabled title="Assessment creation will be enabled in Phase 2">
+                      Assign (Phase 2)
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <p style="font-size: 1.1rem; font-weight: 600; color: var(--dark-bg); margin-bottom: 0.5rem;">No candidates found.</p>
+          <p>{% if query %}No candidates matched your search "{{ query }}". Try searching for a different skill or name.{% else %}No candidates have registered on the platform yet.{% endif %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

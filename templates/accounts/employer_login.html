@@ -1,0 +1,40 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Employer Login — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1 class="auth-title">Employer Login</h1>
+      <p class="auth-subtitle">Sign in to manage assessments and candidates</p>
+    </div>
+
+    {% if error %}
+      <div class="alert alert-error">
+        <span>{{ error }}</span>
+      </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="username">Work Email or Username</label>
+        <input type="text" name="username" id="username" class="form-input" value="{{ username }}" placeholder="recruiter@company.com" required autofocus autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input type="password" name="password" id="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Sign In</button>
+    </form>
+
+    <div class="auth-footer">
+      New employer? <a href="{% url 'accounts:employer_register' %}">Register Company Account</a><br>
+      Candidate looking to test? <a href="{% url 'accounts:candidate_login' %}">Candidate Login</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

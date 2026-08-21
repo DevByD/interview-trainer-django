@@ -1,0 +1,86 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Employer Registration — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1 class="auth-title">Employer Sign Up</h1>
+      <p class="auth-subtitle">Create a recruiter account to evaluate top talent</p>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      
+      {% if form.non_field_errors %}
+        <div class="alert alert-error">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.name.id_for_label }}">Full Name</label>
+        {{ form.name }}
+        {% if form.name.errors %}
+          <ul class="form-errors">
+            {% for error in form.name.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.email.id_for_label }}">Work Email</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <ul class="form-errors">
+            {% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.company.id_for_label }}">Company / Organization</label>
+        {{ form.company }}
+        {% if form.company.errors %}
+          <ul class="form-errors">
+            {% for error in form.company.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.password1.id_for_label }}">Password</label>
+        {{ form.password1 }}
+        {% if form.password1.help_text %}
+          <div class="form-help">{{ form.password1.help_text }}</div>
+        {% endif %}
+        {% if form.password1.errors %}
+          <ul class="form-errors">
+            {% for error in form.password1.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.password2.id_for_label }}">Confirm Password</label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}
+          <ul class="form-errors">
+            {% for error in form.password2.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Create Employer Account</button>
+    </form>
+
+    <div class="auth-footer">
+      Already registered? <a href="{% url 'accounts:employer_login' %}">Employer Login</a> &bull;
+      <a href="{% url 'accounts:candidate_register' %}">Candidate Sign Up</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

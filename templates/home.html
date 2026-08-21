@@ -1,0 +1,115 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Interview Trainer — Smarter Interview Assessments{% endblock %}
+
+{% block content %}
+<div class="landing-page">
+  <!-- Hero Section -->
+  <section class="hero-section" style="text-align: center; padding: 4rem 1rem 5rem 1rem; background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); border-radius: var(--radius-lg); margin-bottom: 3.5rem; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
+    <div style="max-width: 800px; margin: 0 auto;">
+      <span class="badge badge-ongoing" style="margin-bottom: 1.25rem; font-size: 0.85rem; padding: 0.35rem 0.85rem;">Next-Gen Assessment Platform</span>
+      <h1 class="hero-title" style="font-size: 3rem; font-weight: 800; color: var(--dark-bg); line-height: 1.2; margin-bottom: 1.25rem; letter-spacing: -0.5px;">
+        Smarter Interview Assessments
+      </h1>
+      <p style="font-size: 1.2rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 2.5rem;">
+        Create, manage and evaluate secure online assessments with timed tests, automated grading and performance analytics.
+      </p>
+      
+      <!-- Action Buttons -->
+      <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
+        <a href="{% url 'accounts:candidate_register' %}" class="btn btn-primary btn-lg">Candidate Register</a>
+        <a href="{% url 'accounts:candidate_login' %}" class="btn btn-outline-primary btn-lg">Candidate Login</a>
+        <a href="{% url 'accounts:employer_register' %}" class="btn btn-secondary btn-lg" style="background-color: var(--dark-surface); color: #fff; border-color: var(--dark-surface);">Employer Register</a>
+        <a href="{% url 'accounts:employer_login' %}" class="btn btn-secondary btn-lg">Employer Login</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section style="margin-bottom: 4rem;">
+    <div style="text-align: center; margin-bottom: 2.5rem;">
+      <h2 style="font-size: 2rem; font-weight: 700; color: var(--dark-bg);">How It Works</h2>
+      <p style="color: var(--text-muted); font-size: 1.05rem; margin-top: 0.5rem;">A seamless end-to-end testing lifecycle designed for modern hiring.</p>
+    </div>
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+      <div class="card" style="padding: 1.75rem; text-align: center;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">1️⃣</div>
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Registration & Profiles</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Candidates create profiles with resumes and skills. Employers register their company accounts.</p>
+      </div>
+      <div class="card" style="padding: 1.75rem; text-align: center;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">2️⃣</div>
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Assessment Setup</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Employers select candidates and assign timed, multi-section aptitude assessments.</p>
+      </div>
+      <div class="card" style="padding: 1.75rem; text-align: center;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">3️⃣</div>
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Secure Online Exam</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Candidates take timed tests covering Logical, Quantitative, and Technical questions.</p>
+      </div>
+      <div class="card" style="padding: 1.75rem; text-align: center;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">4️⃣</div>
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Instant Grading & Insights</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Automated scoring calculates section-wise percentages and analytics instantly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Split Sections: Candidates vs Employers -->
+  <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 4rem;">
+    <!-- For Candidates -->
+    <div class="card" style="padding: 2rem; border-top: 4px solid var(--primary);">
+      <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">For Candidates</h3>
+      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.85rem; color: var(--secondary);">
+        <li>✓ Comprehensive profile builder with resume upload & completion tracking</li>
+        <li>✓ Dedicated dashboard showing upcoming, ongoing, and completed tests</li>
+        <li>✓ Timed assessments with clear section-by-section questions</li>
+        <li>✓ Immediate performance feedback and score breakdowns</li>
+      </ul>
+      <div style="margin-top: 1.75rem;">
+        <a href="{% url 'accounts:candidate_register' %}" class="btn btn-primary btn-sm">Get Started as Candidate &rarr;</a>
+      </div>
+    </div>
+
+    <!-- For Employers -->
+    <div class="card" style="padding: 2rem; border-top: 4px solid var(--dark-surface);">
+      <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--dark-bg);">For Employers</h3>
+      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.85rem; color: var(--secondary);">
+        <li>✓ Real-time hiring dashboard with live candidate and assessment counters</li>
+        <li>✓ Searchable candidate directory with qualifications and skills filtering</li>
+        <li>✓ Flexible assessment scheduling with automated expiry and missed-test tracking</li>
+        <li>✓ Granular reporting on candidate aptitude and competency levels</li>
+      </ul>
+      <div style="margin-top: 1.75rem;">
+        <a href="{% url 'accounts:employer_register' %}" class="btn btn-secondary btn-sm" style="background-color: var(--dark-surface); color: #fff;">Get Started as Employer &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section style="background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 3rem 2rem; margin-bottom: 2rem;">
+    <div style="text-align: center; margin-bottom: 2.5rem;">
+      <h2 style="font-size: 1.8rem; font-weight: 700; color: var(--dark-bg);">Key Platform Features</h2>
+      <p style="color: var(--text-muted); margin-top: 0.35rem;">Engineered for security, accuracy, and ease of use.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
+      <div>
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">🔒 Secure Role Authorization</h4>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Strict separation between candidate and employer accounts with Django auth.</p>
+      </div>
+      <div>
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">📚 Curated Question Bank</h4>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Multi-domain question bank covering Logical, Quantitative, and Technical domains.</p>
+      </div>
+      <div>
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">⏱ Automated Expiry Handling</h4>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Unattended assessments automatically transition to missed/expired status.</p>
+      </div>
+      <div>
+        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">⚡ Fast & Mobile Responsive</h4>
+        <p style="font-size: 0.9rem; color: var(--text-muted);">Optimized for desktop, tablet, and mobile screens without heavyweight frameworks.</p>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Employer Dashboard — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="employer-dashboard">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Employer Dashboard</h1>
+      <p class="page-subtitle">
+        {% if employer_profile %}
+          <strong>{{ employer_profile.company }}</strong> &bull; Recruiter Portal
+        {% else %}
+          Recruiter Portal &amp; Assessment Management
+        {% endif %}
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-primary btn-sm">Browse Candidates</a>
+    </div>
+  </div>
+
+  <!-- Real Database Counters -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-title">Total Candidates</span>
+      <span class="stat-value" style="color: var(--primary);">{{ total_candidates }}</span>
+      <span class="stat-desc">Registered candidates in platform</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Active / Ongoing Tests</span>
+      <span class="stat-value" style="color: var(--info);">{{ active_tests }}</span>
+      <span class="stat-desc">Pending start or currently in progress</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Completed Tests</span>
+      <span class="stat-value" style="color: var(--success);">{{ completed_tests }}</span>
+      <span class="stat-desc">Successfully taken and graded</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Missed / Expired Tests</span>
+      <span class="stat-value" style="color: var(--danger);">{{ missed_tests }}</span>
+      <span class="stat-desc">Unattended past expiration deadline</span>
+    </div>
+  </div>
+
+  <!-- Recent Assessments Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Recent Assessments</h2>
+      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-outline-primary btn-sm">+ Assign New Assessment</a>
+    </div>
+    <div class="table-responsive">
+      {% if recent_assessments %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              <th>Email</th>
+              <th>Assessment</th>
+              <th>Start Time</th>
+              <th>Expiry Time</th>
+              <th>Status</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in recent_assessments %}
+              <tr>
+                <td><strong>{{ a.candidate.get_full_name|default:a.candidate.username }}</strong></td>
+                <td>{{ a.candidate.email }}</td>
+                <td>{{ a.title }}</td>
+                <td>{{ a.start_time|date:"M d, Y H:i" }}</td>
+                <td>{{ a.expire_time|date:"M d, Y H:i" }}</td>
+                <td>
+                  {% if a.status == "PENDING" %}
+                    <span class="badge badge-pending">Pending</span>
+                  {% elif a.status == "ONGOING" %}
+                    <span class="badge badge-ongoing">Ongoing</span>
+                  {% elif a.status == "COMPLETED" %}
+                    <span class="badge badge-completed">Completed</span>
+                  {% elif a.status == "EXPIRED" or a.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-expired">Expired / Missed</span>
+                  {% else %}
+                    <span class="badge">{{ a.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if a.result %}
+                    <strong style="color: {% if a.result.passed %}var(--success-dark){% else %}var(--danger-dark){% endif %};">
+                      {{ a.result.percentage }}%
+                    </strong>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <p style="font-size: 1.1rem; font-weight: 600; color: var(--dark-bg); margin-bottom: 0.5rem;">No assessments created yet.</p>
+          <p style="margin-bottom: 1.25rem;">Browse registered candidates to schedule your first online assessment.</p>
+          <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-primary btn-sm">Browse Candidates Directory</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
