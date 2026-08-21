@@ -122,22 +122,19 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
-
-# ---------------------------------------------------------------------------
-# Database — MySQL (local development) / Railway / Cloud MySQL (production)
+WSGI_APPLICATION = "config.wsgi.application"# ---------------------------------------------------------------------------
+# Database — SQLite (Zero-setup default) / MySQL (Optional) / Cloud Firebase
 # ---------------------------------------------------------------------------
 def _get_database_config(debug_mode: bool) -> dict:
     """Resolve database configuration from environment variables.
 
     Supports:
     1. Full connection URLs: DATABASE_URL, MYSQL_PUBLIC_URL, MYSQL_URL
-    2. Explicit discrete variables: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
-    3. Railway default variables: MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD, MYSQLHOST, MYSQLPORT
-    4. Safe fallback to local MySQL only when DEBUG=True.
+    2. Explicit MySQL variables: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+    3. Production Serverless with Firebase on Vercel: /tmp/db.sqlite3
+    4. Local development default: zero-setup local SQLite (db.sqlite3) + Firebase sync.
     """
     import dj_database_url
-    from django.core.exceptions import ImproperlyConfigured
 
     # 1. Connection string / URL lookup
     for url_key in ("DATABASE_URL", "MYSQL_PUBLIC_URL", "MYSQL_URL"):
@@ -189,8 +186,8 @@ def _get_database_config(debug_mode: bool) -> dict:
         or ""
     ).strip().strip("'").strip('"').strip()
 
-    # 3. Discrete remote host provided
-    if db_host and db_host.lower() != "localhost":
+    # 3. Explicit Remote / Local MySQL configured
+    if db_host and (env_bool("USE_MYSQL", "False") or db_host.lower() != "localhost"):
         return {
             "ENGINE": "django.db.backends.mysql",
             "NAME": db_name or "interview_trainer",
@@ -203,30 +200,24 @@ def _get_database_config(debug_mode: bool) -> dict:
             },
         }
 
-    # 4. Local development fallback (DEBUG = True)
-    if debug_mode:
+    # 4. Production Serverless on Vercel
+    if not debug_mode:
         return {
-            "ENGINE": "django.db.backends.mysql",
-            "NAME": db_name or "interview_trainer",
-            "USER": db_user or "root",
-            "PASSWORD": db_password,
-            "HOST": db_host or "localhost",
-            "PORT": db_port or "3306",
-            "OPTIONS": {
-                "charset": "utf8mb4",
-            },
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": "/tmp/db.sqlite3",
         }
 
-    # 5. Production validation (DEBUG = False) — fail fast with descriptive error
-    raise ImproperlyConfigured(
-        "Production database is not configured. Please set DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT "
-        "(or DATABASE_URL / MYSQL_PUBLIC_URL) in your Vercel project environment variables."
-    )
+    # 5. Local development default (zero local MySQL requirement)
+    return {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
 
 
 DATABASES = {
     "default": _get_database_config(DEBUG),
 }
+
 
 
 # ---------------------------------------------------------------------------

@@ -107,8 +107,17 @@ def employer_assessment_create(request):
 
         AssessmentQuestion.objects.bulk_create(questions_to_link)
 
+        # Sync Assessment to Firestore
+        try:
+            from services.firebase_service import sync_assessment_to_firestore
+            q_ids = [aq.question_id for aq in questions_to_link]
+            sync_assessment_to_firestore(assessment, q_ids)
+        except Exception:
+            pass
+
         # Dispatch email invitation
         email_sent = send_assessment_invitation(assessment, request=request)
+
 
         cand_name = candidate_user.get_full_name() or candidate_user.username
         if email_sent:
@@ -309,6 +318,11 @@ def test_start(request, token):
     if assessment.status == Assessment.Status.PENDING:
         assessment.status = Assessment.Status.ONGOING
         assessment.save(update_fields=["status", "updated_at"])
+        try:
+            from services.firebase_service import update_assessment_status_in_firestore
+            update_assessment_status_in_firestore(assessment.id, Assessment.Status.ONGOING)
+        except Exception:
+            pass
 
     return redirect("assessments:test_entry", token=token)
 
@@ -360,7 +374,14 @@ def test_save_answer(request, token):
         },
     )
 
+    try:
+        from services.firebase_service import sync_answer_to_firestore
+        sync_answer_to_firestore(assessment.id, question_id, selected_option, is_correct)
+    except Exception:
+        pass
+
     return JsonResponse({"status": "ok", "question_id": question_id, "saved_option": selected_option})
+
 
 
 @require_POST

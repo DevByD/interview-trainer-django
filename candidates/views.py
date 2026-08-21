@@ -39,9 +39,15 @@ def profile(request):
     )
 
     if request.method == "POST" and form.is_valid():
-        form.save()
+        prof = form.save()
+        try:
+            from services.firebase_service import sync_candidate_to_firestore
+            sync_candidate_to_firestore(request.user, prof)
+        except Exception:
+            pass
         messages.success(request, "Profile updated successfully.")
         return redirect("candidates:candidate_profile")
+
 
     return render(
         request,

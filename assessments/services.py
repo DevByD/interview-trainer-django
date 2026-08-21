@@ -22,13 +22,24 @@ def expire_past_due_assessments() -> int:
         status__in=[Assessment.Status.PENDING, Assessment.Status.ONGOING],
         expire_time__lt=now,
     )
+    past_due_ids = list(past_due_qs.values_list("id", flat=True))
     count = past_due_qs.update(
         status=Assessment.Status.EXPIRED,
         candidate_status=Assessment.CandidateStatus.NOT_ATTENDED,
     )
     if count > 0:
         logger.info("Expired %d past due assessment(s).", count)
+        try:
+            from services.firebase_service import update_assessment_status_in_firestore
+            for a_id in past_due_ids:
+                update_assessment_status_in_firestore(
+                    a_id, Assessment.Status.EXPIRED, Assessment.CandidateStatus.NOT_ATTENDED
+                )
+        except Exception as e:
+            logger.warning("Failed to update expired assessments in Firestore: %s", e)
+
     return count
+
 
 
 @transaction.atomic
@@ -131,4 +142,21 @@ def grade_and_complete_assessment(assessment: Assessment, raw_answers: dict[int 
     assessment.candidate_status = Assessment.CandidateStatus.ATTENDED
     assessment.save(update_fields=["status", "candidate_status", "updated_at"])
 
+    # Synchronize to Firestore
+    try:
+        from services.firebase_service import (
+            sync_answer_to_firestore,
+            sync_assessment_to_firestore,
+            sync_result_to_firestore,
+        )
+        sync_result_to_firestore(result)
+        sync_assessment_to_firestore(assessment)
+        for ans in answers_to_create:
+            sync_answer_to_firestore(
+                assessment.id, ans.question_id, ans.selected_answer, ans.is_correct
+            )
+    except Exception as e:
+        logger.warning("Firestore synchronization skipped during assessment completion: %s", e)
+
     return result
+

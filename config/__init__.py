@@ -1,16 +1,15 @@
-"""
-Project package init.
+"""Project package init.
 
-PyMySQL is a pure-Python MySQL driver used as a drop-in replacement for
-MySQLdb (mysqlclient). This must run before Django loads the database
-backend, which is why it lives here.
+Optional pure-Python MySQL driver support. If pymysql is installed and MySQL is used,
+it registers as a drop-in replacement for MySQLdb.
 """
 
-import pymysql
+try:
+    import pymysql
 
-pymysql.install_as_MySQLdb()
+    pymysql.install_as_MySQLdb()
+    from django.db.backends.base.base import BaseDatabaseWrapper
 
-# Django 6.1 sets MySQL 8.4 as the minimum requirement, but MySQL 8.0 is fully compatible
-from django.db.backends.base.base import BaseDatabaseWrapper
-
-BaseDatabaseWrapper.check_database_version_supported = lambda self: None
+    BaseDatabaseWrapper.check_database_version_supported = lambda self: None
+except ImportError:
+    pass

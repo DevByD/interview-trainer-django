@@ -18,12 +18,18 @@ def candidate_register(request):
     form = CandidateRegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
+        try:
+            from services.firebase_service import sync_candidate_to_firestore
+            sync_candidate_to_firestore(user, getattr(user, "candidate_profile", None))
+        except Exception:
+            pass
         login(request, user)
         messages.success(
             request,
             "Welcome! Your candidate account has been created. Complete your profile to get started.",
         )
         return redirect("candidates:candidate_dashboard")
+
 
     return render(request, "accounts/candidate_register.html", {"form": form})
 
@@ -81,12 +87,18 @@ def employer_register(request):
     form = EmployerRegisterForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
+        try:
+            from services.firebase_service import sync_employer_to_firestore
+            sync_employer_to_firestore(user, getattr(user, "employer_profile", None))
+        except Exception:
+            pass
         login(request, user)
         messages.success(
             request,
             "Welcome! Your employer account has been created.",
         )
         return redirect("dashboard:employer_dashboard")
+
 
     return render(request, "accounts/employer_register.html", {"form": form})
 
