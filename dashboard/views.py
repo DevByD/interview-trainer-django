@@ -98,9 +98,15 @@ def employer_candidate_detail(request, candidate_id):
     return render(request, "dashboard/employer_candidate_detail.html", context)
 
 
+def error_400_view(request, exception=None):
+    """Custom 400 bad request error page."""
+    return render(request, "400.html", status=400)
+
+
 def error_404_view(request, exception=None):
     """Custom 404 error page."""
     return render(request, "404.html", status=404)
+
 
 
 def error_403_view(request, exception=None):

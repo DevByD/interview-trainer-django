@@ -32,14 +32,34 @@ SECRET_KEY = os.getenv(
 
 DEBUG = env_bool("DEBUG", "True")
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv(
-        "ALLOWED_HOSTS",
-        "localhost,127.0.0.1,.vercel.app,.now.sh",
-    ).split(",")
-    if host.strip()
+# Host header validation — supports Vercel wildcards, local development, and custom domains
+ALLOWED_HOSTS_ENV = os.getenv("ALLOWED_HOSTS", "*")
+if ALLOWED_HOSTS_ENV.strip() == "*":
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(",") if h.strip()]
+    for fallback in [".vercel.app", ".now.sh", "localhost", "127.0.0.1", "0.0.0.0"]:
+        if fallback not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(fallback)
+
+# CSRF trusted origins for HTTPS reverse proxies / Vercel
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.vercel.app",
+    "https://*.now.sh",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
+_csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if _csrf_env:
+    for _origin in _csrf_env.split(","):
+        _origin = _origin.strip()
+        if _origin and _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
+
+# Reverse proxy / Vercel Edge configuration
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 
 # ---------------------------------------------------------------------------
 # Applications
@@ -165,11 +185,12 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
-        if not DEBUG
-        else "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
+
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_MANIFEST_STRICT = False
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
