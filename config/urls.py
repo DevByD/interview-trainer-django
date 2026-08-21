@@ -1,4 +1,4 @@
-﻿"""
+"""
 URL configuration for interview-trainer project.
 """
 from django.conf import settings
@@ -13,6 +13,8 @@ urlpatterns = [
     path("", include("accounts.urls")),
     path("candidate/", include("candidates.urls")),
     path("", include("dashboard.urls")),
+    path("", include("assessments.urls")),
+    path("", include("results.urls")),
 ]
 
 if settings.DEBUG:

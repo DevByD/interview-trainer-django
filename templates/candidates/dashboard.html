@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Candidate Dashboard — Interview Trainer{% endblock %}
 
@@ -104,19 +104,27 @@
                   {% elif item.status == "COMPLETED" %}
                     <span class="badge badge-completed">Completed</span>
                   {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-expired">Expired / Missed</span>
+                    <span class="badge badge-expired">MISSED TEST</span>
                   {% else %}
                     <span class="badge">{{ item.get_status_display }}</span>
                   {% endif %}
                 </td>
                 <td>
-                  {% if item.status == "PENDING" or item.status == "ONGOING" %}
-                    <button class="btn btn-primary btn-sm" disabled title="Exam engine will be activated in Phase 2">
-                      Start Test (Phase 2)
-                    </button>
+                  {% if item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-expired" style="font-size: 0.8rem;">MISSED TEST</span>
+                  {% elif item.status == "PENDING" %}
+                    <a href="{% url 'assessments:test_entry' item.token %}" class="btn btn-primary btn-sm">
+                      Start Assessment
+                    </a>
+                  {% elif item.status == "ONGOING" %}
+                    <a href="{% url 'assessments:test_entry' item.token %}" class="btn btn-primary btn-sm" style="background-color: #0284c7;">
+                      Continue Test
+                    </a>
                   {% elif item.status == "COMPLETED" %}
                     {% if item.result %}
-                      <span class="badge badge-completed">{{ item.result.percentage }}% Score</span>
+                      <a href="{% url 'results:candidate_result' item.result.id %}" class="btn btn-outline-primary btn-sm">
+                        View Result ({{ item.result.percentage }}%)
+                      </a>
                     {% else %}
                       <span class="badge badge-completed">Submitted</span>
                     {% endif %}

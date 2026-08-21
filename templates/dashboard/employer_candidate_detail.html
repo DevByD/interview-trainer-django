@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Candidate Detail: {{ candidate.user.get_full_name|default:candidate.user.username }} — Interview Trainer{% endblock %}
 
@@ -11,9 +11,9 @@
     </div>
     <div style="display: flex; gap: 0.75rem;">
       <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-secondary btn-sm">&larr; Candidate Directory</a>
-      <button class="btn btn-primary btn-sm" disabled title="Assessment assignment will be enabled in Phase 2">
-        Assign Assessment (Phase 2)
-      </button>
+      <a href="{% url 'assessments:employer_assessment_create' %}?candidate_id={{ candidate.id }}" class="btn btn-primary btn-sm">
+        + Assign Assessment
+      </a>
     </div>
   </div>
 
@@ -88,6 +88,7 @@
               <th>Status</th>
               <th>Candidate Status</th>
               <th>Score</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -104,25 +105,44 @@
                   {% elif item.status == "COMPLETED" %}
                     <span class="badge badge-completed">Completed</span>
                   {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-expired">Expired / Missed</span>
+                    <span class="badge badge-expired">MISSED TEST</span>
                   {% else %}
                     <span class="badge">{{ item.get_status_display }}</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if item.candidate_status == "NOT_STARTED" %}
-                    <span class="badge badge-pending">Not Started</span>
+                    {% if item.status == "EXPIRED" %}
+                      <span class="badge badge-not-attended">Not Attended</span>
+                    {% else %}
+                      <span class="badge badge-pending">Not Started</span>
+                    {% endif %}
                   {% elif item.candidate_status == "ATTENDED" %}
                     <span class="badge badge-attended">Attended</span>
                   {% elif item.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-not-attended">Not Attended (Missed)</span>
+                    <span class="badge badge-not-attended">Not Attended</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if item.result %}
-                    <strong>{{ item.result.percentage }}%</strong>
+                    <strong style="color: {% if item.result.passed %}var(--success-dark){% else %}var(--danger-dark){% endif %};">
+                      {{ item.result.percentage }}%
+                    </strong>
                   {% else %}
                     <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.status == "COMPLETED" and item.result %}
+                    <a href="{% url 'results:employer_result' item.result.id %}" class="btn btn-outline-primary btn-sm">
+                      View Result
+                    </a>
+                  {% elif item.status == "PENDING" or item.status == "ONGOING" %}
+                    <a href="{% url 'assessments:test_entry' item.token %}" target="_blank" class="btn btn-secondary btn-sm">
+                      Test Link
+                    </a>
+                  {% else %}
+                    <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
                   {% endif %}
                 </td>
               </tr>

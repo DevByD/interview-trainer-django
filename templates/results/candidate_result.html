@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Assessment Result: {{ assessment.title }} — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="result-container" style="max-width: 1000px; margin: 0 auto;">
+  <!-- Result Header Card -->
+  <div class="result-header-card">
+    <div>
+      <span class="badge badge-completed" style="margin-bottom: 0.5rem;">Assessment Completed</span>
+      <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark-bg); margin-bottom: 0.35rem;">
+        {{ assessment.title }}
+      </h1>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">
+        Evaluated for <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; Completed on {{ result.completed_at|date:"F d, Y at H:i" }}
+      </p>
+    </div>
+
+    <!-- Overall Score Circle Badge -->
+    <div class="score-badge-circle {% if result.passed %}pass{% else %}fail{% endif %}">
+      <span class="score-num">{{ result.percentage }}%</span>
+      <span class="score-label">{% if result.passed %}PASSED{% else %}NEEDS REVIEW{% endif %}</span>
+    </div>
+  </div>
+
+  <!-- Main Grid: Section Breakdown Cards on Left, Chart on Right -->
+  <div class="results-grid">
+    <!-- Left Column: Section Breakdown -->
+    <div class="section-cards-list">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <h2 class="card-title">Overall Performance Summary</h2>
+          <span class="badge {% if result.passed %}badge-completed{% else %}badge-expired{% endif %}">
+            {{ result.total_correct }} / {{ result.total_questions }} Correct
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
+            <div class="detail-item">
+              <span class="detail-label">Total Questions</span>
+              <span class="detail-value">{{ result.total_questions }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Correct Answers</span>
+              <span class="detail-value" style="color: var(--success-dark); font-weight: 700;">{{ result.total_correct }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Incorrect / Skipped</span>
+              <span class="detail-value" style="color: var(--danger-dark);">{{ result.total_questions|add:"-"|add:result.total_correct|default:"0" }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Percentage</span>
+              <span class="detail-value" style="color: var(--primary); font-weight: 800;">{{ result.percentage }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logical Reasoning Card -->
+      {% if result.logical_total > 0 %}
+        <div class="section-result-card">
+          <div class="section-result-header">
+            <span class="section-result-title">🧠 Logical Reasoning</span>
+            <span class="section-result-score">{{ result.logical_correct }} / {{ result.logical_total }} ({{ logical_pct }}%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: {{ logical_pct }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Quantitative Aptitude Card -->
+      {% if result.quant_total > 0 %}
+        <div class="section-result-card">
+          <div class="section-result-header">
+            <span class="section-result-title">📐 Quantitative Aptitude</span>
+            <span class="section-result-score">{{ result.quant_correct }} / {{ result.quant_total }} ({{ quant_pct }}%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: {{ quant_pct }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Technical Aptitude Card -->
+      {% if result.technical_total > 0 %}
+        <div class="section-result-card">
+          <div class="section-result-header">
+            <span class="section-result-title">💻 Technical Aptitude</span>
+            <span class="section-result-score">{{ result.technical_correct }} / {{ result.technical_total }} ({{ tech_pct }}%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: {{ tech_pct }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      <div style="margin-top: 1.5rem;">
+        <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
+          &larr; Back to Candidate Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Right Column: Doughnut Chart -->
+    <div class="card" style="padding: 1.5rem; text-align: center;">
+      <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 1.25rem;">
+        Section Accuracy Distribution
+      </h3>
+      <div style="position: relative; max-width: 260px; margin: 0 auto;">
+        <canvas id="resultDoughnutChart" width="260" height="260"></canvas>
+      </div>
+      <div style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+        Breakdown of questions answered correctly across test sections.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+  const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
+  const ctx = document.getElementById('resultDoughnutChart');
+
+  if (ctx && typeof Chart !== 'undefined') {
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: chartData.labels,
+        datasets: [{
+          data: chartData.correct,
+          backgroundColor: ['#2563eb', '#10b981', '#f59e0b'],
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              font: { size: 11 }
+            }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

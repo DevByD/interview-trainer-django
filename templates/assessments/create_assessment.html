@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Assessment — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="create-assessment" style="max-width: 900px; margin: 0 auto;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Schedule New Assessment</h1>
+      <p class="page-subtitle">Configure sections, question distribution, scheduling window, and duration for candidate testing.</p>
+    </div>
+    <div>
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm">&larr; Assessment List</a>
+    </div>
+  </div>
+
+  <form method="post" novalidate id="assessmentForm">
+    {% csrf_token %}
+
+    <!-- Validation error summary if form has non-field errors -->
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
+        {% for error in form.non_field_errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- 1. Candidate Selection Card -->
+    <div class="card" style="margin-bottom: 1.75rem;">
+      <div class="card-header">
+        <h2 class="card-title">1. Select Candidate</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label for="{{ form.candidate.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.4rem;">
+            Candidate <span style="color: var(--danger);">*</span>
+          </label>
+          {{ form.candidate }}
+          {% if form.candidate.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+              {{ form.candidate.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Live Candidate Preview -->
+        <div id="candidatePreviewCard" class="candidate-preview-card">
+          <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 0.5rem;" id="previewName">Candidate Details</h4>
+          <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+            <div><span class="detail-label">Email</span> <span id="previewEmail" class="detail-value" style="font-size: 0.9rem;"></span></div>
+            <div><span class="detail-label">Phone</span> <span id="previewPhone" class="detail-value" style="font-size: 0.9rem;"></span></div>
+            <div><span class="detail-label">Education</span> <span id="previewEdu" class="detail-value" style="font-size: 0.9rem;"></span></div>
+            <div><span class="detail-label">Profile Status</span> <span id="previewStatus" class="detail-value" style="font-size: 0.9rem;"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Assessment Details & Section Configuration -->
+    <div class="card" style="margin-bottom: 1.75rem;">
+      <div class="card-header">
+        <h2 class="card-title">2. Assessment Configuration</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label for="{{ form.title.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.4rem;">
+            Assessment Title <span style="color: var(--danger);">*</span>
+          </label>
+          {{ form.title }}
+          {% if form.title.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+              {{ form.title.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+
+        <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">
+          Select Sections &amp; Number of Questions <span style="color: var(--danger);">*</span>
+        </label>
+        {% if form.sections.errors %}
+          <div style="color: var(--danger); font-size: 0.85rem; margin-bottom: 0.5rem;">
+            {{ form.sections.errors|striptags }}
+          </div>
+        {% endif %}
+
+        <div class="section-config-grid">
+          <!-- Logical Reasoning -->
+          <div class="section-card" id="cardLogical">
+            <div class="section-header">
+              <input type="checkbox" name="sections" value="LOGICAL" id="sec_logical" class="section-checkbox"
+                     {% if "LOGICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+              <label for="sec_logical" class="section-title" style="cursor: pointer;">Logical Reasoning</label>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label for="{{ form.logical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+              {{ form.logical_count }}
+              <div class="bank-count-hint">Available in bank: <strong>{{ logical_bank_count }}</strong> questions</div>
+              {% if form.logical_count.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                  {{ form.logical_count.errors|striptags }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Quantitative Aptitude -->
+          <div class="section-card" id="cardQuant">
+            <div class="section-header">
+              <input type="checkbox" name="sections" value="QUANTITATIVE" id="sec_quant" class="section-checkbox"
+                     {% if "QUANTITATIVE" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+              <label for="sec_quant" class="section-title" style="cursor: pointer;">Quantitative Aptitude</label>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label for="{{ form.quant_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+              {{ form.quant_count }}
+              <div class="bank-count-hint">Available in bank: <strong>{{ quant_bank_count }}</strong> questions</div>
+              {% if form.quant_count.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                  {{ form.quant_count.errors|striptags }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Technical Aptitude -->
+          <div class="section-card" id="cardTech">
+            <div class="section-header">
+              <input type="checkbox" name="sections" value="TECHNICAL" id="sec_tech" class="section-checkbox"
+                     {% if "TECHNICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+              <label for="sec_tech" class="section-title" style="cursor: pointer;">Technical Aptitude</label>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label for="{{ form.technical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+              {{ form.technical_count }}
+              <div class="bank-count-hint">Available in bank: <strong>{{ tech_bank_count }}</strong> questions</div>
+              {% if form.technical_count.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                  {{ form.technical_count.errors|striptags }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Schedule & Timing Configuration -->
+    <div class="card" style="margin-bottom: 2rem;">
+      <div class="card-header">
+        <h2 class="card-title">3. Schedule &amp; Duration</h2>
+      </div>
+      <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+          <!-- Start Date & Time -->
+          <div>
+            <label for="{{ form.start_date.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+              Start Date <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.start_date }}
+            {% if form.start_date.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.start_date.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
+          <div>
+            <label for="{{ form.start_time.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+              Start Time <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.start_time }}
+            {% if form.start_time.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.start_time.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Expiry Date & Time -->
+          <div>
+            <label for="{{ form.expire_date.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+              Expiry Date <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.expire_date }}
+            {% if form.expire_date.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.expire_date.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
+          <div>
+            <label for="{{ form.expire_time.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+              Expiry Time <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.expire_time }}
+            {% if form.expire_time.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.expire_time.errors|striptags }}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Duration -->
+        <div style="max-width: 300px;">
+          <label for="{{ form.duration_minutes.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
+            Test Duration (Minutes) <span style="color: var(--danger);">*</span>
+          </label>
+          {{ form.duration_minutes }}
+          <span class="bank-count-hint">Authoritative time limit allowed once candidate starts.</span>
+          {% if form.duration_minutes.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+              {{ form.duration_minutes.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 3rem;">
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary btn-lg">
+        Create Assessment &amp; Generate Secure Link
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    const candidatesMeta = JSON.parse('{{ candidates_meta_json|escapejs }}');
+    const candSelect = document.querySelector('.candidate-select');
+    const previewCard = document.getElementById('candidatePreviewCard');
+    const previewName = document.getElementById('previewName');
+    const previewEmail = document.getElementById('previewEmail');
+    const previewPhone = document.getElementById('previewPhone');
+    const previewEdu = document.getElementById('previewEdu');
+    const previewStatus = document.getElementById('previewStatus');
+
+    function updatePreview() {
+      const selectedId = candSelect.value;
+      if (selectedId && candidatesMeta[selectedId]) {
+        const data = candidatesMeta[selectedId];
+        previewName.textContent = data.name;
+        previewEmail.textContent = data.email;
+        previewPhone.textContent = data.phone;
+        previewEdu.textContent = data.education;
+        previewStatus.textContent = data.completed ? `Complete (${data.percentage}%)` : `Incomplete (${data.percentage}%)`;
+        previewCard.classList.add('active');
+      } else {
+        previewCard.classList.remove('active');
+      }
+    }
+
+    if (candSelect) {
+      candSelect.addEventListener('change', updatePreview);
+      updatePreview();
+    }
+  })();
+</script>
+{% endblock %}

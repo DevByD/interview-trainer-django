@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Assessment Access — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="test-container">
+  {% if gate_type == "completed" %}
+    <div class="gate-card">
+      <div class="gate-icon">✅</div>
+      <h1 class="gate-title">Assessment Already Completed</h1>
+      <p class="gate-desc">
+        You have already taken and submitted <strong>{{ assessment.title }}</strong>. Your answers have been graded and recorded.
+      </p>
+      {% if assessment.result %}
+        <a href="{% url 'results:candidate_result' assessment.result.id %}" class="btn btn-primary btn-lg">
+          View Your Result ({{ assessment.result.percentage }}%)
+        </a>
+      {% else %}
+        <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-primary">
+          Back to Dashboard
+        </a>
+      {% endif %}
+    </div>
+
+  {% elif gate_type == "expired" %}
+    <div class="gate-card" style="border-top: 4px solid var(--danger);">
+      <div class="gate-icon">⏱️</div>
+      <h1 class="gate-title" style="color: var(--danger-dark);">Assessment Expired (MISSED TEST)</h1>
+      <p class="gate-desc">
+        The scheduled window for <strong>{{ assessment.title }}</strong> expired on <strong>{{ assessment.expire_time|date:"F d, Y at H:i" }}</strong>. Unattended assessments can no longer be accessed or started.
+      </p>
+      <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
+        Return to Candidate Dashboard
+      </a>
+    </div>
+
+  {% elif gate_type == "not_started" %}
+    <div class="gate-card" style="border-top: 4px solid var(--warning);">
+      <div class="gate-icon">🔒</div>
+      <h1 class="gate-title">Assessment Not Yet Open</h1>
+      <p class="gate-desc">
+        <strong>{{ assessment.title }}</strong> is scheduled to open on:
+        <br>
+        <strong style="font-size: 1.15rem; color: var(--dark-bg);">{{ assessment.start_time|date:"F d, Y at H:i" }}</strong>
+        <br><br>
+        Please return at the scheduled start time to begin your timed test.
+      </p>
+      <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
+        Return to Candidate Dashboard
+      </a>
+    </div>
+
+  {% elif gate_type == "unauthorized" %}
+    <div class="gate-card" style="border-top: 4px solid var(--danger);">
+      <div class="gate-icon">🚫</div>
+      <h1 class="gate-title" style="color: var(--danger-dark);">Unauthorized Assessment Link</h1>
+      <p class="gate-desc">
+        This assessment is assigned specifically to another candidate. You cannot access or take assessments that do not belong to your account.
+      </p>
+      <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
+        Go to Your Dashboard
+      </a>
+    </div>
+
+  {% elif gate_type == "wrong_role" %}
+    <div class="gate-card" style="border-top: 4px solid var(--warning);">
+      <div class="gate-icon">👤</div>
+      <h1 class="gate-title">Candidate Account Required</h1>
+      <p class="gate-desc">
+        You are currently logged in with an employer/recruiter account. Assessment tests can only be taken by candidates logged into their candidate accounts.
+      </p>
+      <a href="{% url 'dashboard:employer_dashboard' %}" class="btn btn-primary">
+        Go to Employer Dashboard
+      </a>
+    </div>
+
+  {% else %}
+    <div class="gate-card">
+      <div class="gate-icon">ℹ️</div>
+      <h1 class="gate-title">Assessment Notice</h1>
+      <p class="gate-desc">
+        This assessment is currently closed or unavailable.
+      </p>
+      <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
+        Back to Dashboard
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

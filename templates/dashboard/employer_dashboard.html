@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Employer Dashboard — Interview Trainer{% endblock %}
 
@@ -49,7 +49,10 @@
   <div class="card">
     <div class="card-header">
       <h2 class="card-title">Recent Assessments</h2>
-      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-outline-primary btn-sm">+ Assign New Assessment</a>
+      <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-sm">+ Create Assessment</a>
+        <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-outline-primary btn-sm">View All</a>
+      </div>
     </div>
     <div class="table-responsive">
       {% if recent_assessments %}
@@ -63,6 +66,7 @@
               <th>Expiry Time</th>
               <th>Status</th>
               <th>Score</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -81,7 +85,7 @@
                   {% elif a.status == "COMPLETED" %}
                     <span class="badge badge-completed">Completed</span>
                   {% elif a.status == "EXPIRED" or a.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-expired">Expired / Missed</span>
+                    <span class="badge badge-expired">MISSED TEST</span>
                   {% else %}
                     <span class="badge">{{ a.get_status_display }}</span>
                   {% endif %}
@@ -93,6 +97,19 @@
                     </strong>
                   {% else %}
                     <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if a.status == "COMPLETED" and a.result %}
+                    <a href="{% url 'results:employer_result' a.result.id %}" class="btn btn-outline-primary btn-sm">
+                      View Result
+                    </a>
+                  {% elif a.status == "PENDING" or a.status == "ONGOING" %}
+                    <a href="{% url 'assessments:test_entry' a.token %}" target="_blank" class="btn btn-secondary btn-sm">
+                      Test Link
+                    </a>
+                  {% else %}
+                    <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
                   {% endif %}
                 </td>
               </tr>

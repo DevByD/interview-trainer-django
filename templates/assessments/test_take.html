@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ assessment.title }} — Timed Assessment{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  /* Question card visibility toggle */
+  .question-pane {
+    display: none;
+  }
+  .question-pane.active {
+    display: block;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="test-container">
+  <!-- Authoritative Test Header Bar with Timer -->
+  <div class="test-header-bar">
+    <div class="test-title-area">
+      <h2>{{ assessment.title }}</h2>
+      <span class="test-candidate-name">
+        Candidate: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; Total: {{ total_questions }} Questions
+      </span>
+    </div>
+
+    <!-- Countdown Timer -->
+    <div class="timer-box" id="timerBox">
+      <span class="timer-label">Time Left:</span>
+      <span class="timer-display" id="timerDisplay">--:--</span>
+    </div>
+  </div>
+
+  <!-- Test Layout Grid: Question on Left, Palette on Right -->
+  <div class="test-layout">
+    <!-- Left Column: Form & Active Question Container -->
+    <div class="test-main-area">
+      <form id="assessmentSubmitForm" action="{% url 'assessments:test_submit' assessment.token %}" method="post">
+        {% csrf_token %}
+
+        {% for q in questions_data %}
+          <div class="question-pane {% if forloop.first %}active{% endif %}" id="question-pane-{{ q.number }}" data-question-index="{{ q.number }}" data-question-id="{{ q.id }}">
+            <div class="question-card">
+              <!-- Meta Header -->
+              <div class="question-meta">
+                <span class="question-section-badge">{{ q.section }}</span>
+                <span class="question-counter">Question {{ q.number }} of {{ total_questions }}</span>
+              </div>
+
+              <!-- Question Text -->
+              <div class="question-text">
+                {{ q.question_text }}
+              </div>
+
+              <!-- Option Choices (A, B, C, D) -->
+              <div class="options-list">
+                <!-- Option A -->
+                <label class="option-item {% if q.saved_answer == 'A' %}selected{% endif %}" data-opt="A">
+                  <input type="radio" name="q_{{ q.id }}" value="A" class="option-radio" {% if q.saved_answer == 'A' %}checked{% endif %}>
+                  <span class="option-badge">A</span>
+                  <span class="option-text">{{ q.option_a }}</span>
+                </label>
+
+                <!-- Option B -->
+                <label class="option-item {% if q.saved_answer == 'B' %}selected{% endif %}" data-opt="B">
+                  <input type="radio" name="q_{{ q.id }}" value="B" class="option-radio" {% if q.saved_answer == 'B' %}checked{% endif %}>
+                  <span class="option-badge">B</span>
+                  <span class="option-text">{{ q.option_b }}</span>
+                </label>
+
+                <!-- Option C -->
+                <label class="option-item {% if q.saved_answer == 'C' %}selected{% endif %}" data-opt="C">
+                  <input type="radio" name="q_{{ q.id }}" value="C" class="option-radio" {% if q.saved_answer == 'C' %}checked{% endif %}>
+                  <span class="option-badge">C</span>
+                  <span class="option-text">{{ q.option_c }}</span>
+                </label>
+
+                <!-- Option D -->
+                <label class="option-item {% if q.saved_answer == 'D' %}selected{% endif %}" data-opt="D">
+                  <input type="radio" name="q_{{ q.id }}" value="D" class="option-radio" {% if q.saved_answer == 'D' %}checked{% endif %}>
+                  <span class="option-badge">D</span>
+                  <span class="option-text">{{ q.option_d }}</span>
+                </label>
+              </div>
+
+              <!-- Navigation Actions -->
+              <div class="question-nav-actions">
+                <div>
+                  {% if not forloop.first %}
+                    <button type="button" class="btn btn-secondary btn-prev-question" data-target="{{ q.number|add:'-1' }}">
+                      &larr; Previous
+                    </button>
+                  {% endif %}
+                </div>
+
+                <div style="display: flex; gap: 0.75rem;">
+                  {% if not forloop.last %}
+                    <button type="button" class="btn btn-primary btn-next-question" data-target="{{ q.number|add:'1' }}">
+                      Next &rarr;
+                    </button>
+                  {% else %}
+                    <button type="button" class="btn btn-outline-primary btn-open-modal">
+                      Review &amp; Submit Assessment
+                    </button>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </form>
+    </div>
+
+    <!-- Right Column: Question Palette & Progress -->
+    <div class="palette-card">
+      <h3 class="palette-title">Question Palette</h3>
+
+      <div class="palette-grid">
+        {% for q in questions_data %}
+          <button type="button"
+                  class="palette-btn {% if forloop.first %}current{% endif %} {% if q.saved_answer %}answered{% endif %}"
+                  id="palette-btn-{{ q.number }}"
+                  data-target="{{ q.number }}"
+                  title="Question {{ q.number }} ({{ q.section }})">
+            {{ q.number }}
+          </button>
+        {% endfor %}
+      </div>
+
+      <!-- Palette Legend -->
+      <div class="palette-legend">
+        <div class="legend-item">
+          <span class="legend-dot current"></span>
+          <span>Current Question</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot answered"></span>
+          <span>Answered</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot unanswered"></span>
+          <span>Not Answered</span>
+        </div>
+      </div>
+
+      <!-- Real-Time Stats -->
+      <div class="palette-stats">
+        <div><span>Answered:</span> <strong id="answeredCount" style="color: var(--success-dark);">0</strong></div>
+        <div><span>Remaining:</span> <strong id="remainingCount" style="color: var(--text-muted);">{{ total_questions }}</strong></div>
+        <div><span>Total:</span> <strong>{{ total_questions }}</strong></div>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-open-modal" style="width: 100%; margin-top: 1.25rem;">
+        Finish &amp; Submit
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Final Submission Confirmation Modal -->
+<div class="modal-overlay" id="submitConfirmModal">
+  <div class="modal-dialog">
+    <h3 class="modal-title">Submit Assessment</h3>
+    <div class="modal-body">
+      <p>Are you sure you want to finish and submit your assessment now?</p>
+
+      <div class="modal-summary-box">
+        <p><span>Total Questions:</span> <strong>{{ total_questions }}</strong></p>
+        <p><span>Answered:</span> <strong id="modalAnsweredCount" style="color: var(--success-dark);">0</strong></p>
+        <p><span>Unanswered:</span> <strong id="modalUnansweredCount" style="color: var(--danger-dark);">{{ total_questions }}</strong></p>
+      </div>
+
+      <p style="color: var(--danger); font-size: 0.85rem; font-weight: 600;">
+        ⚠️ Warning: Once submitted, you cannot change your answers or retake this test.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel &amp; Continue Test</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmSubmit">Confirm &amp; Submit Test</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const totalQuestions = {{ total_questions }};
+  let currentQuestionIndex = 1;
+  const saveUrl = "{% url 'assessments:test_save_answer' assessment.token %}";
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const form = document.getElementById('assessmentSubmitForm');
+
+  // 1. Question Switching Logic
+  function goToQuestion(index) {
+    if (index < 1 || index > totalQuestions) return;
+    
+    // Hide current pane
+    const currentPane = document.getElementById(`question-pane-${currentQuestionIndex}`);
+    if (currentPane) currentPane.classList.remove('active');
+    
+    const currentBtn = document.getElementById(`palette-btn-${currentQuestionIndex}`);
+    if (currentBtn) currentBtn.classList.remove('current');
+
+    // Show target pane
+    currentQuestionIndex = index;
+    const targetPane = document.getElementById(`question-pane-${currentQuestionIndex}`);
+    if (targetPane) targetPane.classList.add('active');
+
+    const targetBtn = document.getElementById(`palette-btn-${currentQuestionIndex}`);
+    if (targetBtn) targetBtn.classList.add('current');
+
+    // Scroll smoothly to question area on mobile
+    if (window.innerWidth < 900) {
+      document.querySelector('.test-header-bar').scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  // Palette button clicks
+  document.querySelectorAll('.palette-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const target = parseInt(this.getAttribute('data-target'));
+      goToQuestion(target);
+    });
+  });
+
+  // Next / Prev buttons
+  document.querySelectorAll('.btn-next-question, .btn-prev-question').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const target = parseInt(this.getAttribute('data-target'));
+      goToQuestion(target);
+    });
+  });
+
+  // 2. Option Selection & Auto-Save
+  function updateCounters() {
+    let answered = 0;
+    for (let i = 1; i <= totalQuestions; i++) {
+      const pane = document.getElementById(`question-pane-${i}`);
+      if (pane) {
+        const checked = pane.querySelector('input[type="radio"]:checked');
+        const paletteBtn = document.getElementById(`palette-btn-${i}`);
+        if (checked) {
+          answered++;
+          if (paletteBtn) paletteBtn.classList.add('answered');
+        } else {
+          if (paletteBtn) paletteBtn.classList.remove('answered');
+        }
+      }
+    }
+    const remaining = totalQuestions - answered;
+    document.getElementById('answeredCount').textContent = answered;
+    document.getElementById('remainingCount').textContent = remaining;
+    document.getElementById('modalAnsweredCount').textContent = answered;
+    document.getElementById('modalUnansweredCount').textContent = remaining;
+  }
+
+  document.querySelectorAll('.option-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      const radio = this.querySelector('input[type="radio"]');
+      const pane = this.closest('.question-pane');
+      const questionId = parseInt(pane.getAttribute('data-question-id'));
+      const selectedOption = this.getAttribute('data-opt');
+
+      // Clear sibling selected classes
+      pane.querySelectorAll('.option-item').forEach(opt => opt.classList.remove('selected'));
+      this.classList.add('selected');
+      radio.checked = true;
+
+      updateCounters();
+
+      // AJAX Auto-Save in Background
+      fetch(saveUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify({
+          question_id: questionId,
+          selected_option: selectedOption,
+        }),
+      }).catch(err => {
+        console.warn('Intermediate answer auto-save notice:', err);
+      });
+    });
+  });
+
+  updateCounters();
+
+  // 3. Countdown Timer (Authoritative Client Display synced to Server)
+  let remainingSeconds = {{ remaining_seconds }};
+  const timerDisplay = document.getElementById('timerDisplay');
+  const timerBox = document.getElementById('timerBox');
+
+  function renderTimer() {
+    if (remainingSeconds <= 0) {
+      timerDisplay.textContent = "00:00";
+      timerBox.classList.add('warning');
+      // Auto-submit immediately
+      form.submit();
+      return;
+    }
+
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (remainingSeconds <= 120) {
+      timerBox.classList.add('warning');
+    }
+
+    remainingSeconds--;
+  }
+
+  renderTimer();
+  const timerInterval = setInterval(renderTimer, 1000);
+
+  // 4. Modal Submission Logic
+  const modal = document.getElementById('submitConfirmModal');
+  document.querySelectorAll('.btn-open-modal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      updateCounters();
+      modal.classList.add('active');
+    });
+  });
+
+  document.getElementById('btnCancelModal').addEventListener('click', () => {
+    modal.classList.remove('active');
+  });
+
+  document.getElementById('btnConfirmSubmit').addEventListener('click', () => {
+    clearInterval(timerInterval);
+    form.submit();
+  });
+})();
+</script>
+{% endblock %}

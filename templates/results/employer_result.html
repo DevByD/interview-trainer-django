@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Candidate Evaluation: {{ candidate.get_full_name|default:candidate.username }} — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="result-container" style="max-width: 1050px; margin: 0 auto;">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Candidate Evaluation Report</h1>
+      <p class="page-subtitle">Detailed scoring metrics and section-wise breakdown for {{ candidate.get_full_name|default:candidate.username }}.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm">&larr; Assessments List</a>
+      {% if candidate_profile %}
+        <a href="{% url 'dashboard:employer_candidate_detail' candidate_profile.id %}" class="btn btn-outline-primary btn-sm">
+          View Candidate Profile
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Result Header Banner -->
+  <div class="result-header-card">
+    <div>
+      <span class="badge badge-completed" style="margin-bottom: 0.5rem;">Completed &bull; Attended</span>
+      <h2 style="font-size: 1.6rem; font-weight: 800; color: var(--dark-bg); margin-bottom: 0.35rem;">
+        {{ assessment.title }}
+      </h2>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">
+        Candidate: <strong>{{ candidate.get_full_name|default:candidate.username }}</strong> ({{ candidate.email }})
+        &bull; Completed on {{ result.completed_at|date:"M d, Y at H:i" }}
+      </p>
+    </div>
+
+    <div class="score-badge-circle {% if result.passed %}pass{% else %}fail{% endif %}">
+      <span class="score-num">{{ result.percentage }}%</span>
+      <span class="score-label">{% if result.passed %}PASSED{% else %}BELOW BENCHMARK{% endif %}</span>
+    </div>
+  </div>
+
+  <!-- Performance Cards & Charts -->
+  <div class="results-grid">
+    <div class="section-cards-list">
+      <!-- High Level Metrics Card -->
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <h3 class="card-title">Score Performance Summary</h3>
+          <span class="badge {% if result.passed %}badge-completed{% else %}badge-expired{% endif %}">
+            {{ result.total_correct }} / {{ result.total_questions }} Total Correct
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
+            <div class="detail-item">
+              <span class="detail-label">Candidate Name</span>
+              <span class="detail-value">{{ candidate.get_full_name|default:candidate.username }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Email Address</span>
+              <span class="detail-value">{{ candidate.email }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Overall Accuracy</span>
+              <span class="detail-value" style="color: var(--primary); font-weight: 800;">{{ result.percentage }}%</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Duration Allotted</span>
+              <span class="detail-value">{{ assessment.duration_minutes }} Minutes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section Breakdown Cards -->
+      {% if result.logical_total > 0 %}
+        <div class="section-result-card">
+          <div class="section-result-header">
+            <span class="section-result-title">🧠 Logical Reasoning</span>
+            <span class="section-result-score">{{ result.logical_correct }} / {{ result.logical_total }} ({{ logical_pct }}%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: {{ logical_pct }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if result.quant_total > 0 %}
+        <div class="section-result-card">
+          <div class="section-result-header">
+            <span class="section-result-title">📐 Quantitative Aptitude</span>
+            <span class="section-result-score">{{ result.quant_correct }} / {{ result.quant_total }} ({{ quant_pct }}%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: {{ quant_pct }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if result.technical_total > 0 %}
+        <div class="section-result-card">
+          <div class="section-result-header">
+            <span class="section-result-title">💻 Technical Aptitude</span>
+            <span class="section-result-score">{{ result.technical_correct }} / {{ result.technical_total }} ({{ tech_pct }}%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: {{ tech_pct }}%;"></div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Doughnut Chart Column -->
+    <div class="card" style="padding: 1.5rem; text-align: center;">
+      <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 1.25rem;">
+        Candidate Skill Matrix
+      </h3>
+      <div style="position: relative; max-width: 260px; margin: 0 auto;">
+        <canvas id="employerDoughnutChart" width="260" height="260"></canvas>
+      </div>
+      <div style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+        Correct answer distribution by assessment subject section.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+  const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
+  const ctx = document.getElementById('employerDoughnutChart');
+
+  if (ctx && typeof Chart !== 'undefined') {
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: chartData.labels,
+        datasets: [{
+          data: chartData.correct,
+          backgroundColor: ['#2563eb', '#10b981', '#f59e0b'],
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              font: { size: 11 }
+            }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

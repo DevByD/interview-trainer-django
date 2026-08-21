@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Assessment Instructions — {{ assessment.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="test-container" style="max-width: 800px; margin: 0 auto;">
+  <div class="card" style="border-top: 4px solid var(--primary);">
+    <div class="card-header" style="padding: 1.5rem 2rem;">
+      <div>
+        <span class="badge badge-pending" style="margin-bottom: 0.5rem;">Ready to Begin</span>
+        <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--dark-bg);">{{ assessment.title }}</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem;">
+          Assigned by: <strong>{{ assessment.employer.employer_profile.company|default:assessment.employer.get_full_name|default:assessment.employer.username }}</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="card-body" style="padding: 2rem;">
+      <!-- Key Meta Information Grid -->
+      <div class="detail-grid" style="background: var(--light-bg); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 2rem;">
+        <div class="detail-item">
+          <span class="detail-label">Candidate Name</span>
+          <span class="detail-value">{{ request.user.get_full_name|default:request.user.username }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Duration</span>
+          <span class="detail-value" style="color: var(--primary); font-weight: 700;">{{ assessment.duration_minutes }} Minutes</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Total Questions</span>
+          <span class="detail-value">{{ question_count }} Questions</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Sections Included</span>
+          <span class="detail-value">{{ sections_display }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Start Window</span>
+          <span class="detail-value" style="font-size: 0.9rem;">{{ assessment.start_time|date:"M d, Y H:i" }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Expiry Deadline</span>
+          <span class="detail-value" style="font-size: 0.9rem;">{{ assessment.expire_time|date:"M d, Y H:i" }}</span>
+        </div>
+      </div>
+
+      <!-- Test Instructions -->
+      <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 1rem;">
+        📋 Important Test Instructions
+      </h3>
+
+      <div style="background-color: var(--warning-light); border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 1.25rem; margin-bottom: 2rem;">
+        <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; color: #92400e; font-size: 0.95rem;">
+          <li><strong>Read every question carefully</strong> before selecting your answer choice.</li>
+          <li><strong>Select the best single answer (A, B, C, or D)</strong> for each multiple-choice question.</li>
+          <li><strong>Authoritative Countdown Timer:</strong> Once you click "START ASSESSMENT", your countdown timer begins. The server-side timer is strictly authoritative and will auto-submit when time expires.</li>
+          <li><strong>Only one final submission</strong> is allowed. You cannot retake or re-submit once submitted.</li>
+          <li><strong>Navigation &amp; Palette:</strong> You may move freely between questions using the Next/Previous buttons or the Question Palette.</li>
+          <li><strong>Do not refresh unnecessarily</strong> or navigate away from the test window during the active test session.</li>
+          <li><strong>Server Time Rule:</strong> If you manipulate your computer clock, the server deadline remains enforced.</li>
+        </ul>
+      </div>
+
+      <!-- Start Form Action -->
+      <form action="{% url 'assessments:test_start' assessment.token %}" method="post" style="text-align: center;">
+        {% csrf_token %}
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          By clicking <strong>"START ASSESSMENT"</strong>, you acknowledge the rules above and will begin your timed test.
+        </p>
+        <button type="submit" class="btn btn-primary btn-lg" style="padding: 1rem 3rem; font-size: 1.15rem; font-weight: 800; border-radius: var(--radius-md);">
+          🚀 START ASSESSMENT NOW
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

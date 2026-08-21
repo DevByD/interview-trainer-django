@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Candidate Directory — Interview Trainer{% endblock %}
 
@@ -66,9 +66,9 @@
                 <td>
                   <div style="display: flex; gap: 0.4rem;">
                     <a href="{% url 'dashboard:employer_candidate_detail' c.id %}" class="btn btn-secondary btn-sm">View</a>
-                    <button class="btn btn-primary btn-sm" disabled title="Assessment creation will be enabled in Phase 2">
-                      Assign (Phase 2)
-                    </button>
+                    <a href="{% url 'assessments:employer_assessment_create' %}?candidate_id={{ c.id }}" class="btn btn-primary btn-sm">
+                      Assign Test
+                    </a>
                   </div>
                 </td>
               </tr>

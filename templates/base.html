@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,6 +40,7 @@
               <li><span class="nav-role-badge">Employer: {{ user.employer_profile.company }}</span></li>
               <li><a href="{% url 'dashboard:employer_dashboard' %}" class="nav-item">Dashboard</a></li>
               <li><a href="{% url 'dashboard:employer_candidates_list' %}" class="nav-item">Candidates</a></li>
+              <li><a href="{% url 'assessments:employer_assessment_list' %}" class="nav-item">Assessments</a></li>
               <li>
                 <form action="{% url 'accounts:employer_logout' %}" method="post" style="display:inline;">
                   {% csrf_token %}

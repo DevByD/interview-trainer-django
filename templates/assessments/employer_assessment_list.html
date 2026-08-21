@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Employer Assessments — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="employer-assessments">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Assessment Management</h1>
+      <p class="page-subtitle">Track, monitor, and evaluate scheduled and completed assessments across all candidates.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-sm">+ Create New Assessment</a>
+      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-secondary btn-sm">Browse Candidates</a>
+    </div>
+  </div>
+
+  <!-- Assessment List Table -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">All Scheduled Assessments ({{ total_count }})</h2>
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-outline-primary btn-sm">+ Schedule Test</a>
+    </div>
+    <div class="table-responsive">
+      {% if assessments %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              <th>Email</th>
+              <th>Assessment Title</th>
+              <th>Start Time</th>
+              <th>Expiry Time</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Candidate Status</th>
+              <th>Score</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in assessments %}
+              <tr>
+                <td><strong>{{ item.candidate.get_full_name|default:item.candidate.username }}</strong></td>
+                <td>{{ item.candidate.email }}</td>
+                <td>{{ item.title }}</td>
+                <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.duration_minutes }} min{{ item.duration_minutes|pluralize }}</td>
+                <td>
+                  {% if item.status == "PENDING" %}
+                    <span class="badge badge-pending">Pending</span>
+                  {% elif item.status == "ONGOING" %}
+                    <span class="badge badge-ongoing">Ongoing</span>
+                  {% elif item.status == "COMPLETED" %}
+                    <span class="badge badge-completed">Completed</span>
+                  {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-expired">MISSED TEST</span>
+                  {% else %}
+                    <span class="badge">{{ item.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.candidate_status == "NOT_STARTED" %}
+                    {% if item.status == "EXPIRED" %}
+                      <span class="badge badge-not-attended">Not Attended</span>
+                    {% else %}
+                      <span class="badge badge-pending">Not Started</span>
+                    {% endif %}
+                  {% elif item.candidate_status == "ATTENDED" %}
+                    <span class="badge badge-attended">Attended</span>
+                  {% elif item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-not-attended">Not Attended</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.result %}
+                    <strong style="color: {% if item.result.passed %}var(--success-dark){% else %}var(--danger-dark){% endif %};">
+                      {{ item.result.percentage }}%
+                    </strong>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    {% if item.status == "COMPLETED" and item.result %}
+                      <a href="{% url 'results:employer_result' item.result.id %}" class="btn btn-outline-primary btn-sm">
+                        View Result
+                      </a>
+                    {% elif item.status == "PENDING" or item.status == "ONGOING" %}
+                      <a href="{% url 'assessments:test_entry' item.token %}" target="_blank" class="btn btn-secondary btn-sm" title="Preview secure candidate test portal">
+                        Test Link
+                      </a>
+                    {% else %}
+                      <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <p style="font-size: 1.1rem; font-weight: 600; color: var(--dark-bg); margin-bottom: 0.5rem;">No assessments created yet.</p>
+          <p style="margin-bottom: 1.25rem;">Create and schedule your first online assessment for a registered candidate.</p>
+          <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-sm">+ Create First Assessment</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -138,11 +138,28 @@ class Assessment(models.Model):
     def __str__(self) -> str:
         return f"{self.title} ({self.candidate.username} <- {self.employer.username})"
 
+    @property
+    def deadline(self):
+        """Authoritative server-side deadline for the assessment."""
+        from datetime import timedelta
+        return min(self.start_time + timedelta(minutes=self.duration_minutes), self.expire_time)
+
+    @property
+    def is_missed(self) -> bool:
+        return (
+            self.status == self.Status.EXPIRED
+            or self.candidate_status == self.CandidateStatus.NOT_ATTENDED
+        )
+
+    @property
+    def questions_count(self) -> int:
+        return self.questions.count()
+
     def save(self, *args, **kwargs):
         if not self.token:
-            from uuid import uuid4
+            import secrets
 
-            self.token = uuid4().hex
+            self.token = secrets.token_urlsafe(32)
         super().save(*args, **kwargs)
 
 
