@@ -6,6 +6,10 @@ from accounts.models import CandidateProfile
 
 MAX_RESUME_SIZE_MB = 5
 ALLOWED_RESUME_EXTENSIONS = [".pdf", ".doc", ".docx"]
+DISALLOWED_EXTENSIONS = [
+    ".exe", ".bat", ".cmd", ".sh", ".php", ".phtml", ".py",
+    ".js", ".jar", ".vbs", ".msi", ".dll", ".com", ".scr",
+]
 
 
 class CandidateProfileForm(forms.ModelForm):
@@ -57,11 +61,29 @@ class CandidateProfileForm(forms.ModelForm):
             if resume.size > MAX_RESUME_SIZE_MB * 1024 * 1024:
                 raise ValidationError(f"Resume file size cannot exceed {MAX_RESUME_SIZE_MB}MB.")
 
-            ext = os.path.splitext(resume.name)[1].lower()
+            filename = resume.name.lower()
+            ext = os.path.splitext(filename)[1]
+
+            # Reject dangerous / executable extensions
+            if ext in DISALLOWED_EXTENSIONS:
+                raise ValidationError("Executable and script files are strictly prohibited.")
+
             if ext not in ALLOWED_RESUME_EXTENSIONS:
                 raise ValidationError(
-                    "Invalid file type. Only PDF, DOC, and DOCX files are allowed."
+                    "Invalid file type. Only PDF, DOC, and DOCX documents are allowed."
                 )
+
+            # Validate MIME / content type if available
+            content_type = getattr(resume, "content_type", "")
+            if content_type:
+                allowed_mimes = [
+                    "application/pdf",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/octet-stream",
+                ]
+                if content_type not in allowed_mimes and not ext in ALLOWED_RESUME_EXTENSIONS:
+                    raise ValidationError("Uploaded file content is not a valid document.")
 
         return resume
 

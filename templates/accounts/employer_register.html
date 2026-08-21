@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Employer Registration — Interview Trainer{% endblock %}
 
@@ -6,11 +6,12 @@
 <div class="auth-wrapper">
   <div class="auth-card">
     <div class="auth-header">
-      <h1 class="auth-title">Employer Sign Up</h1>
-      <p class="auth-subtitle">Create a recruiter account to evaluate top talent</p>
+      <span class="auth-badge" style="background-color: var(--secondary-light); color: var(--secondary-dark); border-color: #cbd5e1;">Employer Account</span>
+      <h1 class="auth-title">Register Company Account</h1>
+      <p class="auth-subtitle">Create your recruiter portal to schedule tests and hire top talent</p>
     </div>
 
-    <form method="post" novalidate>
+    <form method="post" novalidate id="employerRegisterForm">
       {% csrf_token %}
       
       {% if form.non_field_errors %}
@@ -22,7 +23,7 @@
       {% endif %}
 
       <div class="form-group">
-        <label class="form-label" for="{{ form.name.id_for_label }}">Full Name</label>
+        <label class="form-label" for="{{ form.name.id_for_label }}">Recruiter / Full Name</label>
         {{ form.name }}
         {% if form.name.errors %}
           <ul class="form-errors">
@@ -32,7 +33,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="{{ form.email.id_for_label }}">Work Email</label>
+        <label class="form-label" for="{{ form.email.id_for_label }}">Work Email Address</label>
         {{ form.email }}
         {% if form.email.errors %}
           <ul class="form-errors">
@@ -42,7 +43,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="{{ form.company.id_for_label }}">Company / Organization</label>
+        <label class="form-label" for="{{ form.company.id_for_label }}">Company / Organization Name</label>
         {{ form.company }}
         {% if form.company.errors %}
           <ul class="form-errors">
@@ -53,7 +54,10 @@
 
       <div class="form-group">
         <label class="form-label" for="{{ form.password1.id_for_label }}">Password</label>
-        {{ form.password1 }}
+        <div class="password-input-group">
+          {{ form.password1 }}
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('{{ form.password1.id_for_label }}', this)" title="Show/Hide Password">Show</button>
+        </div>
         {% if form.password1.help_text %}
           <div class="form-help">{{ form.password1.help_text }}</div>
         {% endif %}
@@ -66,7 +70,10 @@
 
       <div class="form-group">
         <label class="form-label" for="{{ form.password2.id_for_label }}">Confirm Password</label>
-        {{ form.password2 }}
+        <div class="password-input-group">
+          {{ form.password2 }}
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('{{ form.password2.id_for_label }}', this)" title="Show/Hide Password">Show</button>
+        </div>
         {% if form.password2.errors %}
           <ul class="form-errors">
             {% for error in form.password2.errors %}<li>{{ error }}</li>{% endfor %}
@@ -74,13 +81,30 @@
         {% endif %}
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Create Employer Account</button>
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.75rem; background-color: var(--dark-surface); border-color: var(--dark-surface);">
+        Register Company Account
+      </button>
     </form>
 
     <div class="auth-footer">
-      Already registered? <a href="{% url 'accounts:employer_login' %}">Employer Login</a> &bull;
-      <a href="{% url 'accounts:candidate_register' %}">Candidate Sign Up</a>
+      <div>Already have an employer account? <a href="{% url 'accounts:employer_login' %}">Employer Sign In</a></div>
+      <div style="margin-top: 0.4rem;">Are you a job seeker? <a href="{% url 'accounts:candidate_register' %}">Candidate Sign Up</a></div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = 'Hide';
+    } else {
+      input.type = 'password';
+      btn.textContent = 'Show';
+    }
+  }
+</script>
 {% endblock %}

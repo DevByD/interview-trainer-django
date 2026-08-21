@@ -1,8 +1,9 @@
-﻿/* ==========================================================================
-   Global Styles - Interview Trainer
+/* ==========================================================================
+   Global Styles & Design System - Interview Trainer
    ========================================================================== */
 
 :root {
+  /* Brand colors */
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-light: #eff6ff;
@@ -10,6 +11,7 @@
   
   --secondary: #475569;
   --secondary-light: #f1f5f9;
+  --secondary-dark: #334155;
   
   --success: #10b981;
   --success-light: #ecfdf5;
@@ -31,6 +33,7 @@
   --light-bg: #f8fafc;
   --card-bg: #ffffff;
   --border-color: #e2e8f0;
+  --border-focus: #3b82f6;
   
   --text-main: #1e293b;
   --text-muted: #64748b;
@@ -38,17 +41,24 @@
   
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
   
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -59,6 +69,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -88,7 +99,7 @@ main.main-content {
 .navbar {
   background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -98,21 +109,22 @@ main.main-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 70px;
+  height: 72px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 1.3rem;
-  font-weight: 700;
+  gap: 0.65rem;
+  font-size: 1.25rem;
+  font-weight: 800;
   color: var(--dark-bg);
+  letter-spacing: -0.3px;
 }
 
 .brand-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   background: linear-gradient(135deg, var(--primary), #4f46e5);
   color: #fff;
   border-radius: var(--radius-sm);
@@ -121,20 +133,21 @@ main.main-content {
   justify-content: center;
   font-weight: 800;
   font-size: 1rem;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
   list-style: none;
 }
 
 .nav-item {
   color: var(--secondary);
-  font-weight: 500;
-  font-size: 0.95rem;
-  padding: 0.4rem 0.6rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.45rem 0.75rem;
   border-radius: var(--radius-sm);
   transition: all 0.15s ease;
 }
@@ -146,13 +159,14 @@ main.main-content {
 
 .nav-role-badge {
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
   background-color: var(--primary-light);
   color: var(--primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  border: 1px solid #bfdbfe;
 }
 
 /* Buttons */
@@ -162,18 +176,24 @@ main.main-content {
   justify-content: center;
   gap: 0.5rem;
   font-weight: 600;
-  font-size: 0.95rem;
-  padding: 0.65rem 1.3rem;
+  font-size: 0.92rem;
+  padding: 0.65rem 1.25rem;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1.25;
+  text-align: center;
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-primary {
   background-color: var(--primary);
   color: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
 }
 
 .btn-primary:hover {
@@ -201,6 +221,7 @@ main.main-content {
 
 .btn-outline-primary:hover {
   background-color: var(--primary-light);
+  color: var(--primary-dark);
 }
 
 .btn-outline-danger {
@@ -211,6 +232,7 @@ main.main-content {
 
 .btn-outline-danger:hover {
   background-color: var(--danger-light);
+  color: var(--danger-dark);
 }
 
 .btn-sm {
@@ -221,23 +243,98 @@ main.main-content {
 .btn-lg {
   padding: 0.85rem 1.75rem;
   font-size: 1.05rem;
+  border-radius: var(--radius-md);
+}
+
+/* Forms & Inputs */
+.form-group {
+  margin-bottom: 1.35rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.45rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: var(--text-main);
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-help {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.form-errors {
+  list-style: none;
+  margin-top: 0.35rem;
+  color: var(--danger-dark);
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+/* Password Toggle Container */
+.password-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-group .form-input {
+  padding-right: 2.75rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  user-select: none;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text-main);
 }
 
 /* Alerts & Messages */
 .messages-container {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .alert {
-  padding: 0.9rem 1.2rem;
+  padding: 0.9rem 1.25rem;
   border-radius: var(--radius-sm);
   margin-bottom: 0.75rem;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border: 1px solid transparent;
+  box-shadow: var(--shadow-xs);
 }
 
 .alert-success {
@@ -266,49 +363,59 @@ main.main-content {
 
 /* Badges */
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   padding: 0.25rem 0.65rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  border-radius: 999px;
-  line-height: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  line-height: 1.2;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .badge-pending {
   background-color: #fef3c7;
   color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .badge-ongoing {
   background-color: #e0f2fe;
   color: #075985;
+  border: 1px solid #bae6fd;
 }
 
 .badge-completed {
   background-color: #dcfce7;
   color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
 .badge-expired {
   background-color: #fee2e2;
   color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 .badge-attended {
   background-color: #d1fae5;
   color: #065f46;
+  border: 1px solid #a7f3d0;
 }
 
 .badge-not-attended {
   background-color: #ffe4e6;
   color: #9f1239;
+  border: 1px solid #fecdd3;
 }
 
 /* Footer */
 .footer {
   background-color: #ffffff;
   border-top: 1px solid var(--border-color);
-  padding: 2rem 0;
+  padding: 2.25rem 0;
   margin-top: auto;
   font-size: 0.9rem;
   color: var(--text-muted);

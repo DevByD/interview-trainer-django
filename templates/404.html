@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}404 — Page Not Found — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper" style="text-align: center; padding: 4rem 1rem;">
+  <div class="card" style="max-width: 550px; padding: 3rem 2rem; margin: 0 auto; box-shadow: var(--shadow-md);">
+    <div style="font-size: 3.5rem; margin-bottom: 1rem;">🔍</div>
+    <h1 style="font-size: 2.2rem; font-weight: 800; color: var(--dark-bg); margin-bottom: 0.5rem;">404 — Page Not Found</h1>
+    <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.6; margin-bottom: 2rem;">
+      The page or assessment link you are looking for does not exist or may have been moved.
+    </p>
+    <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+      <a href="{% url 'home' %}" class="btn btn-primary">Go to Homepage</a>
+      {% if user.is_authenticated %}
+        {% if user.candidate_profile %}
+          <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">Candidate Dashboard</a>
+        {% elif user.employer_profile %}
+          <a href="{% url 'dashboard:employer_dashboard' %}" class="btn btn-secondary">Employer Dashboard</a>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

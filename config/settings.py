@@ -1,9 +1,8 @@
-"""
-Django settings for the Interview Trainer project.
+"""Django settings for the Interview Trainer project.
 
 Environment-driven configuration (12-factor style). All secrets and
-environment-specific values are read from a `.env` file at the project root
-(see `.env.example`). Never commit real credentials.
+environment-specific values are read from environment variables or a `.env`
+file at the project root (see `.env.example`).
 """
 
 from pathlib import Path
@@ -35,7 +34,10 @@ DEBUG = env_bool("DEBUG", "True")
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    for host in os.getenv(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,.vercel.app,.now.sh",
+    ).split(",")
     if host.strip()
 ]
 
@@ -59,6 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -87,21 +90,37 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database — MySQL (credentials come from environment variables)
+# Database — MySQL (local default) or DATABASE_URL (production / cloud)
 # ---------------------------------------------------------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.getenv("DB_NAME", "interview_trainer"),
-        "USER": os.getenv("DB_USER", "root"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "localhost"),
-        "PORT": os.getenv("DB_PORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-        },
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+if DATABASE_URL:
+    try:
+        import dj_database_url
+        DATABASES = {
+            "default": dj_database_url.config(
+                default=DATABASE_URL,
+                conn_max_age=600,
+                conn_health_checks=True,
+            )
+        }
+    except ImportError:
+        pass
+
+if "DATABASES" not in locals() or not DATABASES.get("default"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("DB_NAME", "interview_trainer"),
+            "USER": os.getenv("DB_USER", "root"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
     }
-}
 
 # ---------------------------------------------------------------------------
 # Authentication
@@ -141,13 +160,24 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        if not DEBUG
+        else "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ---------------------------------------------------------------------------
-# Email / SMTP (Phase 3 — console backend is the safe development default)
+# Email / SMTP
 # ---------------------------------------------------------------------------
 EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND",
@@ -159,3 +189,19 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", "True")
 EMAIL_HOST_USER = os.getenv("EMAIL_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@interviewtrainer.local")
+
+# ---------------------------------------------------------------------------
+# Security Headers & Cookie Policies (Enforced when DEBUG is False)
+# ---------------------------------------------------------------------------
+if not DEBUG:
+    CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", "True")
+    SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", "True")
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+
+# ---------------------------------------------------------------------------
+# Platform Configuration
+# ---------------------------------------------------------------------------
+CRON_SECRET_KEY = os.getenv("CRON_SECRET_KEY", "dev-cron-secret-key-12345")
+SITE_DOMAIN = os.getenv("SITE_DOMAIN", "localhost:8000")

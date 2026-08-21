@@ -2,6 +2,7 @@
 
 import json
 from datetime import timedelta
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -15,7 +16,8 @@ from accounts.models import CandidateProfile
 from assessments.email_service import send_assessment_invitation
 from assessments.forms import AssessmentCreateForm
 from assessments.models import Answer, Assessment, AssessmentQuestion, Question
-from assessments.services import grade_and_complete_assessment
+from assessments.services import expire_past_due_assessments, grade_and_complete_assessment
+
 
 
 # ---------------------------------------------------------------------------
@@ -408,3 +410,25 @@ def test_submit(request, token):
     result = grade_and_complete_assessment(assessment, answers_dict)
     messages.success(request, "Assessment submitted successfully! Your results are available below.")
     return redirect("results:candidate_result", result_id=result.id)
+
+
+def cron_expire_assessments(request):
+    """Secure webhook endpoint for scheduled assessment expiry (e.g. Vercel Cron or Task Scheduler).
+
+    Requires matching CRON_SECRET_KEY header or query token to prevent unauthorized access.
+    """
+    cron_secret = getattr(settings, "CRON_SECRET_KEY", "")
+    auth_header = request.headers.get("Authorization", "")
+    provided_token = ""
+
+    if auth_header.startswith("Bearer "):
+        provided_token = auth_header.split("Bearer ", 1)[1].strip()
+    elif "key" in request.GET:
+        provided_token = request.GET.get("key", "").strip()
+
+    if not cron_secret or provided_token != cron_secret:
+        return JsonResponse({"error": "unauthorized", "message": "Invalid or missing cron authorization key."}, status=403)
+
+    count = expire_past_due_assessments()
+    return JsonResponse({"status": "success", "expired_count": count})
+

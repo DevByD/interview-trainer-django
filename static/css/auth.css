@@ -1,22 +1,27 @@
-﻿/* ==========================================================================
-   Auth Styles - Login, Registration, Forms
+/* ==========================================================================
+   Authentication Styles - Candidate & Employer Login/Register
    ========================================================================== */
 
 .auth-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 2rem 0;
+  padding: 2.5rem 1rem;
 }
 
 .auth-card {
-  background-color: var(--card-bg);
+  background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   width: 100%;
-  max-width: 500px;
+  max-width: 460px;
   padding: 2.5rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.auth-card:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .auth-header {
@@ -24,58 +29,31 @@
   margin-bottom: 2rem;
 }
 
-.auth-title {
-  font-size: 1.6rem;
+.auth-badge {
+  display: inline-block;
+  font-size: 0.75rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+  background-color: var(--primary-light);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 0.75rem;
+  border: 1px solid #bfdbfe;
+}
+
+.auth-title {
+  font-size: 1.75rem;
+  font-weight: 800;
   color: var(--dark-bg);
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
+  margin-bottom: 0.35rem;
 }
 
 .auth-subtitle {
-  color: var(--text-muted);
   font-size: 0.95rem;
-}
-
-.form-group {
-  margin-bottom: 1.25rem;
-}
-
-.form-label {
-  display: block;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--text-main);
-  margin-bottom: 0.4rem;
-}
-
-.form-input, .form-control {
-  width: 100%;
-  padding: 0.7rem 0.9rem;
-  font-size: 0.95rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background-color: #ffffff;
-  color: var(--text-main);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.form-input:focus, .form-control:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-
-.form-help {
-  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 0.35rem;
-}
-
-.form-errors {
-  color: var(--danger-dark);
-  font-size: 0.85rem;
-  margin-top: 0.35rem;
-  list-style: none;
 }
 
 .auth-footer {
@@ -85,4 +63,9 @@
   border-top: 1px solid var(--border-color);
   font-size: 0.9rem;
   color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.auth-footer a {
+  font-weight: 600;
 }

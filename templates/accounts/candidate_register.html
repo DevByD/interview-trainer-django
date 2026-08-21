@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Candidate Registration — Interview Trainer{% endblock %}
 
@@ -6,11 +6,12 @@
 <div class="auth-wrapper">
   <div class="auth-card">
     <div class="auth-header">
-      <h1 class="auth-title">Candidate Sign Up</h1>
-      <p class="auth-subtitle">Create your account to take assessments and land your dream job</p>
+      <span class="auth-badge">Candidate Account</span>
+      <h1 class="auth-title">Create Candidate Account</h1>
+      <p class="auth-subtitle">Register to complete online interview assessments and showcase your skills</p>
     </div>
 
-    <form method="post" novalidate>
+    <form method="post" novalidate id="registerForm">
       {% csrf_token %}
       
       {% if form.non_field_errors %}
@@ -43,7 +44,10 @@
 
       <div class="form-group">
         <label class="form-label" for="{{ form.password1.id_for_label }}">Password</label>
-        {{ form.password1 }}
+        <div class="password-input-group">
+          {{ form.password1 }}
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('{{ form.password1.id_for_label }}', this)" title="Show/Hide Password">Show</button>
+        </div>
         {% if form.password1.help_text %}
           <div class="form-help">{{ form.password1.help_text }}</div>
         {% endif %}
@@ -56,7 +60,10 @@
 
       <div class="form-group">
         <label class="form-label" for="{{ form.password2.id_for_label }}">Confirm Password</label>
-        {{ form.password2 }}
+        <div class="password-input-group">
+          {{ form.password2 }}
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('{{ form.password2.id_for_label }}', this)" title="Show/Hide Password">Show</button>
+        </div>
         {% if form.password2.errors %}
           <ul class="form-errors">
             {% for error in form.password2.errors %}<li>{{ error }}</li>{% endfor %}
@@ -64,13 +71,30 @@
         {% endif %}
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Create Candidate Account</button>
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.75rem;">
+        Register &amp; Continue
+      </button>
     </form>
 
     <div class="auth-footer">
-      Already have an account? <a href="{% url 'accounts:candidate_login' %}">Log in here</a> &bull;
-      <a href="{% url 'accounts:employer_register' %}">Employer Sign Up</a>
+      <div>Already have an account? <a href="{% url 'accounts:candidate_login' %}">Candidate Sign In</a></div>
+      <div style="margin-top: 0.4rem;">Looking to hire? <a href="{% url 'accounts:employer_register' %}">Employer Sign Up</a></div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = 'Hide';
+    } else {
+      input.type = 'password';
+      btn.textContent = 'Show';
+    }
+  }
+</script>
 {% endblock %}

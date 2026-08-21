@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Candidate Login — Interview Trainer{% endblock %}
 
@@ -6,8 +6,9 @@
 <div class="auth-wrapper">
   <div class="auth-card">
     <div class="auth-header">
-      <h1 class="auth-title">Candidate Login</h1>
-      <p class="auth-subtitle">Sign in to access your assessments and dashboard</p>
+      <span class="auth-badge">Candidate Portal</span>
+      <h1 class="auth-title">Candidate Sign In</h1>
+      <p class="auth-subtitle">Sign in to take scheduled assessments and view your evaluation reports</p>
     </div>
 
     {% if error %}
@@ -16,25 +17,45 @@
       </div>
     {% endif %}
 
-    <form method="post">
+    <form method="post" novalidate id="loginForm">
       {% csrf_token %}
       <div class="form-group">
-        <label class="form-label" for="username">Email or Username</label>
-        <input type="text" name="username" id="username" class="form-input" value="{{ username }}" placeholder="Enter your email or username" required autofocus autocomplete="username">
+        <label class="form-label" for="username">Email Address or Username</label>
+        <input type="text" name="username" id="username" class="form-input" value="{{ username }}" placeholder="e.g. alex@example.com" required autofocus autocomplete="username">
       </div>
 
       <div class="form-group">
         <label class="form-label" for="password">Password</label>
-        <input type="password" name="password" id="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+        <div class="password-input-group">
+          <input type="password" name="password" id="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password', this)" title="Show/Hide Password">Show</button>
+        </div>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Sign In</button>
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.75rem;">
+        Sign In to Dashboard
+      </button>
     </form>
 
     <div class="auth-footer">
-      Don't have an account? <a href="{% url 'accounts:candidate_register' %}">Register as Candidate</a><br>
-      Looking for employer portal? <a href="{% url 'accounts:employer_login' %}">Employer Login</a>
+      <div>Don't have an account? <a href="{% url 'accounts:candidate_register' %}">Register as Candidate</a></div>
+      <div style="margin-top: 0.4rem;">Are you a recruiter? <a href="{% url 'accounts:employer_login' %}">Employer Sign In</a></div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = 'Hide';
+    } else {
+      input.type = 'password';
+      btn.textContent = 'Show';
+    }
+  }
+</script>
 {% endblock %}
