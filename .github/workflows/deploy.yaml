@@ -1,0 +1,47 @@
+name: Deploy interview-trainer-django to production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via git pull
+        env:
+          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOSTNAME: manya.apolloaitech.co
+          USER_NAME: ubuntu
+          TARGET_DIR: /home/ubuntu/interview-trainer-django
+        run: |
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo "Error: SSH_PRIVATE_KEY secret is not set in GitHub Secrets."
+            exit 1
+          fi
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          SSH_OPTS="-i private_key -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
+
+          ssh ${SSH_OPTS} ${USER_NAME}@${HOSTNAME} << 'EOF'
+          set -e
+          cd /home/ubuntu/interview-trainer-django
+
+          echo "Stashing local changes..."
+          git stash --include-untracked || true
+
+          echo "Pulling latest from main..."
+          git pull origin main
+
+          echo "Installing dependencies..."
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+          echo "Running database migrations..."
+          python manage.py migrate
+
+          echo "Restarting services..."
+          pm2 restart runinterview
+
+          echo "Deployment completed successfully!"
+          EOF
