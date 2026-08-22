@@ -1,6 +1,8 @@
 #!/bin/bash
 
 PORT=12700
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$PROJECT_DIR/venv/bin/activate"
 
 echo "Checking for existing processes on port $PORT..."
 
@@ -13,7 +15,7 @@ if [ -n "$PID" ]; then
 fi
 
 echo "Running migrations..."
-source /Users/amolc/2026/interview-trainer-django/venv/bin/activate && python manage.py migrate --noinput
+source "$PROJECT_DIR/venv/bin/activate" && python manage.py migrate --noinput
 
 echo "Starting Django server on port $PORT..."
-source /Users/amolc/2026/interview-trainer-django/venv/bin/activate && python manage.py runserver 0.0.0.0:$PORT
+source "$PROJECT_DIR/venv/bin/activate" && python manage.py runserver 0.0.0.0:$PORT
