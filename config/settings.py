@@ -122,100 +122,19 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"# ---------------------------------------------------------------------------
-# Database — SQLite (Zero-setup default) / MySQL (Optional) / Cloud Firebase
+WSGI_APPLICATION = "config.wsgi.application"
+
 # ---------------------------------------------------------------------------
-def _get_database_config(debug_mode: bool) -> dict:
-    """Resolve database configuration from environment variables.
-
-    Supports:
-    1. Full connection URLs: DATABASE_URL, MYSQL_PUBLIC_URL, MYSQL_URL
-    2. Explicit MySQL variables: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
-    3. Production Serverless with Firebase on Vercel: /tmp/db.sqlite3
-    4. Local development default: zero-setup local SQLite (db.sqlite3) + Firebase sync.
-    """
-    import dj_database_url
-
-    # 1. Connection string / URL lookup
-    for url_key in ("DATABASE_URL", "MYSQL_PUBLIC_URL", "MYSQL_URL"):
-        raw_url = os.getenv(url_key, "").strip().strip("'").strip('"').strip()
-        if raw_url:
-            try:
-                cfg = dj_database_url.parse(raw_url, conn_max_age=600, conn_health_checks=True)
-                if cfg and cfg.get("ENGINE"):
-                    if "OPTIONS" not in cfg:
-                        cfg["OPTIONS"] = {}
-                    cfg["OPTIONS"]["charset"] = "utf8mb4"
-                    return cfg
-            except Exception:
-                pass
-
-    # 2. Discrete environment variables lookup
-    db_host = (
-        os.getenv("DB_HOST")
-        or os.getenv("MYSQLHOST")
-        or os.getenv("MYSQL_HOST")
-        or ""
-    ).strip().strip("'").strip('"').strip()
-
-    db_port = (
-        os.getenv("DB_PORT")
-        or os.getenv("MYSQLPORT")
-        or os.getenv("MYSQL_PORT")
-        or ""
-    ).strip().strip("'").strip('"').strip()
-
-    db_name = (
-        os.getenv("DB_NAME")
-        or os.getenv("MYSQLDATABASE")
-        or os.getenv("MYSQL_DATABASE")
-        or ""
-    ).strip().strip("'").strip('"').strip()
-
-    db_user = (
-        os.getenv("DB_USER")
-        or os.getenv("MYSQLUSER")
-        or os.getenv("MYSQL_USER")
-        or ""
-    ).strip().strip("'").strip('"').strip()
-
-    db_password = (
-        os.getenv("DB_PASSWORD")
-        or os.getenv("MYSQLPASSWORD")
-        or os.getenv("MYSQL_PASSWORD")
-        or ""
-    ).strip().strip("'").strip('"').strip()
-
-    # 3. Explicit Remote / Local MySQL configured
-    if db_host and (env_bool("USE_MYSQL", "False") or db_host.lower() != "localhost"):
-        return {
-            "ENGINE": "django.db.backends.mysql",
-            "NAME": db_name or "interview_trainer",
-            "USER": db_user or "root",
-            "PASSWORD": db_password,
-            "HOST": db_host,
-            "PORT": db_port or "3306",
-            "OPTIONS": {
-                "charset": "utf8mb4",
-            },
-        }
-
-    # 4. Production Serverless on Vercel
-    if not debug_mode:
-        return {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": "/tmp/db.sqlite3",
-        }
-
-    # 5. Local development default (zero local MySQL requirement)
-    return {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-
+# Database — PostgreSQL via DATABASE_URL (with SQLite fallback)
+# ---------------------------------------------------------------------------
+import dj_database_url
 
 DATABASES = {
-    "default": _get_database_config(DEBUG),
+    "default": dj_database_url.config(
+        default="postgresql://skilltest:skilltest3620@db.quantbots.co/skilltest",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
