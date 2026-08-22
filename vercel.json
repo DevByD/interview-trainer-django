@@ -6,7 +6,8 @@
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
-        "runtime": "python3.12"
+        "runtime": "python3.12",
+        "buildCommand": "python manage.py migrate && python manage.py collectstatic --noinput"
       }
     }
   ],
