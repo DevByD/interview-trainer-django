@@ -2,6 +2,8 @@
 .env.local
 .env.*
 venv/
+.venv/
+
 __pycache__/
 *.py[cod]
 *$py.class

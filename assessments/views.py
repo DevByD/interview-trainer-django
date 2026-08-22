@@ -16,6 +16,7 @@ from accounts.models import CandidateProfile
 from assessments.email_service import send_assessment_invitation
 from assessments.forms import AssessmentCreateForm
 from assessments.models import Answer, Assessment, AssessmentQuestion, Question
+from assessments.question_bank import ensure_question_bank_seeded
 from assessments.services import expire_past_due_assessments, grade_and_complete_assessment
 
 
@@ -27,6 +28,9 @@ from assessments.services import expire_past_due_assessments, grade_and_complete
 @employer_required
 def employer_assessment_create(request):
     """Create and configure a new assessment for a registered candidate."""
+    # Ensure default question bank is seeded
+    ensure_question_bank_seeded()
+
     initial_cand_id = request.GET.get("candidate_id")
     initial_user = None
     if initial_cand_id:
@@ -40,6 +44,7 @@ def employer_assessment_create(request):
     logical_bank_count = Question.objects.filter(section=Question.Sections.LOGICAL).count()
     quant_bank_count = Question.objects.filter(section=Question.Sections.QUANTITATIVE).count()
     tech_bank_count = Question.objects.filter(section=Question.Sections.TECHNICAL).count()
+
 
     form = AssessmentCreateForm(
         request.POST or None,
@@ -83,29 +88,30 @@ def employer_assessment_create(request):
             candidate_status=Assessment.CandidateStatus.NOT_STARTED,
         )
 
-        # Assign questions in order
+        # Assign randomly selected unique questions in order
         order_index = 1
         questions_to_link = []
 
         if "LOGICAL" in sections and logical_count > 0:
-            qs = Question.objects.filter(section=Question.Sections.LOGICAL).order_by("id")[:logical_count]
-            for q in qs:
+            logical_qs = Question.objects.filter(section=Question.Sections.LOGICAL).order_by("?")[:logical_count]
+            for q in logical_qs:
                 questions_to_link.append(AssessmentQuestion(assessment=assessment, question=q, order=order_index))
                 order_index += 1
 
         if "QUANTITATIVE" in sections and quant_count > 0:
-            qs = Question.objects.filter(section=Question.Sections.QUANTITATIVE).order_by("id")[:quant_count]
-            for q in qs:
+            quant_qs = Question.objects.filter(section=Question.Sections.QUANTITATIVE).order_by("?")[:quant_count]
+            for q in quant_qs:
                 questions_to_link.append(AssessmentQuestion(assessment=assessment, question=q, order=order_index))
                 order_index += 1
 
         if "TECHNICAL" in sections and technical_count > 0:
-            qs = Question.objects.filter(section=Question.Sections.TECHNICAL).order_by("id")[:technical_count]
-            for q in qs:
+            tech_qs = Question.objects.filter(section=Question.Sections.TECHNICAL).order_by("?")[:technical_count]
+            for q in tech_qs:
                 questions_to_link.append(AssessmentQuestion(assessment=assessment, question=q, order=order_index))
                 order_index += 1
 
         AssessmentQuestion.objects.bulk_create(questions_to_link)
+
 
         # Sync Assessment to Firestore
         try:
@@ -317,7 +323,8 @@ def test_start(request, token):
 
     if assessment.status == Assessment.Status.PENDING:
         assessment.status = Assessment.Status.ONGOING
-        assessment.save(update_fields=["status", "updated_at"])
+        assessment.start_time = now
+        assessment.save(update_fields=["status", "start_time", "updated_at"])
         try:
             from services.firebase_service import update_assessment_status_in_firestore
             update_assessment_status_in_firestore(assessment.id, Assessment.Status.ONGOING)
@@ -325,6 +332,7 @@ def test_start(request, token):
             pass
 
     return redirect("assessments:test_entry", token=token)
+
 
 
 @require_POST

@@ -3,6 +3,20 @@ from django.contrib import admin
 from .models import Answer, Assessment, AssessmentQuestion, Question
 
 
+class AssessmentQuestionInline(admin.TabularInline):
+    model = AssessmentQuestion
+    extra = 0
+    autocomplete_fields = ("question",)
+    ordering = ("order", "id")
+
+
+class AnswerInline(admin.TabularInline):
+    model = Answer
+    extra = 0
+    readonly_fields = ("question", "selected_answer", "is_correct")
+    can_delete = False
+
+
 @admin.register(Assessment)
 class AssessmentAdmin(admin.ModelAdmin):
     list_display = (
@@ -20,11 +34,7 @@ class AssessmentAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
     readonly_fields = ("token", "created_at", "updated_at")
     autocomplete_fields = ("employer", "candidate")
-
-
-class AssessmentQuestionInline(admin.TabularInline):
-    model = AssessmentQuestion
-    extra = 0
+    inlines = [AssessmentQuestionInline, AnswerInline]
 
 
 @admin.register(Question)
@@ -36,20 +46,28 @@ class QuestionAdmin(admin.ModelAdmin):
         "correct_answer",
         "created_at",
     )
-    search_fields = ("question_text",)
-    list_filter = ("section", "difficulty")
+    search_fields = (
+        "question_text",
+        "option_a",
+        "option_b",
+        "option_c",
+        "option_d",
+    )
+    list_filter = ("section", "difficulty", "correct_answer")
     ordering = ("section", "id")
 
-    @admin.display(description="Question")
+    @admin.display(description="Question Text")
     def short_question_text(self, obj):
-        return obj.question_text[:80]
+        if len(obj.question_text) > 80:
+            return f"{obj.question_text[:77]}..."
+        return obj.question_text
 
 
 @admin.register(AssessmentQuestion)
 class AssessmentQuestionAdmin(admin.ModelAdmin):
     list_display = ("assessment", "question", "order", "question_section")
     search_fields = ("assessment__title", "question__question_text")
-    list_filter = ("question__section",)
+    list_filter = ("question__section", "question__difficulty")
     ordering = ("assessment", "order", "id")
 
     @admin.display(description="Section")

@@ -125,17 +125,54 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL via DATABASE_URL (with SQLite fallback)
+# Database — Zero-setup SQLite Default / Cloud DATABASE_URL / Optional MySQL
 # ---------------------------------------------------------------------------
-import dj_database_url
+def _get_database_config(debug_mode: bool) -> dict:
+    import dj_database_url
+
+    # 1. Explicit DATABASE_URL in environment (e.g. Cloud PostgreSQL or MySQL)
+    env_db_url = os.getenv("DATABASE_URL", "").strip().strip("'").strip('"')
+    if env_db_url:
+        try:
+            cfg = dj_database_url.parse(env_db_url, conn_max_age=600, conn_health_checks=True)
+            if cfg and cfg.get("ENGINE"):
+                return cfg
+        except Exception:
+            pass
+
+    # 2. Explicit MySQL configured via environment
+    db_host = os.getenv("DB_HOST", "").strip().strip("'").strip('"')
+    if db_host and (env_bool("USE_MYSQL", "False") or (db_host.lower() != "localhost" and os.getenv("DB_USER"))):
+        return {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv("DB_NAME", "interview_trainer"),
+            "USER": os.getenv("DB_USER", "root"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": db_host,
+            "PORT": os.getenv("DB_PORT", "3306") or "3306",
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
+
+    # 3. Production serverless on Vercel
+    if not debug_mode:
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": "/tmp/db.sqlite3",
+        }
+
+    # 4. Local development default (zero local server requirement)
+    return {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
+
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default="postgresql://skilltest:skilltest3620@db.quantbots.co/skilltest",
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    "default": _get_database_config(DEBUG),
 }
+
 
 
 

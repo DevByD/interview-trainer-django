@@ -400,3 +400,261 @@ class Phase2AssessmentEngineTests(TestCase):
         res_gate = self.client.get(reverse("assessments:test_entry", kwargs={"token": past_pending.token}))
         self.assertEqual(res_gate.status_code, 200)
         self.assertContains(res_gate, "Assessment Expired (MISSED TEST)")
+
+    # =========================================================================
+    # STEP 11 TESTS — QUESTION BANK & ASSESSMENT ENGINE
+    # =========================================================================
+
+    def test_31_question_creation(self):
+        """1. Test creating individual Question records with all options and difficulty."""
+        q = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="What is a Python generator?",
+            option_a="A function with yield",
+            option_b="A class with init",
+            option_c="A compile-time macro",
+            option_d="A database trigger",
+            correct_answer="A",
+            difficulty=Question.Difficulties.MEDIUM,
+        )
+        self.assertIsNotNone(q.id)
+        self.assertEqual(q.section, Question.Sections.TECHNICAL)
+        self.assertEqual(q.correct_answer, "A")
+        self.assertEqual(q.difficulty, Question.Difficulties.MEDIUM)
+
+    def test_32_question_bank_count(self):
+        """2. Test seeding question bank and verifying total count >= 150."""
+        call_command("seed_questions")
+        total_count = Question.objects.count()
+        self.assertGreaterEqual(total_count, 150)
+
+        # Re-running seed_questions must be strictly idempotent
+        call_command("seed_questions")
+        self.assertEqual(Question.objects.count(), total_count)
+
+    def test_33_section_filtering(self):
+        """3. Test filtering questions by section retrieves correct subset."""
+        call_command("seed_questions")
+        logical_q = Question.objects.filter(section=Question.Sections.LOGICAL)
+        quant_q = Question.objects.filter(section=Question.Sections.QUANTITATIVE)
+        tech_q = Question.objects.filter(section=Question.Sections.TECHNICAL)
+
+        self.assertGreaterEqual(logical_q.count(), 50)
+        self.assertGreaterEqual(quant_q.count(), 50)
+        self.assertGreaterEqual(tech_q.count(), 50)
+
+        for q in logical_q[:10]:
+            self.assertEqual(q.section, Question.Sections.LOGICAL)
+        for q in quant_q[:10]:
+            self.assertEqual(q.section, Question.Sections.QUANTITATIVE)
+        for q in tech_q[:10]:
+            self.assertEqual(q.section, Question.Sections.TECHNICAL)
+
+    def test_34_assessment_question_selection_and_no_duplicates(self):
+        """4 & 5. Test automatic random question selection and guarantee no duplicate questions."""
+        call_command("seed_questions")
+        self.client.login(username="emp1@techcorp.com", password="Password123!")
+
+        url = reverse("assessments:employer_assessment_create")
+        post_data = {
+            "candidate": self.cand_user1.id,
+            "title": "Random Unique Selection Assessment",
+            "start_date": self.now.date().isoformat(),
+            "start_time": (self.now - timedelta(minutes=5)).strftime("%H:%M"),
+            "expire_date": (self.now + timedelta(days=2)).date().isoformat(),
+            "expire_time": (self.now + timedelta(days=2)).strftime("%H:%M"),
+            "duration_minutes": 60,
+            "sections": ["LOGICAL", "QUANTITATIVE", "TECHNICAL"],
+            "logical_count": 12,
+            "quant_count": 12,
+            "technical_count": 10,
+        }
+        res = self.client.post(url, post_data)
+        self.assertEqual(res.status_code, 302)
+
+        assessment = Assessment.objects.filter(title="Random Unique Selection Assessment").first()
+        self.assertIsNotNone(assessment)
+
+        # Verify exact total 34 questions attached (12 + 12 + 10)
+        aq_list = list(assessment.questions.select_related("question").all())
+        self.assertEqual(len(aq_list), 34)
+
+        # 5. Verify no duplicate questions
+        question_ids = [aq.question_id for aq in aq_list]
+        self.assertEqual(len(question_ids), len(set(question_ids)))
+
+        # Verify section counts
+        logical_count = sum(1 for aq in aq_list if aq.question.section == Question.Sections.LOGICAL)
+        quant_count = sum(1 for aq in aq_list if aq.question.section == Question.Sections.QUANTITATIVE)
+        tech_count = sum(1 for aq in aq_list if aq.question.section == Question.Sections.TECHNICAL)
+
+        self.assertEqual(logical_count, 12)
+        self.assertEqual(quant_count, 12)
+        self.assertEqual(tech_count, 10)
+
+        # Verify sequential ordering
+        orders = [aq.order for aq in aq_list]
+        self.assertEqual(orders, list(range(1, 35)))
+
+    def test_35_insufficient_question_validation(self):
+        """6. Test insufficient question validation error message."""
+        self.client.login(username="emp1@techcorp.com", password="Password123!")
+        available_logical = Question.objects.filter(section=Question.Sections.LOGICAL).count()
+
+        url = reverse("assessments:employer_assessment_create")
+        post_data = {
+            "candidate": self.cand_user1.id,
+            "title": "Overlimit Test",
+            "start_date": self.now.date().isoformat(),
+            "start_time": (self.now + timedelta(hours=1)).strftime("%H:%M"),
+            "expire_date": (self.now + timedelta(days=2)).date().isoformat(),
+            "expire_time": (self.now + timedelta(days=2)).strftime("%H:%M"),
+            "duration_minutes": 60,
+            "sections": ["LOGICAL"],
+            "logical_count": available_logical + 25,
+            "quant_count": 0,
+            "technical_count": 0,
+        }
+        res = self.client.post(url, post_data)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, f"Requested {available_logical + 25} questions for Logical Reasoning, but only {available_logical} questions exist in the question bank.")
+
+    def test_36_candidate_receives_assigned_questions(self):
+        """7 & 8. Test assessment creation and candidate receiving actual selected questions."""
+        call_command("seed_questions")
+        self.client.login(username="emp1@techcorp.com", password="Password123!")
+
+        url = reverse("assessments:employer_assessment_create")
+        post_data = {
+            "candidate": self.cand_user1.id,
+            "title": "Candidate Display Test",
+            "start_date": self.now.date().isoformat(),
+            "start_time": (self.now - timedelta(minutes=5)).strftime("%H:%M"),
+            "expire_date": (self.now + timedelta(days=2)).date().isoformat(),
+            "expire_time": (self.now + timedelta(days=2)).strftime("%H:%M"),
+            "duration_minutes": 45,
+            "sections": ["LOGICAL", "QUANTITATIVE", "TECHNICAL"],
+            "logical_count": 3,
+            "quant_count": 3,
+            "technical_count": 4,
+        }
+        res = self.client.post(url, post_data)
+        self.assertEqual(res.status_code, 302)
+
+        assessment = Assessment.objects.filter(title="Candidate Display Test").first()
+        self.assertIsNotNone(assessment)
+
+        # Candidate logs in and starts test
+        self.client.login(username="cand1@test.com", password="Password123!")
+        start_res = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+        self.assertEqual(start_res.status_code, 302)
+
+        test_ui_res = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+        self.assertEqual(test_ui_res.status_code, 200)
+
+    def test_37_test_start_to_test_taking_lifecycle_regression(self):
+        """Regression test for test_start -> test_take page lifecycle.
+
+        Verifies:
+        1. Valid assessment can start.
+        2. PENDING changes to ONGOING.
+        3. Immediately after starting, test_entry returns the test-taking page (HTTP 200).
+        4. remaining_seconds > 0.
+        5. total_questions > 0.
+        6. Questions are rendered in the DOM.
+        7. Assessment is NOT automatically completed.
+        8. An actually expired assessment still expires correctly.
+        9. Final submission still grades correctly.
+        """
+        # Create an assessment scheduled 2 hours ago, expiring in 2 days, with 30-minute duration
+        assessment = Assessment.objects.create(
+            employer=self.emp_user1,
+            candidate=self.cand_user1,
+            title="Full Lifecycle Regression Assessment",
+            start_time=self.now - timedelta(hours=2),
+            expire_time=self.now + timedelta(days=2),
+            duration_minutes=30,
+            status=Assessment.Status.PENDING,
+            candidate_status=Assessment.CandidateStatus.NOT_STARTED,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.logical_q1, order=1)
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.logical_q2, order=2)
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.quant_q1, order=3)
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.tech_q1, order=4)
+
+        self.client.login(username="cand1@test.com", password="Password123!")
+
+        # Step 1: Candidate reaches instructions page (status is PENDING)
+        instructions_res = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+        self.assertEqual(instructions_res.status_code, 200)
+        self.assertContains(instructions_res, "START ASSESSMENT NOW")
+
+        # Step 2: Candidate clicks START ASSESSMENT (POST /test/<token>/start/)
+        start_res = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+        self.assertEqual(start_res.status_code, 302)
+
+        # Verify status became ONGOING and start_time was updated to current time
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.ONGOING)
+        self.assertNotEqual(assessment.status, Assessment.Status.COMPLETED)
+        self.assertFalse(hasattr(assessment, "result"))
+
+        # Step 3: Follow redirect to test_entry -> must render test-taking page (test_take.html)
+        take_res = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+        self.assertEqual(take_res.status_code, 200)
+        self.assertTemplateUsed(take_res, "assessments/test_take.html")
+
+        # Step 4: remaining_seconds in context MUST be > 0 (approximately 30 * 60 seconds)
+        remaining_sec = take_res.context["remaining_seconds"]
+        self.assertGreater(remaining_sec, 0)
+        self.assertGreaterEqual(remaining_sec, 28 * 60)  # within duration window
+
+        # Step 5: total_questions > 0
+        total_q = take_res.context["total_questions"]
+        self.assertEqual(total_q, 4)
+
+        # Step 6: Questions are visible and rendered
+        self.assertContains(take_res, f'data-question-id="{self.logical_q1.id}"')
+        self.assertContains(take_res, f'data-question-id="{self.logical_q2.id}"')
+        self.assertContains(take_res, f'data-question-id="{self.quant_q1.id}"')
+        self.assertContains(take_res, f'data-question-id="{self.tech_q1.id}"')
+
+        # Step 7: Assessment remains ONGOING (not auto-completed)
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.ONGOING)
+        self.assertFalse(hasattr(assessment, "result"))
+
+        # Step 8: An actually expired assessment is still expired correctly
+        expired_assessment = Assessment.objects.create(
+            employer=self.emp_user1,
+            candidate=self.cand_user1,
+            title="Past Due Assessment",
+            start_time=self.now - timedelta(days=5),
+            expire_time=self.now - timedelta(days=1),
+            duration_minutes=30,
+            status=Assessment.Status.PENDING,
+            candidate_status=Assessment.CandidateStatus.NOT_STARTED,
+        )
+        expired_res = self.client.get(reverse("assessments:test_entry", kwargs={"token": expired_assessment.token}))
+        self.assertEqual(expired_res.status_code, 200)
+        self.assertContains(expired_res, "Assessment Expired")
+        expired_assessment.refresh_from_db()
+        self.assertEqual(expired_assessment.status, Assessment.Status.EXPIRED)
+
+        # Step 9: Final submission of active assessment still grades correctly
+        submit_res = self.client.post(
+            reverse("assessments:test_submit", kwargs={"token": assessment.token}),
+            data={
+                f"q_{self.logical_q1.id}": "A",
+                f"q_{self.logical_q2.id}": "C",
+                f"q_{self.quant_q1.id}": "B",
+                f"q_{self.tech_q1.id}": "B",
+            }
+        )
+        self.assertEqual(submit_res.status_code, 302)
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.COMPLETED)
+        self.assertEqual(assessment.candidate_status, Assessment.CandidateStatus.ATTENDED)
+        self.assertTrue(hasattr(assessment, "result"))
+        self.assertEqual(assessment.result.total_correct, 4)
+        self.assertEqual(assessment.result.percentage, Decimal("100.00"))

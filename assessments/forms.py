@@ -8,9 +8,11 @@ from django.utils import timezone
 
 from accounts.models import CandidateProfile
 from assessments.models import Question
+from assessments.question_bank import ensure_question_bank_seeded
 
 
 class AssessmentCreateForm(forms.Form):
+
     candidate = forms.ModelChoiceField(
         queryset=User.objects.filter(candidate_profile__isnull=False).select_related("candidate_profile"),
         label="Select Candidate",
@@ -80,8 +82,10 @@ class AssessmentCreateForm(forms.Form):
     )
 
     def __init__(self, *args, initial_candidate=None, **kwargs):
+        ensure_question_bank_seeded()
         super().__init__(*args, **kwargs)
         now = timezone.localtime(timezone.now())
+
         if not self.is_bound:
             self.fields["start_date"].initial = now.date()
             self.fields["start_time"].initial = now.strftime("%H:%M")
@@ -133,10 +137,11 @@ class AssessmentCreateForm(forms.Form):
                 if count > available_count:
                     self.add_error(
                         field_name,
-                        f"Requested {count} questions for '{sec_name}', but only {available_count} questions exist in the question bank.",
+                        f"Requested {count} questions for {sec_name}, but only {available_count} questions exist in the question bank.",
                     )
                 else:
                     total_selected_questions += count
+
 
         if sections and total_selected_questions <= 0 and not self.errors:
             raise ValidationError("Assessment must have at least one question assigned.")
