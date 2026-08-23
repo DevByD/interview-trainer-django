@@ -6,11 +6,12 @@
 {% block extra_css %}
 <style>
   /* --------------------------------------------------------------------------
-     SaaS Theme & Gradient Atmosphere (Lavender / Soft Purple Glow)
+     SaaS Theme & Atmosphere
      -------------------------------------------------------------------------- */
   .landing-page {
     position: relative;
     overflow-x: hidden;
+    width: 100%;
   }
 
   .hero-wrapper {
@@ -28,14 +29,6 @@
     gap: 3rem;
     align-items: center;
     padding: 0 1.5rem;
-  }
-
-  @media (max-width: 992px) {
-    .hero-grid {
-      grid-template-columns: 1fr;
-      gap: 2.5rem;
-      text-align: center;
-    }
   }
 
   .hero-pill-badge {
@@ -76,25 +69,12 @@
     max-width: 580px;
   }
 
-  @media (max-width: 992px) {
-    .hero-subtext {
-      margin-left: auto;
-      margin-right: auto;
-    }
-  }
-
   .hero-cta-group {
     display: flex;
     gap: 1rem;
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 2.25rem;
-  }
-
-  @media (max-width: 992px) {
-    .hero-cta-group {
-      justify-content: center;
-    }
   }
 
   .hero-check-strip {
@@ -106,14 +86,8 @@
     font-weight: 600;
   }
 
-  @media (max-width: 992px) {
-    .hero-check-strip {
-      justify-content: center;
-    }
-  }
-
   /* --------------------------------------------------------------------------
-     Hero Visual Dashboard Preview Card (Right Column)
+     Hero Dashboard Preview Card
      -------------------------------------------------------------------------- */
   .hero-preview-window {
     background: #ffffff;
@@ -136,11 +110,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
   }
 
   .preview-dots {
     display: flex;
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .preview-dot {
@@ -157,6 +133,10 @@
     font-size: 0.75rem;
     color: #64748b;
     font-family: monospace;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .preview-body {
@@ -164,8 +144,36 @@
     background: #ffffff;
   }
 
+  .preview-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .preview-stat-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.65rem 0.5rem;
+    text-align: center;
+  }
+
+  .preview-stat-label {
+    font-size: 0.68rem;
+    color: #64748b;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: block;
+  }
+
+  .preview-stat-val {
+    font-size: 1.15rem;
+    font-weight: 900;
+  }
+
   /* --------------------------------------------------------------------------
-     Interactive Feature Cards
+     Feature Cards
      -------------------------------------------------------------------------- */
   .feature-card-saas {
     background: #ffffff;
@@ -249,6 +257,300 @@
   }
 
   /* --------------------------------------------------------------------------
+     Section Layout Classes
+     -------------------------------------------------------------------------- */
+  .section-spacing {
+    margin-bottom: 4rem;
+  }
+
+  .section-spacing-lg {
+    margin-bottom: 4.5rem;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .section-title {
+    font-size: 2.15rem;
+    font-weight: 900;
+    color: #0f172a;
+    margin-top: 0.35rem;
+  }
+
+  .section-subtitle {
+    color: #64748b;
+    font-size: 1rem;
+    margin-top: 0.25rem;
+  }
+
+  .role-card {
+    padding: 2.25rem;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+
+  .security-panel {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 3.5rem 2rem;
+    margin-bottom: 4rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+
+  .cta-banner-panel {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #31104b 100%);
+    border-radius: 16px;
+    padding: 4rem 2rem;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.3);
+  }
+
+  /* --------------------------------------------------------------------------
+     Responsive Grid Layouts
+     -------------------------------------------------------------------------- */
+  .stats-grid-saas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .features-grid-saas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .timeline-grid-saas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .role-grid-saas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+    margin-bottom: 4.5rem;
+  }
+
+  .security-grid-saas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+
+  /* --------------------------------------------------------------------------
+     Mobile Breakpoint (<= 900px)
+     -------------------------------------------------------------------------- */
+  @media (max-width: 900px) {
+    .section-spacing,
+    .section-spacing-lg {
+      margin-bottom: 2.25rem !important;
+    }
+
+    .section-header {
+      margin-bottom: 1.5rem !important;
+    }
+
+    .section-title {
+      font-size: 1.55rem !important;
+    }
+
+    .section-subtitle {
+      font-size: 0.92rem !important;
+    }
+
+    .hero-wrapper {
+      padding: 1.75rem 1rem 2rem 1rem !important;
+      margin-bottom: 2rem !important;
+      border-radius: 12px !important;
+    }
+
+    .hero-grid {
+      grid-template-columns: 1fr !important;
+      gap: 1.75rem !important;
+      padding: 0 !important;
+      text-align: center !important;
+    }
+
+    .hero-pill-badge {
+      font-size: 0.76rem !important;
+      padding: 0.35rem 0.75rem !important;
+      margin-bottom: 0.75rem !important;
+      white-space: normal !important;
+      text-align: center !important;
+      line-height: 1.35 !important;
+    }
+
+    .hero-headline {
+      font-size: clamp(1.85rem, 6vw, 2.4rem) !important;
+      line-height: 1.2 !important;
+      margin-bottom: 0.75rem !important;
+    }
+
+    .hero-subtext {
+      font-size: 0.95rem !important;
+      line-height: 1.55 !important;
+      margin-bottom: 1.25rem !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      max-width: 100% !important;
+    }
+
+    .hero-cta-group {
+      flex-direction: column !important;
+      width: 100% !important;
+      gap: 0.75rem !important;
+      align-items: stretch !important;
+      margin-bottom: 1.25rem !important;
+    }
+
+    .hero-cta-group .btn {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-height: 44px !important;
+      padding: 0.75rem 1.25rem !important;
+      box-sizing: border-box !important;
+      text-align: center !important;
+    }
+
+    .hero-check-strip {
+      justify-content: center !important;
+      gap: 0.5rem 0.85rem !important;
+      font-size: 0.78rem !important;
+    }
+
+    .hero-preview-window {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      margin: 0 auto !important;
+    }
+
+    .stats-grid-saas,
+    .features-grid-saas,
+    .timeline-grid-saas,
+    .role-grid-saas,
+    .security-grid-saas {
+      grid-template-columns: 1fr !important;
+      gap: 1.15rem !important;
+    }
+
+    .role-grid-saas {
+      margin-bottom: 2.25rem !important;
+    }
+
+    .role-card {
+      padding: 1.5rem 1.25rem !important;
+    }
+
+    .role-card .btn {
+      min-height: 44px !important;
+    }
+
+    .security-panel {
+      padding: 1.75rem 1.25rem !important;
+      margin-bottom: 2.25rem !important;
+      border-radius: 12px !important;
+    }
+
+    .cta-banner-panel {
+      padding: 2rem 1.25rem !important;
+      margin-bottom: 2rem !important;
+      border-radius: 12px !important;
+    }
+
+    .cta-banner-panel h2 {
+      font-size: 1.55rem !important;
+      margin-bottom: 0.5rem !important;
+    }
+
+    .cta-banner-panel p {
+      font-size: 0.95rem !important;
+      margin-bottom: 1.5rem !important;
+    }
+
+    .cta-banner-panel .btn {
+      width: 100% !important;
+      max-width: 320px !important;
+      min-height: 44px !important;
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     Phones (<= 480px)
+     -------------------------------------------------------------------------- */
+  @media (max-width: 480px) {
+    .hero-wrapper {
+      padding: 1.25rem 0.75rem 1.5rem 0.75rem !important;
+      margin-bottom: 1.5rem !important;
+    }
+
+    .hero-headline {
+      font-size: clamp(1.6rem, 7.5vw, 1.95rem) !important;
+    }
+
+    .hero-pill-badge {
+      font-size: 0.72rem !important;
+      padding: 0.3rem 0.65rem !important;
+      margin-bottom: 0.65rem !important;
+    }
+
+    .preview-body {
+      padding: 0.85rem !important;
+    }
+
+    .preview-stats-grid {
+      gap: 0.35rem !important;
+      margin-bottom: 0.75rem !important;
+    }
+
+    .preview-stat-card {
+      padding: 0.45rem 0.25rem !important;
+    }
+
+    .preview-stat-label {
+      font-size: 0.6rem !important;
+      letter-spacing: 0 !important;
+    }
+
+    .preview-stat-val {
+      font-size: 1rem !important;
+    }
+
+    .preview-url-pill {
+      max-width: 140px !important;
+      font-size: 0.7rem !important;
+    }
+
+    .feature-card-saas {
+      padding: 1.25rem 1rem !important;
+    }
+
+    .timeline-step-card {
+      padding: 1.25rem 1rem !important;
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     Small Phones (<= 360px)
+     -------------------------------------------------------------------------- */
+  @media (max-width: 360px) {
+    .preview-url-pill {
+      max-width: 110px !important;
+      font-size: 0.65rem !important;
+    }
+  }
+
+  /* --------------------------------------------------------------------------
      Scroll Reveal & Reduced Motion
      -------------------------------------------------------------------------- */
   .reveal-on-scroll {
@@ -302,7 +604,7 @@
           Create, proctor, and grade online assessments with AI-powered questions, coding challenges, secure proctoring, and actionable candidate analytics — all in one platform.
         </p>
 
-        <!-- CTA Buttons (No Auth Buttons) -->
+        <!-- CTA Buttons -->
         <div class="hero-cta-group">
           <a href="#features" class="btn btn-primary btn-lg" style="font-weight: 800; padding: 0.85rem 1.85rem; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);">
             Explore the Platform &rarr;
@@ -321,7 +623,7 @@
         </div>
       </div>
 
-      <!-- Right Column: Polished Product / Dashboard Preview -->
+      <!-- Right Column: Product / Dashboard Preview -->
       <div class="hero-preview-window">
         <div class="preview-topbar">
           <div class="preview-dots">
@@ -330,38 +632,38 @@
             <div class="preview-dot" style="background: #10b981;"></div>
           </div>
           <div class="preview-url-pill">interviewtrainer.io/employer/dashboard</div>
-          <span style="font-size: 0.72rem; color: #10b981; font-weight: 800;">● Live</span>
+          <span style="font-size: 0.72rem; color: #10b981; font-weight: 800; flex-shrink: 0;">● Live</span>
         </div>
 
         <div class="preview-body">
           <!-- Top Mini Stats Grid -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem;">
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center;">
-              <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Active Candidates</span>
-              <div style="font-size: 1.15rem; font-weight: 900; color: #2563eb;">{{ stat_candidates }}{% if stat_candidates == 0 %}12{% endif %}+</div>
+          <div class="preview-stats-grid">
+            <div class="preview-stat-card">
+              <span class="preview-stat-label">Active Candidates</span>
+              <div class="preview-stat-val" style="color: #2563eb;">{{ stat_candidates }}{% if stat_candidates == 0 %}12{% endif %}+</div>
             </div>
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center;">
-              <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Completed Tests</span>
-              <div style="font-size: 1.15rem; font-weight: 900; color: #059669;">{{ stat_assessments }}{% if stat_assessments == 0 %}8{% endif %}+</div>
+            <div class="preview-stat-card">
+              <span class="preview-stat-label">Completed Tests</span>
+              <div class="preview-stat-val" style="color: #059669;">{{ stat_assessments }}{% if stat_assessments == 0 %}8{% endif %}+</div>
             </div>
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center;">
-              <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Avg Score</span>
-              <div style="font-size: 1.15rem; font-weight: 900; color: #7c3aed;">88.4%</div>
+            <div class="preview-stat-card">
+              <span class="preview-stat-label">Avg Score</span>
+              <div class="preview-stat-val" style="color: #7c3aed;">88.4%</div>
             </div>
           </div>
 
           <!-- Recent Candidate Evaluation Card Preview -->
           <div style="border: 1px solid #e0e7ff; background: #faf5ff; border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; gap: 0.5rem;">
               <div>
                 <strong style="font-size: 0.88rem; color: #0f172a;">Candidate Evaluation</strong>
                 <div style="font-size: 0.74rem; color: #64748b;">Full-Stack Software Engineer Assessment</div>
               </div>
-              <span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 0.75rem; font-weight: 800; border: 1px solid #a7f3d0;">
+              <span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 0.75rem; font-weight: 800; border: 1px solid #a7f3d0; flex-shrink: 0;">
                 Passed (92%)
               </span>
             </div>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; font-size: 0.72rem; margin-top: 0.4rem;">
+            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; font-size: 0.72rem; margin-top: 0.4rem;">
               <span style="background: #ffffff; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; color: #334155;">🧠 Aptitude: 100%</span>
               <span style="background: #ffffff; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; color: #334155;">💻 Coding: 4/4 Passed</span>
               <span style="background: #ffffff; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; color: #059669; font-weight: 700;">🛡️ 0 Violations</span>
@@ -374,7 +676,7 @@
               <span>Assessment Activity</span>
               <div style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">Live proctoring &amp; auto-grading</div>
             </div>
-            <div style="display: flex; align-items: flex-end; gap: 4px; height: 26px;">
+            <div style="display: flex; align-items: flex-end; gap: 4px; height: 26px; flex-shrink: 0;">
               <div style="width: 6px; height: 12px; background: #93c5fd; border-radius: 2px;"></div>
               <div style="width: 6px; height: 18px; background: #60a5fa; border-radius: 2px;"></div>
               <div style="width: 6px; height: 14px; background: #3b82f6; border-radius: 2px;"></div>
@@ -392,8 +694,8 @@
   <!-- =========================================================================
        STATISTICS STRIP (Real Platform Metrics)
        ========================================================================= -->
-  <section class="reveal-on-scroll" style="margin-bottom: 4rem;">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem;">
+  <section class="section-spacing reveal-on-scroll">
+    <div class="stats-grid-saas">
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #2563eb; border-radius: 12px; padding: 1.5rem 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
         <span style="font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Registered Candidates</span>
         <div style="font-size: 2.2rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">
@@ -440,14 +742,14 @@
   <!-- =========================================================================
        FEATURE CARDS (5 Core Platform Capabilities)
        ========================================================================= -->
-  <section id="features" class="reveal-on-scroll" style="margin-bottom: 4.5rem;">
-    <div style="text-align: center; margin-bottom: 2.5rem;">
+  <section id="features" class="section-spacing-lg reveal-on-scroll">
+    <div class="section-header">
       <span class="badge badge-completed" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.5rem;">Platform Capabilities</span>
-      <h2 style="font-size: 2.15rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">Engineered for Precision Hiring</h2>
-      <p style="color: #64748b; font-size: 1rem; margin-top: 0.25rem;">Everything hiring managers and candidates need for fair, rigorous technical evaluations.</p>
+      <h2 class="section-title">Engineered for Precision Hiring</h2>
+      <p class="section-subtitle">Everything hiring managers and candidates need for fair, rigorous technical evaluations.</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+    <div class="features-grid-saas">
       <!-- Card 1: AI Question Generation -->
       <div class="feature-card-saas" style="border-top: 4px solid #2563eb;">
         <div>
@@ -504,14 +806,14 @@
   <!-- =========================================================================
        HOW IT WORKS TIMELINE (5-Step Interactive Process)
        ========================================================================= -->
-  <section id="how-it-works" class="reveal-on-scroll" style="margin-bottom: 4.5rem;">
-    <div style="text-align: center; margin-bottom: 2.5rem;">
+  <section id="how-it-works" class="section-spacing-lg reveal-on-scroll">
+    <div class="section-header">
       <span class="badge badge-ongoing" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.5rem;">End-to-End Lifecycle</span>
-      <h2 style="font-size: 2.15rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">How It Works</h2>
-      <p style="color: #64748b; font-size: 1rem; margin-top: 0.25rem;">A 5-step automated workflow designed for fast, unbiased technical evaluation.</p>
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-subtitle">A 5-step automated workflow designed for fast, unbiased technical evaluation.</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+    <div class="timeline-grid-saas">
       <div class="timeline-step-card">
         <div class="timeline-number">01</div>
         <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">Create Assessment</h3>
@@ -548,9 +850,9 @@
   <!-- =========================================================================
        EMPLOYER & CANDIDATE DEDICATED SECTIONS
        ========================================================================= -->
-  <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem; margin-bottom: 4.5rem;">
+  <section class="role-grid-saas">
     <!-- For Employers -->
-    <div id="employers" class="card reveal-on-scroll" style="padding: 2.25rem; border-top: 4px solid #0f172a; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+    <div id="employers" class="card role-card reveal-on-scroll" style="border-top: 4px solid #0f172a;">
       <div>
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏢</div>
         <h3 style="font-size: 1.45rem; font-weight: 800; margin-bottom: 0.75rem; color: #0f172a;">For Hiring Teams &amp; Employers</h3>
@@ -572,7 +874,7 @@
     </div>
 
     <!-- For Candidates -->
-    <div id="candidates" class="card reveal-on-scroll" style="padding: 2.25rem; border-top: 4px solid #2563eb; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+    <div id="candidates" class="card role-card reveal-on-scroll" style="border-top: 4px solid #2563eb;">
       <div>
         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎓</div>
         <h3 style="font-size: 1.45rem; font-weight: 800; margin-bottom: 0.75rem; color: #2563eb;">For Candidates &amp; Developers</h3>
@@ -597,14 +899,14 @@
   <!-- =========================================================================
        SECURITY & TEST INTEGRITY SECTION
        ========================================================================= -->
-  <section id="security" class="reveal-on-scroll" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 3.5rem 2rem; margin-bottom: 4rem; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
-    <div style="text-align: center; margin-bottom: 2.5rem;">
+  <section id="security" class="security-panel reveal-on-scroll">
+    <div class="section-header">
       <span class="badge badge-completed" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.5rem;">Security Architecture</span>
-      <h2 style="font-size: 2.15rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">Assessment Security &amp; Test Integrity</h2>
-      <p style="color: #64748b; font-size: 1rem; margin-top: 0.25rem;">Built with robust client-side event detection and server-authoritative state management.</p>
+      <h2 class="section-title">Assessment Security &amp; Test Integrity</h2>
+      <p class="section-subtitle">Built with robust client-side event detection and server-authoritative state management.</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+    <div class="security-grid-saas">
       <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
         <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">📷 Camera Verification</h4>
         <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Pre-assessment hardware readiness verification ensuring camera hardware is active and functional.</p>
@@ -641,7 +943,7 @@
   <!-- =========================================================================
        FINAL CTA BANNER
        ========================================================================= -->
-  <section class="reveal-on-scroll" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #31104b 100%); border-radius: 16px; padding: 4rem 2rem; color: #ffffff; text-align: center; margin-bottom: 2.5rem; box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.3);">
+  <section class="cta-banner-panel reveal-on-scroll">
     <h2 style="font-size: 2.25rem; font-weight: 900; margin-bottom: 0.85rem; color: #ffffff; letter-spacing: -0.5px;">
       Ready to build better hiring assessments?
     </h2>

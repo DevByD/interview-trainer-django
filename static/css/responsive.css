@@ -1,82 +1,318 @@
 /* ==========================================================================
-   Responsive Utilities & Breakpoints - Interview Trainer
+   Responsive Utilities & Mobile Breakpoints - Interview Trainer
    ========================================================================== */
 
-@media (max-width: 768px) {
-  .navbar-inner {
-    height: auto;
-    padding: 1rem 0;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .nav-item {
-    padding: 0.35rem 0.6rem;
-    font-size: 0.88rem;
-  }
-
-  main.main-content {
-    padding: 1.5rem 0;
-  }
-
-  .hero-section {
-    padding: 2.5rem 1rem 3rem 1rem !important;
-  }
-
-  .hero-title {
-    font-size: 2.1rem !important;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .test-header-bar {
+/* --------------------------------------------------------------------------
+   Tablet & Mobile Navigation Breakpoint (<= 900px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  /* Navbar Header Bar */
+  .navbar {
+    position: sticky;
     top: 0;
-    flex-direction: column;
-    align-items: stretch;
-    text-align: center;
+    z-index: 1000;
+  }
+
+  .navbar-inner {
+    height: auto !important;
+    min-height: 56px !important;
+    padding: 0.5rem 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+  }
+
+  .brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
+    font-size: 1.15rem !important;
+    text-decoration: none !important;
+  }
+
+  .brand-icon {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .mobile-nav-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0.4rem 0.65rem !important;
+    font-size: 1.25rem !important;
+    line-height: 1 !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+  }
+
+  .mobile-nav-toggle:hover,
+  .mobile-nav-toggle:focus-visible {
+    background-color: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+  }
+
+  /* Collapsible Navigation Wrapper */
+  .nav-links-wrapper {
+    display: none !important;
+    width: 100% !important;
+    flex-basis: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.75rem 0 0.5rem 0 !important;
+    border-top: 1px solid #e2e8f0 !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .nav-links-wrapper.is-open {
+    display: flex !important;
+  }
+
+  .nav-links-wrapper nav {
+    width: 100% !important;
+  }
+
+  .nav-links-wrapper .nav-links {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 0.35rem !important;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .nav-links-wrapper .nav-links li {
+    width: 100% !important;
+  }
+
+  .nav-links-wrapper .nav-item {
+    display: block !important;
+    width: 100% !important;
+    padding: 0.65rem 0.75rem !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+    border-radius: 6px !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    text-decoration: none !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+  }
+
+  .nav-links-wrapper .nav-item:hover,
+  .nav-links-wrapper .nav-item:focus-visible {
+    background-color: #f1f5f9 !important;
+    color: #2563eb !important;
+  }
+
+  /* Auth Buttons in Mobile Menu */
+  .nav-links-wrapper .nav-auth-group {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
+    padding-top: 0.65rem !important;
+    border-top: 1px solid #e2e8f0 !important;
+    margin-top: 0.25rem !important;
+  }
+
+  .nav-links-wrapper .nav-dropdown {
+    position: relative !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
+  .nav-links-wrapper .nav-dropdown-toggle {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+    padding: 0.65rem 1rem !important;
+    box-sizing: border-box !important;
+    font-size: 0.95rem !important;
+  }
+
+  /* Mobile Dropdown Menus: Hidden when closed (0 space), block when opened */
+  .nav-links-wrapper .nav-dropdown-menu {
+    display: none !important;
+    position: static !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    margin-top: 0.35rem !important;
+    padding: 0.5rem !important;
+    background: #f8fafc !important;
+    pointer-events: auto !important;
+  }
+
+  .nav-links-wrapper .nav-dropdown.is-open .nav-dropdown-menu {
+    display: block !important;
+  }
+
+  .dropdown-role-card {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    padding: 0.65rem 0.75rem !important;
+    min-height: 44px !important;
+    border-radius: 6px !important;
+    text-decoration: none !important;
+    color: #0f172a !important;
+    box-sizing: border-box !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .dropdown-role-card:hover {
+    background-color: #e2e8f0 !important;
+  }
+
+  /* Main Content Spacing on Mobile */
+  main.main-content {
+    padding: 1rem 0 !important;
+    min-height: auto !important;
+  }
+
+  /* General Grid Stacking on Mobile */
+  .stats-grid-saas,
+  .features-grid-saas,
+  .timeline-grid-saas,
+  .role-grid-saas,
+  .security-grid-saas,
+  .footer-columns-grid,
+  .stats-grid,
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
+
+  .role-grid-saas {
+    margin-bottom: 2.5rem !important;
+  }
+
+  /* Assessment / Test UI Responsiveness */
+  .test-header-bar {
+    top: 0 !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    text-align: center !important;
+    gap: 0.75rem !important;
   }
 
   .timer-box {
-    justify-content: center;
+    justify-content: center !important;
   }
 
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .result-header-card, .result-hero {
-    flex-direction: column;
-    text-align: center;
+  .result-header-card,
+  .result-hero {
+    flex-direction: column !important;
+    text-align: center !important;
   }
 
   .score-badge-circle {
-    margin: 0 auto;
+    margin: 0 auto !important;
   }
 
   .auth-card {
-    padding: 1.75rem 1.25rem;
+    padding: 1.75rem 1.25rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Footer Responsive Styles */
+  footer.footer {
+    padding: 2.25rem 0 1.5rem 0 !important;
+    margin-top: 2.5rem !important;
   }
 }
 
+/* --------------------------------------------------------------------------
+   Small Tablets & Large Phones (<= 768px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1.25rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .btn-lg {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.98rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Standard Phones (<= 480px)
+   -------------------------------------------------------------------------- */
 @media (max-width: 480px) {
-  .hero-title {
-    font-size: 1.75rem !important;
+  .container {
+    padding: 0 1rem;
+  }
+
+  .btn {
+    box-sizing: border-box;
   }
 
   .palette-grid {
     grid-template-columns: repeat(4, 1fr) !important;
   }
+}
 
-  .btn-lg {
-    width: 100%;
+/* --------------------------------------------------------------------------
+   Small Screen Phones (<= 360px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 360px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+
+  .brand span {
+    font-size: 1.05rem !important;
+  }
+
+  .brand-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .mobile-nav-toggle {
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0.3rem 0.5rem !important;
+    font-size: 1.1rem !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced Motion Compliance
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
