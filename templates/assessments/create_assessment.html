@@ -14,10 +14,14 @@
       <h1 class="page-title">Schedule New Assessment</h1>
       <p class="page-subtitle">Configure sections, question distribution, scheduling window, and duration for candidate testing.</p>
     </div>
-    <div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <a href="{% url 'assessments:employer_ai_question_generator' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+        ⚡ AI Question Generator
+      </a>
       <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm">&larr; Assessment List</a>
     </div>
   </div>
+
 
   <form method="post" novalidate id="assessmentForm">
     {% csrf_token %}

@@ -206,6 +206,101 @@ def employer_assessment_list(request):
     return render(request, "assessments/employer_assessment_list.html", context)
 
 
+@employer_required
+def employer_ai_question_generator(request):
+    """Employer interface for generating original Aptitude and Coding questions via AI."""
+    from assessments.ai_generator import (
+        generate_aptitude_questions,
+        generate_coding_questions,
+        save_aptitude_questions,
+        save_coding_questions,
+    )
+
+    generated_questions = []
+    generated_coding = []
+    mode = "aptitude"
+    section = Question.Sections.LOGICAL
+    difficulty = Question.Difficulties.MEDIUM
+    count = 5
+    coding_category = CodingQuestion.Categories.ARRAYS
+    language = "python"
+    step = "config"
+
+    if request.method == "POST":
+        action = request.POST.get("action", "generate")
+
+        if action == "generate":
+            mode = request.POST.get("mode", "aptitude")
+            difficulty = request.POST.get("difficulty", Question.Difficulties.MEDIUM)
+            try:
+                count = int(request.POST.get("count", 5))
+                count = max(1, min(20, count))
+            except ValueError:
+                count = 5
+
+            if mode == "aptitude":
+                section = request.POST.get("section", Question.Sections.LOGICAL)
+                generated_questions = generate_aptitude_questions(
+                    section=section,
+                    difficulty=difficulty,
+                    count=count,
+                )
+                step = "preview"
+                messages.info(request, f"Generated {len(generated_questions)} new {section} questions. Review them below before saving to Question Bank.")
+            else:  # coding
+                coding_category = request.POST.get("coding_category", CodingQuestion.Categories.ARRAYS)
+                language = request.POST.get("language", "python")
+                generated_coding = generate_coding_questions(
+                    category=coding_category,
+                    difficulty=difficulty,
+                    language=language,
+                    count=count,
+                )
+                step = "preview"
+                messages.info(request, f"Generated {len(generated_coding)} new coding challenges in category '{coding_category}'. Review them below before saving.")
+
+        elif action == "save_aptitude":
+            raw_payload = request.POST.get("questions_payload", "[]")
+            try:
+                payload = json.loads(raw_payload)
+                saved = save_aptitude_questions(payload)
+                messages.success(request, f"Successfully added {len(saved)} AI-generated questions to the Question Bank!")
+                return redirect("assessments:employer_assessment_create")
+            except Exception as exc:
+                messages.error(request, f"Error saving generated questions: {exc}")
+
+        elif action == "save_coding":
+            raw_payload = request.POST.get("coding_payload", "[]")
+            try:
+                payload = json.loads(raw_payload)
+                saved = save_coding_questions(payload)
+                messages.success(request, f"Successfully added {len(saved)} AI-generated coding challenges to the Question Bank!")
+                return redirect("assessments:employer_assessment_create")
+            except Exception as exc:
+                messages.error(request, f"Error saving generated coding problems: {exc}")
+
+    context = {
+        "step": step,
+        "mode": mode,
+        "section": section,
+        "difficulty": difficulty,
+        "count": count,
+        "coding_category": coding_category,
+        "language": language,
+        "sections": Question.Sections.choices,
+        "difficulties": Question.Difficulties.choices,
+        "coding_categories": CodingQuestion.Categories.choices,
+        "generated_questions": generated_questions,
+        "generated_coding": generated_coding,
+        "generated_questions_json": json.dumps(generated_questions),
+        "generated_coding_json": json.dumps(generated_coding),
+        "total_aptitude_bank": Question.objects.count(),
+        "total_coding_bank": CodingQuestion.objects.count(),
+    }
+    return render(request, "assessments/ai_question_generator.html", context)
+
+
+
 # ---------------------------------------------------------------------------
 # Candidate Secure Test Entry & Taking Views
 # ---------------------------------------------------------------------------

@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AI Question Generator — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  .generator-container {
+    max-width: 1050px;
+    margin: 0 auto;
+    padding-bottom: 3rem;
+  }
+  .mode-selector-tabs {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #475569;
+    transition: all 0.2s ease;
+  }
+  .mode-btn.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+  }
+  .card-question-preview {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .option-pill {
+    padding: 0.6rem 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .option-pill.correct {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+    font-weight: 700;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="generator-container">
+  <!-- Page Header -->
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+      <h1 class="page-title" style="font-size: 1.75rem; font-weight: 800; color: #0f172a; margin-bottom: 0.25rem;">
+        ⚡ AI Question Generator
+      </h1>
+      <p class="page-subtitle" style="color: #64748b; margin: 0; font-size: 0.95rem;">
+        Generate original Aptitude MCQs and DSA Coding Challenges for your hiring question bank.
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-secondary btn-sm">
+        &larr; Back to Create Assessment
+      </a>
+    </div>
+  </div>
+
+  <!-- Bank Stats Banner -->
+  <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1.25rem; flex: 1; min-width: 200px;">
+      <span style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Aptitude Question Bank</span>
+      <div style="font-size: 1.3rem; font-weight: 800; color: #2563eb;">{{ total_aptitude_bank }} Questions Available</div>
+    </div>
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1.25rem; flex: 1; min-width: 200px;">
+      <span style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Coding Problem Bank</span>
+      <div style="font-size: 1.3rem; font-weight: 800; color: #059669;">{{ total_coding_bank }} Problems Available</div>
+    </div>
+  </div>
+
+  {% if step == 'config' %}
+    <!-- Generator Configuration Form -->
+    <div class="card" style="padding: 1.5rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;">
+      <form method="post" id="generatorForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="generate">
+        <input type="hidden" name="mode" id="selectedMode" value="{{ mode }}">
+
+        <label style="font-weight: 700; color: #1e293b; font-size: 0.95rem; margin-bottom: 0.5rem; display: block;">
+          Select Assessment Domain:
+        </label>
+        <div class="mode-selector-tabs">
+          <div class="mode-btn {% if mode == 'aptitude' %}active{% endif %}" id="btnModeAptitude" onclick="switchMode('aptitude')">
+            📝 Aptitude MCQs (Logical, Quant, Tech)
+          </div>
+          <div class="mode-btn {% if mode == 'coding' %}active{% endif %}" id="btnModeCoding" onclick="switchMode('coding')">
+            💻 DSA Coding Challenges
+          </div>
+        </div>
+
+        <!-- Aptitude Form Group -->
+        <div id="aptitudeFields" style="display: {% if mode == 'aptitude' %}block{% else %}none{% endif %};">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <label for="id_section" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Question Section:
+              </label>
+              <select name="section" id="id_section" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                {% for sec_val, sec_label in sections %}
+                  <option value="{{ sec_val }}" {% if section == sec_val %}selected{% endif %}>{{ sec_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="id_difficulty_apt" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Difficulty:
+              </label>
+              <select name="difficulty" id="id_difficulty_apt" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                {% for diff_val, diff_label in difficulties %}
+                  <option value="{{ diff_val }}" {% if difficulty == diff_val %}selected{% endif %}>{{ diff_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="id_count_apt" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Number to Generate:
+              </label>
+              <select name="count" id="id_count_apt" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <option value="1" {% if count == 1 %}selected{% endif %}>1 Question</option>
+                <option value="5" {% if count == 5 %}selected{% endif %}>5 Questions</option>
+                <option value="10" {% if count == 10 %}selected{% endif %}>10 Questions</option>
+                <option value="20" {% if count == 20 %}selected{% endif %}>20 Questions</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coding Form Group -->
+        <div id="codingFields" style="display: {% if mode == 'coding' %}block{% else %}none{% endif %};">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <label for="id_coding_category" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Category:
+              </label>
+              <select name="coding_category" id="id_coding_category" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                {% for cat_val, cat_label in coding_categories %}
+                  <option value="{{ cat_val }}" {% if coding_category == cat_val %}selected{% endif %}>{{ cat_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="id_difficulty_cod" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Difficulty:
+              </label>
+              <select name="difficulty" id="id_difficulty_cod" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                {% for diff_val, diff_label in difficulties %}
+                  <option value="{{ diff_val }}" {% if difficulty == diff_val %}selected{% endif %}>{{ diff_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="id_language" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Primary Language:
+              </label>
+              <select name="language" id="id_language" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <option value="python" {% if language == 'python' %}selected{% endif %}>Python 3</option>
+                <option value="javascript" {% if language == 'javascript' %}selected{% endif %}>JavaScript (Node.js)</option>
+                <option value="java" {% if language == 'java' %}selected{% endif %}>Java 17</option>
+                <option value="cpp" {% if language == 'cpp' %}selected{% endif %}>C++ (GCC)</option>
+              </select>
+            </div>
+            <div>
+              <label for="id_count_cod" style="font-weight: 700; font-size: 0.88rem; color: #334155; display: block; margin-bottom: 0.4rem;">
+                Number to Generate:
+              </label>
+              <select name="count" id="id_count_cod" class="form-control" style="width: 100%; padding: 0.65rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                <option value="1" {% if count == 1 %}selected{% endif %}>1 Problem</option>
+                <option value="5" {% if count == 5 %}selected{% endif %}>5 Problems</option>
+                <option value="10" {% if count == 10 %}selected{% endif %}>10 Problems</option>
+                <option value="20" {% if count == 20 %}selected{% endif %}>20 Problems</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
+          <button type="submit" class="btn btn-primary btn-lg" style="font-weight: 800; padding: 0.85rem 2rem;">
+            ⚡ Generate Questions via AI
+          </button>
+        </div>
+      </form>
+    </div>
+
+  {% elif step == 'preview' %}
+    <!-- Review & Workbench Preview Section -->
+    {% if mode == 'aptitude' and generated_questions %}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0;">
+          Review Generated MCQs ({{ generated_questions|length }})
+        </h2>
+        <form method="post" style="display: inline-block;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_aptitude">
+          <input type="hidden" name="questions_payload" value="{{ generated_questions_json }}">
+          <button type="submit" class="btn btn-primary" style="font-weight: 800;">
+            💾 Save All to Question Bank
+          </button>
+          <a href="{% url 'assessments:employer_ai_question_generator' %}" class="btn btn-secondary" style="margin-left: 0.5rem;">
+            🔄 Discard &amp; New
+          </a>
+        </form>
+      </div>
+
+      {% for q in generated_questions %}
+        <div class="card-question-preview">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <strong style="color: #1e293b; font-size: 1rem;">Q{{ forloop.counter }}. {{ q.question_text }}</strong>
+            <span class="badge badge-completed" style="font-size: 0.75rem;">{{ q.section }} &bull; {{ q.difficulty }}</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <div class="option-pill {% if q.correct_answer == 'A' %}correct{% endif %}">
+              <span><strong>A.</strong> {{ q.option_a }}</span>
+              {% if q.correct_answer == 'A' %}<span style="font-size: 0.75rem;">✓ Correct</span>{% endif %}
+            </div>
+            <div class="option-pill {% if q.correct_answer == 'B' %}correct{% endif %}">
+              <span><strong>B.</strong> {{ q.option_b }}</span>
+              {% if q.correct_answer == 'B' %}<span style="font-size: 0.75rem;">✓ Correct</span>{% endif %}
+            </div>
+            <div class="option-pill {% if q.correct_answer == 'C' %}correct{% endif %}">
+              <span><strong>C.</strong> {{ q.option_c }}</span>
+              {% if q.correct_answer == 'C' %}<span style="font-size: 0.75rem;">✓ Correct</span>{% endif %}
+            </div>
+            <div class="option-pill {% if q.correct_answer == 'D' %}correct{% endif %}">
+              <span><strong>D.</strong> {{ q.option_d }}</span>
+              {% if q.correct_answer == 'D' %}<span style="font-size: 0.75rem;">✓ Correct</span>{% endif %}
+            </div>
+          </div>
+
+          {% if q.explanation %}
+            <div style="background: #f8fafc; border-left: 3px solid #3b82f6; padding: 0.6rem 0.85rem; font-size: 0.85rem; color: #475569;">
+              <strong>Explanation:</strong> {{ q.explanation }}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+    {% elif mode == 'coding' and generated_coding %}
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0;">
+          Review Generated Coding Problems ({{ generated_coding|length }})
+        </h2>
+        <form method="post" style="display: inline-block;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_coding">
+          <input type="hidden" name="coding_payload" value="{{ generated_coding_json }}">
+          <button type="submit" class="btn btn-primary" style="font-weight: 800;">
+            💾 Save All to Question Bank
+          </button>
+          <a href="{% url 'assessments:employer_ai_question_generator' %}" class="btn btn-secondary" style="margin-left: 0.5rem;">
+            🔄 Discard &amp; New
+          </a>
+        </form>
+      </div>
+
+      {% for c in generated_coding %}
+        <div class="card-question-preview">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">
+              {{ forloop.counter }}. {{ c.title }}
+            </h3>
+            <span class="badge badge-completed" style="font-size: 0.8rem; text-transform: uppercase;">
+              {{ c.category }} &bull; {{ c.difficulty }}
+            </span>
+          </div>
+
+          <p style="font-size: 0.95rem; line-height: 1.6; color: #334155; margin-bottom: 1rem;">
+            {{ c.description }}
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.85rem; font-size: 0.85rem; margin-bottom: 1rem;">
+            <div>
+              <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">Input Format:</span>
+              <div style="color: #1e293b; margin-top: 0.2rem;">{{ c.input_format }}</div>
+            </div>
+            <div>
+              <span style="color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">Output Format:</span>
+              <div style="color: #1e293b; margin-top: 0.2rem;">{{ c.output_format }}</div>
+            </div>
+          </div>
+
+          <!-- Test Cases Table -->
+          <div style="margin-bottom: 1rem;">
+            <strong style="font-size: 0.85rem; color: #1e293b; text-transform: uppercase;">Test Cases ({{ c.test_cases|length }}):</strong>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 0.4rem; font-size: 0.85rem;">
+              <thead>
+                <tr style="background: #f1f5f9; text-align: left;">
+                  <th style="padding: 0.5rem; border: 1px solid #e2e8f0;">#</th>
+                  <th style="padding: 0.5rem; border: 1px solid #e2e8f0;">Input Data</th>
+                  <th style="padding: 0.5rem; border: 1px solid #e2e8f0;">Expected Output</th>
+                  <th style="padding: 0.5rem; border: 1px solid #e2e8f0;">Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for tc in c.test_cases %}
+                  <tr>
+                    <td style="padding: 0.5rem; border: 1px solid #e2e8f0;">{{ forloop.counter }}</td>
+                    <td style="padding: 0.5rem; border: 1px solid #e2e8f0; font-family: monospace;">{{ tc.input_data }}</td>
+                    <td style="padding: 0.5rem; border: 1px solid #e2e8f0; font-family: monospace;">{{ tc.expected_output }}</td>
+                    <td style="padding: 0.5rem; border: 1px solid #e2e8f0;">
+                      {% if tc.is_sample %}
+                        <span class="badge" style="background: #eff6ff; color: #2563eb; font-weight: 700;">Sample</span>
+                      {% else %}
+                        <span class="badge" style="background: #fdf4ff; color: #9333ea; font-weight: 700;">Hidden</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchMode(mode) {
+  document.getElementById('selectedMode').value = mode;
+  const btnApt = document.getElementById('btnModeAptitude');
+  const btnCod = document.getElementById('btnModeCoding');
+  const aptFields = document.getElementById('aptitudeFields');
+  const codFields = document.getElementById('codingFields');
+
+  if (mode === 'aptitude') {
+    btnApt.classList.add('active');
+    btnCod.classList.remove('active');
+    aptFields.style.display = 'block';
+    codFields.style.display = 'none';
+  } else {
+    btnCod.classList.add('active');
+    btnApt.classList.remove('active');
+    codFields.style.display = 'block';
+    aptFields.style.display = 'none';
+  }
+}
+</script>
+{% endblock %}

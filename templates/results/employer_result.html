@@ -5,35 +5,87 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  .metric-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .metric-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .metric-box-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.05em;
+  }
+  .metric-box-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .metric-box-subtext {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 0.15rem;
+  }
+  .proctoring-report-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="result-container" style="max-width: 1050px; margin: 0 auto;">
-  <div class="page-header">
+<div class="result-container" style="max-width: 1100px; margin: 0 auto; padding-bottom: 3rem;">
+  <!-- Page Header & Action Cluster -->
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
     <div>
-      <h1 class="page-title">Candidate Evaluation Report</h1>
-      <p class="page-subtitle">Detailed scoring metrics and section-wise breakdown for {{ candidate.get_full_name|default:candidate.username }}.</p>
+      <h1 class="page-title" style="font-size: 1.75rem; font-weight: 800; color: #0f172a; margin-bottom: 0.25rem;">
+        Candidate Evaluation Report
+      </h1>
+      <p class="page-subtitle" style="color: #64748b; margin: 0; font-size: 0.95rem;">
+        Detailed scoring metrics, section breakdown, proctoring log, and coding analytics for <strong>{{ candidate.get_full_name|default:candidate.username }}</strong>.
+      </p>
     </div>
-    <div style="display: flex; gap: 0.75rem;">
-      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm">&larr; Assessments List</a>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+      <a href="{% url 'results:employer_result_csv_export' result.id %}" class="btn btn-primary btn-sm" style="font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;">
+        <span>📥</span> Export Results (CSV)
+      </a>
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm">
+        &larr; Assessments List
+      </a>
       {% if candidate_profile %}
         <a href="{% url 'dashboard:employer_candidate_detail' candidate_profile.id %}" class="btn btn-outline-primary btn-sm">
-          View Candidate Profile
+          Candidate Profile
         </a>
       {% endif %}
     </div>
   </div>
 
   <!-- Result Header Banner -->
-  <div class="result-header-card">
+  <div class="result-header-card" style="margin-bottom: 1.5rem;">
     <div>
-      <span class="badge badge-completed" style="margin-bottom: 0.5rem;">Completed &bull; Attended</span>
+      <span class="badge {% if assessment.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %}" style="margin-bottom: 0.5rem;">
+        {{ assessment.get_status_display }} &bull; {{ assessment.get_candidate_status_display }}
+      </span>
       <h2 style="font-size: 1.6rem; font-weight: 800; color: var(--dark-bg); margin-bottom: 0.35rem;">
         {{ assessment.title }}
       </h2>
-      <p style="color: var(--text-muted); font-size: 0.95rem;">
+      <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">
         Candidate: <strong>{{ candidate.get_full_name|default:candidate.username }}</strong> ({{ candidate.email }})
-        &bull; Completed on {{ result.completed_at|date:"M d, Y at H:i" }}
+        &bull; Completed on {{ result.completed_at|date:"M d, Y at H:i"|default:"Pending" }}
       </p>
     </div>
 
@@ -43,141 +95,207 @@
     </div>
   </div>
 
-  {% if result.violation_count > 0 or result.auto_submitted_for_malpractice %}
-    <!-- Proctoring / Malpractice Status Banner -->
-    <div style="background: {% if result.auto_submitted_for_malpractice %}#fef2f2; border: 1px solid #fca5a5;{% else %}#fffbeb; border: 1px solid #fde68a;{% endif %} border-radius: 8px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <span style="font-size: 1.5rem;">{% if result.auto_submitted_for_malpractice %}⚠️{% else %}🛡️{% endif %}</span>
-        <div>
-          <strong style="color: {% if result.auto_submitted_for_malpractice %}#991b1b{% else %}#92400e{% endif %}; font-size: 0.95rem;">
-            {% if result.auto_submitted_for_malpractice %}Malpractice Flag: Auto-Submitted{% else %}Proctoring Integrity Record{% endif %}
-          </strong>
-          <p style="margin: 0; font-size: 0.85rem; color: {% if result.auto_submitted_for_malpractice %}#b91c1c{% else %}#b45309{% endif %};">
-            {{ result.submission_reason|default:"Assessment completed." }}
-          </p>
-        </div>
-      </div>
-      <span class="badge" style="background: {% if result.auto_submitted_for_malpractice %}#ef4444{% else %}#f59e0b{% endif %}; color: #ffffff; font-weight: 700;">
-        Violations: {{ result.violation_count }}/3
-      </span>
+  <!-- Assessment Execution Metrics Grid -->
+  <div class="metric-card-grid">
+    <div class="metric-box">
+      <div class="metric-box-title">Status</div>
+      <div class="metric-box-value" style="font-size: 1.15rem;">{{ assessment.get_status_display }}</div>
+      <div class="metric-box-subtext">{{ assessment.get_candidate_status_display }}</div>
     </div>
-  {% endif %}
+    <div class="metric-box">
+      <div class="metric-box-title">Start Time</div>
+      <div class="metric-box-value" style="font-size: 1.05rem;">{{ assessment.start_time|date:"M d, H:i" }}</div>
+      <div class="metric-box-subtext">Session opened</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-box-title">Completion Time</div>
+      <div class="metric-box-value" style="font-size: 1.05rem;">{{ result.completed_at|date:"M d, H:i"|default:"-" }}</div>
+      <div class="metric-box-subtext">Submitted timestamp</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-box-title">Time Taken</div>
+      <div class="metric-box-value" style="color: #2563eb;">{{ time_taken_str }}</div>
+      <div class="metric-box-subtext">Duration: {{ assessment.duration_minutes }}m limit</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-box-title">Overall Score</div>
+      <div class="metric-box-value" style="color: {% if result.passed %}#059669{% else %}#d97706{% endif %};">{{ result.overall_score }}%</div>
+      <div class="metric-box-subtext">Weighted aggregate</div>
+    </div>
+  </div>
 
-  <!-- Performance Cards & Charts -->
-  <div class="results-grid">
-
-    <div class="section-cards-list">
-      <!-- High Level Metrics Card -->
-      <div class="card" style="margin-bottom: 1.5rem;">
-        <div class="card-header">
-          <h3 class="card-title">Score Performance Summary</h3>
-          <span class="badge {% if result.passed %}badge-completed{% else %}badge-expired{% endif %}">
-            {{ result.total_correct }} / {{ result.total_questions }} Total Correct
+  <!-- Proctoring & Malpractice Status Box -->
+  <div class="proctoring-report-box" style="border-left: 4px solid {% if result.auto_submitted_for_malpractice %}#ef4444{% elif result.violation_count > 0 %}#f59e0b{% else %}#10b981{% endif %};">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem;">
+        <span style="font-size: 1.4rem;">{% if result.auto_submitted_for_malpractice %}⚠️{% elif result.violation_count > 0 %}🛡️{% else %}✅{% endif %}</span>
+        <div>
+          <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0;">
+            Proctoring &amp; Integrity Record
+          </h3>
+          <span style="font-size: 0.85rem; color: #64748b;">
+            {% if result.auto_submitted_for_malpractice %}
+              <span style="color: #dc2626; font-weight: 700;">Terminated for Malpractice (Maximum 3 violations exceeded)</span>
+            {% elif result.violation_count > 0 %}
+              <span style="color: #d97706; font-weight: 700;">{{ result.violation_count }} warnings recorded during session</span>
+            {% else %}
+              <span style="color: #059669; font-weight: 700;">Clean assessment session (Zero violations)</span>
+            {% endif %}
           </span>
         </div>
-        <div class="card-body">
-          {% if has_coding %}
-            <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
-              <div class="detail-item" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem;">
-                <span class="detail-label" style="color: #1e40af; font-weight: 700;">Aptitude Score</span>
-                <span class="detail-value" style="color: #2563eb; font-weight: 800; font-size: 1.5rem;">{{ result.aptitude_score }}%</span>
-                <span style="font-size: 0.8rem; color: #6b7280;">{{ result.total_correct }}/{{ result.total_questions }} MCQs</span>
+      </div>
+      <span class="badge" style="background: {% if result.auto_submitted_for_malpractice %}#ef4444{% elif result.violation_count > 0 %}#f59e0b{% else %}#10b981{% endif %}; color: #ffffff; font-weight: 800; font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+        Violations: {{ result.violation_count }} / 3
+      </span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.85rem 1rem; font-size: 0.85rem;">
+      <div>
+        <span style="color: #64748b;">Last Violation Type:</span>
+        <strong style="color: #1e293b; margin-left: 0.25rem;">{{ assessment.last_violation_type|default:"None" }}</strong>
+      </div>
+      <div>
+        <span style="color: #64748b;">Last Violation At:</span>
+        <strong style="color: #1e293b; margin-left: 0.25rem;">{{ assessment.last_violation_at|date:"M d, Y H:i:s"|default:"N/A" }}</strong>
+      </div>
+      <div>
+        <span style="color: #64748b;">Auto-Submitted:</span>
+        <strong style="color: {% if result.auto_submitted_for_malpractice %}#dc2626{% else %}#059669{% endif %}; margin-left: 0.25rem;">
+          {% if result.auto_submitted_for_malpractice %}Yes (Malpractice limit reached){% else %}No (Normal candidate submission){% endif %}
+        </strong>
+      </div>
+      <div style="grid-column: 1 / -1;">
+        <span style="color: #64748b;">Submission Reason:</span>
+        <strong style="color: #1e293b; margin-left: 0.25rem;">{{ result.submission_reason|default:"Standard candidate completion" }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance Breakdown Grid -->
+  <div class="results-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; align-items: start;">
+    <!-- Left Column: Aptitude & Coding Detailed Cards -->
+    <div class="section-cards-list">
+      
+      <!-- Aptitude Performance Summary Card -->
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 800;">
+            📊 Aptitude Performance Breakdown
+          </h3>
+          <span class="badge badge-completed">
+            {{ result.total_correct }} / {{ result.total_questions }} MCQs Correct
+          </span>
+        </div>
+        <div class="card-body" style="padding: 1.25rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.75rem 1rem;">
+              <span style="font-size: 0.75rem; color: #1e40af; font-weight: 700; text-transform: uppercase;">Overall Aptitude</span>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #2563eb;">{{ result.aptitude_score }}%</div>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.75rem 1rem;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Total Questions</span>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">{{ result.total_questions }}</div>
+            </div>
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem 1rem;">
+              <span style="font-size: 0.75rem; color: #065f46; font-weight: 700; text-transform: uppercase;">Correct</span>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #059669;">{{ result.total_correct }}</div>
+            </div>
+            <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.75rem 1rem;">
+              <span style="font-size: 0.75rem; color: #991b1b; font-weight: 700; text-transform: uppercase;">Incorrect / Skipped</span>
+              <div style="font-size: 1.3rem; font-weight: 800; color: #dc2626;">{{ result.total_questions|add:"-"|add:result.total_correct|default:"0" }}</div>
+            </div>
+          </div>
+
+          <!-- Section Progress Bars -->
+          {% if result.logical_total > 0 %}
+            <div class="section-result-card" style="margin-bottom: 0.85rem;">
+              <div class="section-result-header" style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.35rem;">
+                <span>🧠 Logical Reasoning</span>
+                <span>{{ result.logical_correct }} / {{ result.logical_total }} ({{ logical_pct }}%)</span>
               </div>
-              <div class="detail-item" style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 1rem;">
-                <span class="detail-label" style="color: #065f46; font-weight: 700;">Coding Score</span>
-                <span class="detail-value" style="color: #059669; font-weight: 800; font-size: 1.5rem;">{{ result.coding_score }}%</span>
-                <span style="font-size: 0.8rem; color: #6b7280;">{{ coding_submissions|length }} Problems</span>
-              </div>
-              <div class="detail-item" style="background: #fdf4ff; border: 1px solid #f5d0fe; border-radius: 8px; padding: 1rem;">
-                <span class="detail-label" style="color: #86198f; font-weight: 700;">Overall Score</span>
-                <span class="detail-value" style="color: #a21caf; font-weight: 800; font-size: 1.5rem;">{{ result.overall_score }}%</span>
-                <span style="font-size: 0.8rem; color: #6b7280;">Combined Aggregate</span>
+              <div class="progress-bar-track" style="height: 8px; background: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                <div class="progress-bar-fill" style="width: {{ logical_pct }}%; height: 100%; background: #2563eb;"></div>
               </div>
             </div>
-          {% else %}
-            <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
-              <div class="detail-item">
-                <span class="detail-label">Candidate Name</span>
-                <span class="detail-value">{{ candidate.get_full_name|default:candidate.username }}</span>
+          {% endif %}
+
+          {% if result.quant_total > 0 %}
+            <div class="section-result-card" style="margin-bottom: 0.85rem;">
+              <div class="section-result-header" style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.35rem;">
+                <span>📐 Quantitative Aptitude</span>
+                <span>{{ result.quant_correct }} / {{ result.quant_total }} ({{ quant_pct }}%)</span>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Email Address</span>
-                <span class="detail-value">{{ candidate.email }}</span>
+              <div class="progress-bar-track" style="height: 8px; background: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                <div class="progress-bar-fill" style="width: {{ quant_pct }}%; height: 100%; background: #10b981;"></div>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Overall Accuracy</span>
-                <span class="detail-value" style="color: var(--primary); font-weight: 800;">{{ result.percentage }}%</span>
+            </div>
+          {% endif %}
+
+          {% if result.technical_total > 0 %}
+            <div class="section-result-card" style="margin-bottom: 0.85rem;">
+              <div class="section-result-header" style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.35rem;">
+                <span>💻 Technical Aptitude</span>
+                <span>{{ result.technical_correct }} / {{ result.technical_total }} ({{ tech_pct }}%)</span>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Duration Allotted</span>
-                <span class="detail-value">{{ assessment.duration_minutes }} Minutes</span>
+              <div class="progress-bar-track" style="height: 8px; background: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+                <div class="progress-bar-fill" style="width: {{ tech_pct }}%; height: 100%; background: #f59e0b;"></div>
               </div>
             </div>
           {% endif %}
         </div>
       </div>
 
-      <!-- Section Breakdown Cards -->
-      {% if result.logical_total > 0 %}
-        <div class="section-result-card">
-          <div class="section-result-header">
-            <span class="section-result-title">🧠 Logical Reasoning</span>
-            <span class="section-result-score">{{ result.logical_correct }} / {{ result.logical_total }} ({{ logical_pct }}%)</span>
-          </div>
-          <div class="progress-bar-track">
-            <div class="progress-bar-fill" style="width: {{ logical_pct }}%;"></div>
-          </div>
-        </div>
-      {% endif %}
-
-      {% if result.quant_total > 0 %}
-        <div class="section-result-card">
-          <div class="section-result-header">
-            <span class="section-result-title">📐 Quantitative Aptitude</span>
-            <span class="section-result-score">{{ result.quant_correct }} / {{ result.quant_total }} ({{ quant_pct }}%)</span>
-          </div>
-          <div class="progress-bar-track">
-            <div class="progress-bar-fill" style="width: {{ quant_pct }}%;"></div>
-          </div>
-        </div>
-      {% endif %}
-
-      {% if result.technical_total > 0 %}
-        <div class="section-result-card">
-          <div class="section-result-header">
-            <span class="section-result-title">💻 Technical Aptitude</span>
-            <span class="section-result-score">{{ result.technical_correct }} / {{ result.technical_total }} ({{ tech_pct }}%)</span>
-          </div>
-          <div class="progress-bar-track">
-            <div class="progress-bar-fill" style="width: {{ tech_pct }}%;"></div>
-          </div>
-        </div>
-      {% endif %}
-
-      <!-- Coding Challenges Section Breakdown -->
-      {% if has_coding and coding_submissions %}
-        <div class="card" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
-          <div class="card-header">
-            <h3 class="card-title">💻 Coding Evaluation Breakdown</h3>
+      <!-- Coding Performance Section Breakdown -->
+      {% if has_coding %}
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="margin: 0; font-size: 1.1rem; font-weight: 800;">
+              💻 Coding Evaluation Breakdown
+            </h3>
+            <span class="badge {% if passed_coding_count == total_coding_count and total_coding_count > 0 %}badge-completed{% else %}badge-pending{% endif %}">
+              Score: {{ result.coding_score }}%
+            </span>
           </div>
           <div class="card-body" style="padding: 1.25rem;">
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <!-- Coding Overview Stats -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+              <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 0.75rem 1rem;">
+                <span style="font-size: 0.75rem; color: #065f46; font-weight: 700; text-transform: uppercase;">Coding Score</span>
+                <div style="font-size: 1.3rem; font-weight: 800; color: #059669;">{{ result.coding_score }}%</div>
+              </div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.75rem 1rem;">
+                <span style="font-size: 0.75rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Attempted</span>
+                <div style="font-size: 1.3rem; font-weight: 800; color: #0f172a;">{{ attempted_coding_count }} / {{ total_coding_count }}</div>
+              </div>
+              <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.75rem 1rem;">
+                <span style="font-size: 0.75rem; color: #1e40af; font-weight: 700; text-transform: uppercase;">Passed Problems</span>
+                <div style="font-size: 1.3rem; font-weight: 800; color: #2563eb;">{{ passed_coding_count }} / {{ total_coding_count }}</div>
+              </div>
+              <div style="background: #fdf4ff; border: 1px solid #f5d0fe; border-radius: 6px; padding: 0.75rem 1rem;">
+                <span style="font-size: 0.75rem; color: #86198f; font-weight: 700; text-transform: uppercase;">Test Cases Passed</span>
+                <div style="font-size: 1.3rem; font-weight: 800; color: #a21caf;">{{ passed_test_cases }} / {{ total_test_cases }}</div>
+              </div>
+            </div>
+
+            <!-- Problem Cards List -->
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
               {% for sub in coding_submissions %}
                 <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafafa;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
                     <div>
                       <strong style="font-size: 1rem; color: var(--dark-bg);">{{ forloop.counter }}. {{ sub.question.title }}</strong>
-                      <span style="font-size: 0.75rem; margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #e2e8f0;">
-                        {{ sub.question.get_difficulty_display }}
+                      <span style="font-size: 0.75rem; margin-left: 0.4rem; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #e2e8f0; font-weight: 600;">
+                        {{ sub.question.category|default:"DSA" }} &bull; {{ sub.question.get_difficulty_display }}
                       </span>
                     </div>
-                    <span class="badge {% if sub.passed_test_cases == sub.total_test_cases and sub.total_test_cases > 0 %}badge-completed{% else %}badge-pending{% endif %}">
+                    <span class="badge {% if sub.passed_test_cases == sub.total_test_cases and sub.total_test_cases > 0 %}badge-completed{% else %}badge-pending{% endif %}" style="font-size: 0.85rem; font-weight: 700;">
                       Score: {{ sub.score }}%
                     </span>
                   </div>
-                  <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted);">
-                    <span>Language: <strong>{{ sub.get_language_display }}</strong></span>
-                    <span>Test Cases Passed: <strong>{{ sub.passed_test_cases }} / {{ sub.total_test_cases }}</strong></span>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.5rem;">
+                    <span>Language: <strong style="color: #1e293b;">{{ sub.get_language_display }}</strong></span>
+                    <span>Test Cases: <strong style="color: #1e293b;">{{ sub.passed_test_cases }} / {{ sub.total_test_cases }} Passed</strong></span>
+                    <span>Status: <strong style="color: {% if sub.passed_test_cases == sub.total_test_cases and sub.total_test_cases > 0 %}#059669{% else %}#d97706{% endif %};">{% if sub.passed_test_cases == sub.total_test_cases and sub.total_test_cases > 0 %}All Passed{% elif sub.source_code %}Partially Passed{% else %}Not Attempted{% endif %}</strong></span>
                   </div>
                 </div>
               {% endfor %}
@@ -188,16 +306,29 @@
 
     </div>
 
-    <!-- Doughnut Chart Column -->
-    <div class="card" style="padding: 1.5rem; text-align: center;">
-      <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 1.25rem;">
-        Candidate Skill Matrix
-      </h3>
-      <div style="position: relative; max-width: 260px; margin: 0 auto;">
-        <canvas id="employerDoughnutChart" width="260" height="260"></canvas>
+    <!-- Right Column: Visual Charts Container -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <!-- Chart 1: Performance Comparison Bar Chart -->
+      <div class="card" style="padding: 1.25rem;">
+        <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--dark-bg); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.04em;">
+          📈 Performance Comparison
+        </h3>
+        <div style="position: relative; height: 220px;">
+          <canvas id="employerComparisonChart"></canvas>
+        </div>
       </div>
-      <div style="margin-top: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
-        Correct answer distribution by assessment subject section.
+
+      <!-- Chart 2: Section Skill Matrix Doughnut Chart -->
+      <div class="card" style="padding: 1.25rem; text-align: center;">
+        <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--dark-bg); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.04em;">
+          🎯 Subject Skill Matrix
+        </h3>
+        <div style="position: relative; max-width: 220px; height: 220px; margin: 0 auto;">
+          <canvas id="employerDoughnutChart"></canvas>
+        </div>
+        <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+          Correct answer distribution by assessment subject section.
+        </div>
       </div>
     </div>
   </div>
@@ -209,10 +340,12 @@
 <script>
 (function() {
   const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
-  const ctx = document.getElementById('employerDoughnutChart');
+  const compData = JSON.parse('{{ comparison_chart_json|escapejs }}');
 
-  if (ctx && typeof Chart !== 'undefined') {
-    new Chart(ctx, {
+  // 1. Doughnut Skill Matrix Chart
+  const ctxDoughnut = document.getElementById('employerDoughnutChart');
+  if (ctxDoughnut && typeof Chart !== 'undefined') {
+    new Chart(ctxDoughnut, {
       type: 'doughnut',
       data: {
         labels: chartData.labels,
@@ -231,8 +364,8 @@
           legend: {
             position: 'bottom',
             labels: {
-              boxWidth: 12,
-              font: { size: 11 }
+              boxWidth: 10,
+              font: { size: 10 }
             }
           }
         },
@@ -240,6 +373,47 @@
       }
     });
   }
+
+  // 2. Bar Comparison Chart (Aptitude vs Coding vs Overall)
+  const ctxComp = document.getElementById('employerComparisonChart');
+  if (ctxComp && typeof Chart !== 'undefined') {
+    new Chart(ctxComp, {
+      type: 'bar',
+      data: {
+        labels: compData.labels,
+        datasets: [{
+          label: 'Score (%)',
+          data: compData.scores,
+          backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6'],
+          borderRadius: 6,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              stepSize: 20,
+              font: { size: 10 }
+            }
+          },
+          x: {
+            ticks: {
+              font: { size: 11, weight: '600' }
+            }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
 })();
 </script>
 {% endblock %}
+

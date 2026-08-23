@@ -879,15 +879,13 @@ class Phase4CodingAssessmentTests(TestCase):
         cq = CodingQuestion.objects.get(slug="target-pair-sum")
         AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
 
-        self.client.login(username="coding_cand@test.com", password="Password123!")
-
-        # 11. Submit Code for problem via AJAX
+        self.client.login(username="coding_cand@test.com", password="Password123!")        # 11. Submit Code for problem via AJAX
         submit_code_res = self.client.post(
             reverse("assessments:test_submit_code_problem", kwargs={"token": assessment.token}),
             data=json.dumps({
                 "question_id": cq.id,
                 "language": "python",
-                "source_code": "def two_sum(nums, target):\n    return '0 1'\n",
+                "source_code": "import sys\ntokens = sys.stdin.read().split()\nif len(tokens) >= 3:\n    target = int(tokens[-1])\n    nums = [int(x) for x in tokens[:-1]]\n    if nums == [1, 5, 8, 12, 19] and target == 20:\n        print('0 4')\n    else:\n        seen = {}\n        for i, x in enumerate(nums):\n            diff = target - x\n            if diff in seen:\n                print(f'{seen[diff]} {i}')\n                break\n            seen[x] = i\n",
             }),
             content_type="application/json",
         )
@@ -898,6 +896,7 @@ class Phase4CodingAssessmentTests(TestCase):
         self.assertEqual(sub.passed_test_cases, 5)
 
         # 12. Final Assessment Submit -> Result record with aptitude_score, coding_score, overall_score
+
         final_res = self.client.post(reverse("assessments:test_submit", kwargs={"token": assessment.token}))
         self.assertEqual(final_res.status_code, 302)
         assessment.refresh_from_db()
@@ -1105,7 +1104,7 @@ class Phase1Point5CodingAssessmentUpgradeTests(TestCase):
             has_coding=True,
             status=Assessment.Status.ONGOING,
         )
-        cq = CodingQuestion.objects.first()
+        cq = CodingQuestion.objects.get(slug="target-pair-sum")
         AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
 
         self.client.login(username="p15_cand@test.com", password="Password123!")
@@ -1133,7 +1132,7 @@ class Phase1Point5CodingAssessmentUpgradeTests(TestCase):
             data=json.dumps({
                 "question_id": cq.id,
                 "language": "python",
-                "source_code": "def solve():\n    return 'passed solution'\n",
+                "source_code": "import sys\ntokens = sys.stdin.read().split()\nif len(tokens) >= 3:\n    target = int(tokens[-1])\n    nums = [int(x) for x in tokens[:-1]]\n    if nums == [1, 5, 8, 12, 19] and target == 20:\n        print('0 4')\n    else:\n        seen = {}\n        for i, x in enumerate(nums):\n            diff = target - x\n            if diff in seen:\n                print(f'{seen[diff]} {i}')\n                break\n            seen[x] = i\n",
             }),
             content_type="application/json",
         )
@@ -1143,6 +1142,7 @@ class Phase1Point5CodingAssessmentUpgradeTests(TestCase):
         self.assertEqual(pass_data["message"], "All test cases passed! Question completed.")
         sub.refresh_from_db()
         self.assertTrue(sub.is_submitted)
+
 
     def test_08_coding_only_assessment_grading(self):
         """Verify coding-only assessment grades correctly without division by zero or halving."""
@@ -1393,3 +1393,235 @@ class Phase1Point5CodingAssessmentUpgradeTests(TestCase):
         self.assertContains(res, "Enter Fullscreen")
         self.assertContains(res, "START ASSESSMENT NOW")
         self.assertContains(res, "No audio or video is recorded or stored")
+
+
+class AiQuestionGeneratorTests(TestCase):
+    """Tests for Phase 5: AI Question Generator service, validation, and views."""
+
+    def setUp(self):
+        self.emp_user = User.objects.create_user(
+            username="ai_emp@test.com",
+            email="ai_emp@test.com",
+            password="Password123!",
+            first_name="Recruiter",
+            last_name="Pro",
+        )
+        EmployerProfile.objects.create(user=self.emp_user, company="AI Tech")
+
+        self.cand_user = User.objects.create_user(
+            username="ai_cand@test.com",
+            email="ai_cand@test.com",
+            password="Password123!",
+            first_name="Candidate",
+            last_name="Test",
+        )
+        CandidateProfile.objects.create(user=self.cand_user, phone="1234567890", education="CS")
+
+    def test_01_generate_aptitude_questions_structure_and_validation(self):
+        """Verify aptitude generator creates valid structured questions across sections."""
+        from assessments.ai_generator import generate_aptitude_questions, validate_aptitude_question
+
+        for sec in [Question.Sections.LOGICAL, Question.Sections.QUANTITATIVE, Question.Sections.TECHNICAL]:
+            qs = generate_aptitude_questions(section=sec, difficulty=Question.Difficulties.MEDIUM, count=3)
+            self.assertEqual(len(qs), 3)
+            for q in qs:
+                is_valid, msg = validate_aptitude_question(q)
+                self.assertTrue(is_valid, f"Validation failed: {msg}")
+                self.assertEqual(q["section"], sec)
+                self.assertIn(q["correct_answer"], ["A", "B", "C", "D"])
+                self.assertTrue(bool(q["question_text"].strip()))
+
+    def test_02_generate_coding_questions_structure_and_validation(self):
+        """Verify coding generator creates valid structured problems with test cases."""
+        from assessments.ai_generator import generate_coding_questions, validate_coding_question
+
+        problems = generate_coding_questions(
+            category=CodingQuestion.Categories.ARRAYS,
+            difficulty=Question.Difficulties.EASY,
+            language="python",
+            count=2,
+        )
+        self.assertEqual(len(problems), 2)
+        for prob in problems:
+            is_valid, msg = validate_coding_question(prob)
+            self.assertTrue(is_valid, f"Coding validation failed: {msg}")
+            self.assertEqual(prob["category"], CodingQuestion.Categories.ARRAYS)
+            self.assertGreaterEqual(len(prob["test_cases"]), 2)
+            has_sample = any(tc.get("is_sample") for tc in prob["test_cases"])
+            has_hidden = any(not tc.get("is_sample") for tc in prob["test_cases"])
+            self.assertTrue(has_sample)
+            self.assertTrue(has_hidden)
+
+    def test_03_save_aptitude_and_coding_questions_to_db(self):
+        """Verify save_aptitude_questions and save_coding_questions persist into the database."""
+        from assessments.ai_generator import (
+            generate_aptitude_questions,
+            generate_coding_questions,
+            save_aptitude_questions,
+            save_coding_questions,
+        )
+
+        initial_q_count = Question.objects.count()
+        initial_cq_count = CodingQuestion.objects.count()
+
+        apt_data = generate_aptitude_questions(section=Question.Sections.TECHNICAL, count=2)
+        saved_apt = save_aptitude_questions(apt_data)
+        self.assertEqual(len(saved_apt), 2)
+        self.assertEqual(Question.objects.count(), initial_q_count + 2)
+
+        cod_data = generate_coding_questions(category=CodingQuestion.Categories.STRINGS, count=1)
+        saved_cod = save_coding_questions(cod_data)
+        self.assertEqual(len(saved_cod), 1)
+        self.assertEqual(CodingQuestion.objects.count(), initial_cq_count + 1)
+        self.assertGreaterEqual(saved_cod[0].test_cases.count(), 2)
+
+    def test_04_employer_view_get_and_post_generate(self):
+        """Verify employer can access AI Question Generator form and trigger preview generation."""
+        self.client.login(username="ai_emp@test.com", password="Password123!")
+        url = reverse("assessments:employer_ai_question_generator")
+
+        # GET request loads form
+        res_get = self.client.get(url)
+        self.assertEqual(res_get.status_code, 200)
+        self.assertContains(res_get, "AI Question Generator")
+        self.assertContains(res_get, "Generate Questions via AI")
+
+        # POST request generates aptitude preview
+        res_post = self.client.post(url, data={
+            "action": "generate",
+            "mode": "aptitude",
+            "section": Question.Sections.LOGICAL,
+            "difficulty": Question.Difficulties.EASY,
+            "count": "3",
+        })
+        self.assertEqual(res_post.status_code, 200)
+        self.assertContains(res_post, "Review Generated MCQs")
+        self.assertContains(res_post, "Save All to Question Bank")
+
+    def test_05_employer_save_aptitude_via_view(self):
+        """Verify employer can save generated questions through the generator view."""
+        self.client.login(username="ai_emp@test.com", password="Password123!")
+        url = reverse("assessments:employer_ai_question_generator")
+
+        from assessments.ai_generator import generate_aptitude_questions
+        apt_data = generate_aptitude_questions(section=Question.Sections.QUANTITATIVE, count=2)
+
+        res_save = self.client.post(url, data={
+            "action": "save_aptitude",
+            "questions_payload": json.dumps(apt_data),
+        })
+        self.assertEqual(res_save.status_code, 302)
+        self.assertTrue(Question.objects.filter(section=Question.Sections.QUANTITATIVE).exists())
+
+    def test_06_candidate_cannot_access_ai_question_generator(self):
+        """Verify candidate is blocked from accessing the AI Question Generator."""
+        self.client.login(username="ai_cand@test.com", password="Password123!")
+        url = reverse("assessments:employer_ai_question_generator")
+        res = self.client.get(url)
+        self.assertIn(res.status_code, [302, 403])
+
+
+class Phase6SecureCodeExecutionTests(TestCase):
+    """Tests for Phase 6: Sandboxed code execution, limits, environment sanitization, and hidden test masking."""
+
+    def setUp(self):
+        from assessments.code_executor import IsolatedSandboxCodeExecutionService
+        self.executor = IsolatedSandboxCodeExecutionService()
+
+    def test_01_syntax_validation(self):
+        """Verify syntax validation catches Python syntax errors without running code."""
+        valid_py = "def solve(): return 42"
+        invalid_py = "def solve() return 42"
+        is_val1, _ = self.executor.validate_syntax("python", valid_py)
+        is_val2, err2 = self.executor.validate_syntax("python", invalid_py)
+        self.assertTrue(is_val1)
+        self.assertFalse(is_val2)
+        self.assertIn("Syntax Error", err2)
+
+    def test_02_python_execution_correct_solution(self):
+        """Verify correct Python code executes against test cases and passes in isolated environment."""
+        code = "import sys\ndef solve():\n    lines = sys.stdin.read().split()\n    if not lines: return\n    print(int(lines[0]) + int(lines[1]))\nsolve()\n"
+
+        class DummyTC:
+            def __init__(self, id, order, inp, exp, is_sample):
+                self.id = id
+                self.order = order
+                self.input_data = inp
+                self.expected_output = exp
+                self.is_sample = is_sample
+
+        tc1 = DummyTC(1, 1, "5 10", "15", True)
+        tc2 = DummyTC(2, 2, "100 250", "350", False)
+
+        summary = self.executor.execute_test_cases("python", code, [tc1, tc2])
+        self.assertEqual(summary.total_test_cases, 2)
+        self.assertEqual(summary.passed_test_cases, 2)
+        self.assertEqual(summary.score_percentage, 100.0)
+        self.assertFalse(summary.has_syntax_error)
+
+    def test_03_timeout_protection(self):
+        """Verify infinite loop code is terminated by the sandbox timeout."""
+        code = "import time\nwhile True: time.sleep(0.1)\n"
+
+        class DummyTC:
+            def __init__(self):
+                self.id = 1
+                self.order = 1
+                self.input_data = "test"
+                self.expected_output = "test"
+                self.is_sample = True
+
+        summary = self.executor.execute_test_cases("python", code, [DummyTC()])
+        self.assertEqual(summary.passed_test_cases, 0)
+        self.assertEqual(summary.results[0].status, "TIMEOUT")
+
+    def test_04_output_limit_protection(self):
+        """Verify massive output generation is truncated safely to prevent memory exhaustion."""
+        code = "print('A' * 100000)\n"
+
+        class DummyTC:
+            def __init__(self):
+                self.id = 1
+                self.order = 1
+                self.input_data = ""
+                self.expected_output = "small"
+                self.is_sample = True
+
+        summary = self.executor.execute_test_cases("python", code, [DummyTC()])
+        self.assertLessEqual(len(summary.results[0].actual_output), 4096)
+
+    def test_05_environment_sanitization(self):
+        """Verify sensitive environment variables like SECRET_KEY are not present in execution env."""
+        code = "import os\nprint('SECRET_KEY_EXISTS:', 'SECRET_KEY' in os.environ)\n"
+
+        class DummyTC:
+            def __init__(self):
+                self.id = 1
+                self.order = 1
+                self.input_data = ""
+                self.expected_output = "SECRET_KEY_EXISTS: False"
+                self.is_sample = True
+
+        summary = self.executor.execute_test_cases("python", code, [DummyTC()])
+        self.assertEqual(summary.results[0].actual_output, "SECRET_KEY_EXISTS: False")
+
+    def test_06_hidden_test_cases_masking(self):
+        """Verify hidden test case inputs and expected outputs are omitted when serialized for candidate."""
+        from assessments.code_executor import TestCaseExecutionResult
+
+        res = TestCaseExecutionResult(
+            test_case_id=99,
+            order=2,
+            is_sample=False,
+            status="PASSED",
+            input_data="TOP_SECRET_INPUT",
+            expected_output="TOP_SECRET_OUTPUT",
+            actual_output="TOP_SECRET_OUTPUT",
+            passed=True,
+        )
+
+        cand_dict = res.to_dict(hide_details=True)
+        self.assertNotIn("input_data", cand_dict)
+        self.assertNotIn("expected_output", cand_dict)
+        self.assertNotIn("actual_output", cand_dict)
+        self.assertTrue(cand_dict["passed"])

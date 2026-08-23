@@ -6,6 +6,8 @@ app_name = "assessments"
 urlpatterns = [
     path("employer/assessments/create/", views.employer_assessment_create, name="employer_assessment_create"),
     path("employer/assessments/", views.employer_assessment_list, name="employer_assessment_list"),
+    path("employer/questions/generate/", views.employer_ai_question_generator, name="employer_ai_question_generator"),
+
     path("test/<str:token>/", views.test_entry, name="test_entry"),
     path("test/<str:token>/start/", views.test_start, name="test_start"),
     path("test/<str:token>/save-answer/", views.test_save_answer, name="test_save_answer"),

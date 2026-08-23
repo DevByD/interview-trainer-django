@@ -42,15 +42,27 @@ def send_assessment_invitation(assessment, request=None) -> bool:
         "TECHNICAL": "Technical Aptitude",
     }
     section_names = [section_map.get(s, s) for s in sections_list]
-    sections_str = ", ".join(section_names) if section_names else "Logical, Quantitative, Technical Aptitude"
     question_count = assessment.questions.count()
+    coding_count = assessment.coding_questions.count() if assessment.has_coding else 0
+
+    if assessment.has_coding and coding_count > 0:
+        section_names.append("Coding Assessment")
+        sections_str = ", ".join(section_names)
+        if question_count > 0:
+            question_count_str = f"{question_count} MCQs + {coding_count} Coding Problems"
+        else:
+            question_count_str = f"{coding_count} Coding Problems"
+    else:
+        sections_str = ", ".join(section_names) if section_names else "Logical, Quantitative, Technical Aptitude"
+        question_count_str = f"{question_count} Questions"
+
     employer_name = (
         assessment.employer.employer_profile.company
         if hasattr(assessment.employer, "employer_profile")
         else assessment.employer.get_full_name() or assessment.employer.username
     )
 
-    subject = "Your Interview Assessment Invitation"
+    subject = f"Your Assessment Invitation: {assessment.title}"
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@interviewtrainer.local")
 
     text_body = f"""Dear {candidate_name},
@@ -62,7 +74,7 @@ ASSESSMENT DETAILS
 ------------------------------------------------------------
 Title:               {assessment.title}
 Sections:            {sections_str}
-Number of Questions: {question_count}
+Number of Questions: {question_count_str}
 Duration:            {assessment.duration_minutes} minutes
 Start Date & Time:   {assessment.start_time.strftime('%B %d, %Y at %H:%M %Z')}
 Expiry Date & Time:  {assessment.expire_time.strftime('%B %d, %Y at %H:%M %Z')}
@@ -70,11 +82,12 @@ Expiry Date & Time:  {assessment.expire_time.strftime('%B %d, %Y at %H:%M %Z')}
 ------------------------------------------------------------
 INSTRUCTIONS
 ------------------------------------------------------------
-1. Ensure you have a stable internet connection before starting.
-2. Read each question carefully and select the best answer.
+1. Complete the pre-assessment device & system check (webcam, mic, browser, internet, fullscreen).
+2. Read each question carefully and write/select your solutions.
 3. Keep track of the authoritative server-side countdown timer.
-4. The test will automatically submit when the timer expires.
-5. Only one final submission is permitted.
+4. Maintain fullscreen mode throughout the test to prevent proctoring violations.
+5. The test will automatically submit when the timer expires.
+6. Only one final submission is permitted.
 
 ACCESS YOUR TEST:
 {test_link}
@@ -108,7 +121,7 @@ The Interview Trainer Team
     <div class="meta-card">
       <strong>Assessment:</strong> {assessment.title}<br>
       <strong>Sections:</strong> {sections_str}<br>
-      <strong>Questions:</strong> {question_count}<br>
+      <strong>Questions:</strong> {question_count_str}<br>
       <strong>Duration:</strong> {assessment.duration_minutes} Minutes<br>
       <strong>Start Time:</strong> {assessment.start_time.strftime('%B %d, %Y at %H:%M %Z')}<br>
       <strong>Expiry Deadline:</strong> {assessment.expire_time.strftime('%B %d, %Y at %H:%M %Z')}
@@ -117,6 +130,7 @@ The Interview Trainer Team
     <p style="text-align: center;">
       <a href="{test_link}" class="btn" target="_blank">Start Assessment &rarr;</a>
     </p>
+
 
     <p style="font-size: 13px; color: #64748b;">
       <em>Note: Ensure you have a stable connection. Server time is strictly authoritative and the test will auto-submit when the countdown expires.</em>
