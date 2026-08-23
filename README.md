@@ -9,6 +9,7 @@
 - **Repository**: [https://github.com/DevByD/interview-trainer-django](https://github.com/DevByD/interview-trainer-django)
 - **Local Development URL**: [http://localhost:8000](http://localhost:8000)
 - **Production Host**: [http://manya.apolloaitech.co:12700](http://manya.apolloaitech.co:12700) *(configured via CI/CD deployment)*
+- **Live Website**: https://interview.humandb.co/
 
 ---
 
