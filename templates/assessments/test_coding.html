@@ -711,11 +711,17 @@
           </div>
         </div>
 
+        <!-- Offline Notice Banner -->
+        <div id="offlineNoticeBanner" style="display: none; background: rgba(234, 179, 8, 0.2); color: #facc15; border-bottom: 1px solid rgba(234, 179, 8, 0.4); padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 600; text-align: center;">
+          ⚠️ Internet connection unavailable. Code changes are preserved locally and will sync once reconnected.
+        </div>
+
         <!-- Submission Feedback Banner -->
         <div id="submissionAlertBanner" style="display: none; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 600; text-align: center;"></div>
 
         <!-- Monaco Editor Container -->
         <div id="monacoEditorContainer" class="monaco-container"></div>
+
 
         <!-- Action Buttons Bar -->
         <div class="editor-actions-bar">
@@ -862,48 +868,124 @@
   const submitProblemUrl = "{% url 'assessments:test_submit_code_problem' assessment.token %}";
   const finalSubmitForm = document.getElementById('finalSubmitForm');
 
-  // 1. Monaco Editor Initialization
-  require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
-  
-  require(['vs/editor/editor.main'], function() {
-    monaco.editor.defineTheme('darkCodingTheme', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [],
-      colors: {
-        'editor.background': '#0b1120',
-        'editor.lineHighlightBackground': '#1e293b55',
-        'editorGutter.background': '#0b1120',
-      }
-    });
-
+  // 1. Monaco Editor Initialization with Graceful Offline Textarea Fallback
+  function initFallbackTextarea() {
+    const container = document.getElementById('monacoEditorContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    const textarea = document.createElement('textarea');
+    textarea.id = 'codeEditorTextarea';
+    textarea.className = 'code-fallback-textarea';
+    textarea.style.width = '100%';
+    textarea.style.height = '100%';
+    textarea.style.background = '#0b1120';
+    textarea.style.color = '#f8fafc';
+    textarea.style.fontFamily = "'JetBrains Mono', 'Fira Code', 'Consolas', monospace";
+    textarea.style.fontSize = '14px';
+    textarea.style.padding = '1rem';
+    textarea.style.border = 'none';
+    textarea.style.outline = 'none';
+    textarea.style.resize = 'none';
+    textarea.style.lineHeight = '1.5';
+    textarea.style.tabSize = '4';
+    textarea.spellcheck = false;
+    
     const initialProb = problemsData[currentProblemIndex];
-    const initialLang = mapLanguageToMonaco(initialProb.current_language);
+    textarea.value = initialProb.saved_code || (initialProb.starter_code ? initialProb.starter_code[initialProb.current_language] : "") || "";
+    container.appendChild(textarea);
 
-    monacoEditor = monaco.editor.create(document.getElementById('monacoEditorContainer'), {
-      value: initialProb.saved_code || "",
-      language: initialLang,
-      theme: 'darkCodingTheme',
-      automaticLayout: true,
-      fontSize: 14,
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-      minimap: { enabled: false },
-      scrollBeyondLastLine: false,
-      tabSize: 4,
-      insertSpaces: true,
-    });
+    monacoEditor = {
+      getValue: function() { return textarea.value; },
+      setValue: function(val) { textarea.value = val; },
+      getModel: function() { return null; },
+      onDidChangeModelContent: function(cb) {
+        textarea.addEventListener('input', cb);
+      }
+    };
 
-    // Debounced Auto-Save on Keystroke
-    monacoEditor.onDidChangeModelContent(function() {
+    textarea.addEventListener('input', function() {
       clearTimeout(saveDebounceTimer);
       const dot = document.getElementById('saveDot');
-      dot.style.background = '#eab308';
-      document.getElementById('saveStatusText').textContent = "Saving...";
+      if (dot) dot.style.background = '#eab308';
+      const statusText = document.getElementById('saveStatusText');
+      if (statusText) statusText.textContent = "Saving...";
       saveDebounceTimer = setTimeout(triggerAutoSave, 1200);
     });
 
     renderProblemUI(currentProblemIndex);
+  }
+
+  if (typeof require !== 'undefined' && typeof require.config === 'function') {
+    try {
+      require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+      
+      require(['vs/editor/editor.main'], function() {
+        try {
+          monaco.editor.defineTheme('darkCodingTheme', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [],
+            colors: {
+              'editor.background': '#0b1120',
+              'editor.lineHighlightBackground': '#1e293b55',
+              'editorGutter.background': '#0b1120',
+            }
+          });
+
+          const initialProb = problemsData[currentProblemIndex];
+          const initialLang = mapLanguageToMonaco(initialProb.current_language);
+
+          monacoEditor = monaco.editor.create(document.getElementById('monacoEditorContainer'), {
+            value: initialProb.saved_code || "",
+            language: initialLang,
+            theme: 'darkCodingTheme',
+            automaticLayout: true,
+            fontSize: 14,
+            fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            tabSize: 4,
+            insertSpaces: true,
+          });
+
+          monacoEditor.onDidChangeModelContent(function() {
+            clearTimeout(saveDebounceTimer);
+            const dot = document.getElementById('saveDot');
+            if (dot) dot.style.background = '#eab308';
+            const statusText = document.getElementById('saveStatusText');
+            if (statusText) statusText.textContent = "Saving...";
+            saveDebounceTimer = setTimeout(triggerAutoSave, 1200);
+          });
+
+          renderProblemUI(currentProblemIndex);
+        } catch (err) {
+          console.warn("Monaco init error, falling back to textarea:", err);
+          initFallbackTextarea();
+        }
+      }, function(err) {
+        console.warn("Monaco CDN load failed (offline), falling back to textarea:", err);
+        initFallbackTextarea();
+      });
+    } catch(e) {
+      initFallbackTextarea();
+    }
+  } else {
+    // If offline and CDN loader script was not reachable
+    initFallbackTextarea();
+  }
+
+  // Network Offline / Online Listeners
+  const offlineBanner = document.getElementById('offlineNoticeBanner');
+  window.addEventListener('offline', function() {
+    if (offlineBanner) offlineBanner.style.display = 'block';
   });
+  window.addEventListener('online', function() {
+    if (offlineBanner) offlineBanner.style.display = 'none';
+    triggerAutoSave();
+  });
+  if (!navigator.onLine && offlineBanner) {
+    offlineBanner.style.display = 'block';
+  }
 
   function mapLanguageToMonaco(lang) {
     const l = (lang || '').toLowerCase();
@@ -964,11 +1046,14 @@
     // Set Editor Code (blank / scaffold ONLY, no solutions)
     if (monacoEditor) {
       const targetLang = mapLanguageToMonaco(prob.current_language || 'python');
-      const monacoModel = monacoEditor.getModel();
-      monaco.editor.setModelLanguage(monacoModel, targetLang);
+      if (typeof monaco !== 'undefined' && monaco.editor && monaco.editor.setModelLanguage && monacoEditor.getModel) {
+        const monacoModel = monacoEditor.getModel();
+        if (monacoModel) monaco.editor.setModelLanguage(monacoModel, targetLang);
+      }
       const defaultScaffold = (prob.starter_code && prob.starter_code[prob.current_language]) ? prob.starter_code[prob.current_language] : "";
       monacoEditor.setValue(prob.saved_code !== undefined && prob.saved_code !== null ? prob.saved_code : defaultScaffold);
     }
+
 
     // Update Problem Pills in Header
     document.querySelectorAll('.problem-nav-pill').forEach((pill, pIdx) => {
@@ -1117,10 +1202,14 @@
     }
     prob.current_language = newLang;
     const monacoLang = mapLanguageToMonaco(newLang);
-    monaco.editor.setModelLanguage(monacoEditor.getModel(), monacoLang);
+    if (typeof monaco !== 'undefined' && monaco.editor && monaco.editor.setModelLanguage && monacoEditor.getModel) {
+      const monacoModel = monacoEditor.getModel();
+      if (monacoModel) monaco.editor.setModelLanguage(monacoModel, monacoLang);
+    }
 
     triggerAutoSave();
   });
+
 
   // Reset Code button
   const btnReset = document.getElementById('btnResetCode');

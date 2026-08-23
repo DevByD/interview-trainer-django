@@ -1362,3 +1362,34 @@ class Phase1Point5CodingAssessmentUpgradeTests(TestCase):
         self.assertFalse(assessment.auto_submitted_for_malpractice)
         self.assertEqual(assessment.result.violation_count, 1)
         self.assertFalse(assessment.result.auto_submitted_for_malpractice)
+
+    def test_13_system_check_page_loads_with_all_checks_and_privacy_notice(self):
+        """Verify the instructions page renders the System Check card with all 5 checklist items and privacy notice."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="System Check Pre-Assessment Test",
+            start_time=self.now - timedelta(minutes=5),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.PENDING,
+        )
+
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+
+        res = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+        self.assertEqual(res.status_code, 200)
+
+        # Check for System Check UI elements
+        self.assertContains(res, "SYSTEM CHECK")
+        self.assertContains(res, "Prepare your device")
+        self.assertContains(res, "Camera")
+        self.assertContains(res, "Microphone")
+        self.assertContains(res, "Browser")
+        self.assertContains(res, "Internet")
+        self.assertContains(res, "Fullscreen")
+        self.assertContains(res, "Test Camera &amp; Microphone")
+        self.assertContains(res, "Enter Fullscreen")
+        self.assertContains(res, "START ASSESSMENT NOW")
+        self.assertContains(res, "No audio or video is recorded or stored")

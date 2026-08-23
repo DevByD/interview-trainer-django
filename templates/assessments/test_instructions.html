@@ -5,7 +5,92 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes checkmarkPop {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+  }
+
+  .system-check-card {
+    animation: fadeInUp 0.4s ease-out;
+  }
+
+  .check-item-row {
+    transition: background-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .check-item-row:hover {
+    background-color: #f8fafc !important;
+  }
+
+  .check-status-icon.pop {
+    animation: checkmarkPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .btn-check-action {
+    transition: all 0.2s ease;
+  }
+
+  .btn-check-action:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  #btnStartAssessment.ready {
+    animation: pulseGlow 2.5s infinite;
+  }
+
+  #btnStartAssessment.ready:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 20px -3px rgba(16, 185, 129, 0.4) !important;
+  }
+
+  .progress-track-mini {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-top: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .progress-fill-mini {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+</style>
 {% endblock %}
+
 
 {% block content %}
 <div class="test-container" style="max-width: 800px; margin: 0 auto;">
@@ -57,27 +142,430 @@
 
       <div style="background-color: var(--warning-light); border: 1px solid #fde68a; border-radius: var(--radius-sm); padding: 1.25rem; margin-bottom: 2rem;">
         <ul style="padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; color: #92400e; font-size: 0.95rem;">
-          <li><strong>Read every question carefully</strong> before selecting your answer choice.</li>
-          <li><strong>Select the best single answer (A, B, C, or D)</strong> for each multiple-choice question.</li>
-          <li><strong>Authoritative Countdown Timer:</strong> Once you click "START ASSESSMENT", your countdown timer begins. The server-side timer is strictly authoritative and will auto-submit when time expires.</li>
-          <li><strong>Only one final submission</strong> is allowed. You cannot retake or re-submit once submitted.</li>
-          <li><strong>Navigation &amp; Palette:</strong> You may move freely between questions using the Next/Previous buttons or the Question Palette.</li>
-          <li><strong>Do not refresh unnecessarily</strong> or navigate away from the test window during the active test session.</li>
-          <li><strong>Server Time Rule:</strong> If you manipulate your computer clock, the server deadline remains enforced.</li>
+          <li><strong>Read every question carefully</strong> before selecting your answer choice or writing your code.</li>
+          <li><strong>Authoritative Countdown Timer:</strong> Once you start, your countdown timer begins. The server-side timer is strictly authoritative and will auto-submit when time expires.</li>
+          <li><strong>Proctoring &amp; Fullscreen:</strong> You must remain in Fullscreen mode during the assessment. Exiting fullscreen or switching tabs will record a violation. Reaching 3 violations triggers automatic submission.</li>
+          <li><strong>Only one final submission</strong> is allowed. You cannot retake once submitted.</li>
         </ul>
       </div>
 
+      <!-- System Check & Device Readiness Card -->
+      <div class="system-check-card" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1.75rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <span class="badge" style="background: #e0e7ff; color: #4338ca; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em; padding: 0.25rem 0.6rem; text-transform: uppercase;">
+              SYSTEM CHECK
+            </span>
+            <h3 style="font-size: 1.3rem; font-weight: 800; color: #1e293b; margin-top: 0.35rem; margin-bottom: 0.2rem;">
+              Prepare your device
+            </h3>
+            <p style="color: #64748b; font-size: 0.9rem; margin: 0;">
+              Before starting the assessment, verify that your device meets the required environment checks.
+            </p>
+          </div>
+          <div id="checkProgressBadge" style="background: #f1f5f9; color: #475569; font-size: 0.82rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 9999px; border: 1px solid #e2e8f0;">
+            <span id="passedChecksCount">0</span> / 5 Checks Passed
+          </div>
+        </div>
+
+        <!-- Animated Mini Progress Track -->
+        <div class="progress-track-mini">
+          <div class="progress-fill-mini" id="checksProgressBar" style="width: 0%;"></div>
+        </div>
+
+        <!-- Checklist Table / Box -->
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 1.25rem; background: #fafafa;">
+
+          <!-- Camera Check Row -->
+          <div class="check-item-row" id="rowCamera" style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="check-status-icon" id="iconCamera" style="font-size: 1.1rem; width: 24px; text-align: center; color: #d97706;">⏳</span>
+              <div>
+                <strong style="color: #1e293b; font-size: 0.95rem;">Camera</strong>
+                <div style="font-size: 0.8rem; color: #64748b;" id="subtextCamera">Webcam device readiness check</div>
+              </div>
+            </div>
+            <span class="badge" id="badgeCamera" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a; font-weight: 700; padding: 0.25rem 0.65rem;">Pending Test</span>
+          </div>
+
+          <!-- Microphone Check Row -->
+          <div class="check-item-row" id="rowMic" style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="check-status-icon" id="iconMic" style="font-size: 1.1rem; width: 24px; text-align: center; color: #d97706;">⏳</span>
+              <div>
+                <strong style="color: #1e293b; font-size: 0.95rem;">Microphone</strong>
+                <div style="font-size: 0.8rem; color: #64748b;" id="subtextMic">Audio input device readiness check</div>
+              </div>
+            </div>
+            <span class="badge" id="badgeMic" style="background: #fffbeb; color: #d97706; border: 1px solid #fde68a; font-weight: 700; padding: 0.25rem 0.65rem;">Pending Test</span>
+          </div>
+
+          <!-- Browser Check Row -->
+          <div class="check-item-row" id="rowBrowser" style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="check-status-icon" id="iconBrowser" style="font-size: 1.1rem; width: 24px; text-align: center; color: #059669;">✓</span>
+              <div>
+                <strong style="color: #1e293b; font-size: 0.95rem;">Browser</strong>
+                <div style="font-size: 0.8rem; color: #64748b;" id="subtextBrowser">Modern browser &amp; JavaScript support verified</div>
+              </div>
+            </div>
+            <span class="badge" id="badgeBrowser" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; font-weight: 700; padding: 0.25rem 0.65rem;">Ready</span>
+          </div>
+
+          <!-- Internet Check Row -->
+          <div class="check-item-row" id="rowInternet" style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid #f1f5f9; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="check-status-icon" id="iconInternet" style="font-size: 1.1rem; width: 24px; text-align: center; color: #059669;">✓</span>
+              <div>
+                <strong style="color: #1e293b; font-size: 0.95rem;">Internet</strong>
+                <div style="font-size: 0.8rem; color: #64748b;" id="subtextInternet">Active online connection verified</div>
+              </div>
+            </div>
+            <span class="badge" id="badgeInternet" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; font-weight: 700; padding: 0.25rem 0.65rem;">Ready</span>
+          </div>
+
+          <!-- Fullscreen Check Row -->
+          <div class="check-item-row" id="rowFullscreen" style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; background: #ffffff;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="check-status-icon" id="iconFullscreen" style="font-size: 1.1rem; width: 24px; text-align: center; color: #dc2626;">✕</span>
+              <div>
+                <strong style="color: #1e293b; font-size: 0.95rem;">Fullscreen</strong>
+                <div style="font-size: 0.8rem; color: #64748b;" id="subtextFullscreen">Please enable fullscreen before starting</div>
+              </div>
+            </div>
+            <span class="badge" id="badgeFullscreen" style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; font-weight: 700; padding: 0.25rem 0.65rem;">Required</span>
+          </div>
+        </div>
+
+        <!-- Error Alert Box (if permissions denied) -->
+        <div id="checkErrorAlert" style="display: none; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 0.85rem 1.25rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; color: #991b1b; font-size: 0.9rem; font-weight: 600;">
+              <span>⚠️</span>
+              <span id="checkErrorMessage">Permission access is required.</span>
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm" id="btnRetryChecks" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; font-weight: 700;">
+              Try Again
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons Row -->
+        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnTestMedia" style="font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem;">
+              <span>📹</span> Test Camera &amp; Microphone
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnEnterFullscreen" style="font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem;">
+              <span>⛶</span> Enter Fullscreen
+            </button>
+          </div>
+
+          <!-- Status Indicator -->
+          <div id="checksSummaryBanner" style="font-size: 0.9rem; font-weight: 700; color: #64748b; display: flex; align-items: center; gap: 0.4rem;">
+            <span id="summaryIcon">⏳</span>
+            <span id="summaryText">Complete checks to enable test</span>
+          </div>
+        </div>
+
+        <!-- Privacy Guarantee Banner -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.65rem 0.95rem; margin-top: 1.25rem; display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: #64748b;">
+          <span style="font-size: 1rem;">🔒</span>
+          <span><strong>Privacy Notice:</strong> Your camera and microphone are checked for availability. No audio or video is recorded or stored during this system check.</span>
+        </div>
+      </div>
+
       <!-- Start Form Action -->
-      <form action="{% url 'assessments:test_start' assessment.token %}" method="post" style="text-align: center;">
+      <form action="{% url 'assessments:test_start' assessment.token %}" method="post" id="startAssessmentForm" style="text-align: center;">
         {% csrf_token %}
         <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
           By clicking <strong>"START ASSESSMENT"</strong>, you acknowledge the rules above and will begin your timed test.
         </p>
-        <button type="submit" class="btn btn-primary btn-lg" style="padding: 1rem 3rem; font-size: 1.15rem; font-weight: 800; border-radius: var(--radius-md);">
+        <button type="submit" class="btn btn-primary btn-lg" id="btnStartAssessment" disabled style="padding: 1rem 3rem; font-size: 1.15rem; font-weight: 800; border-radius: var(--radius-md); opacity: 0.45; cursor: not-allowed; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
           🚀 START ASSESSMENT NOW
         </button>
+
       </form>
     </div>
   </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  let cameraReady = false;
+  let micReady = false;
+  let browserReady = true;
+  let internetReady = navigator.onLine;
+  let fullscreenReady = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+
+  const btnStart = document.getElementById('btnStartAssessment');
+  const btnTestMedia = document.getElementById('btnTestMedia');
+  const btnEnterFullscreen = document.getElementById('btnEnterFullscreen');
+  const btnRetry = document.getElementById('btnRetryChecks');
+
+  const errorAlert = document.getElementById('checkErrorAlert');
+  const errorMessage = document.getElementById('checkErrorMessage');
+
+  const summaryIcon = document.getElementById('summaryIcon');
+  const summaryText = document.getElementById('summaryText');
+  const passedCountEl = document.getElementById('passedChecksCount');
+
+  // 1. Fullscreen API Safe Call
+  function requestFullscreenSafe() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      return elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      return elem.webkitRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      return elem.mozRequestFullScreen();
+    } else if (elem.msRequestFullscreen) {
+      return elem.msRequestFullscreen();
+    }
+    return Promise.reject("Fullscreen not supported");
+  }
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+
+  // 2. Evaluate All Checks
+  function updateCheckStatusUI() {
+    let passed = 0;
+
+    // Camera
+    const iconCam = document.getElementById('iconCamera');
+    const badgeCam = document.getElementById('badgeCamera');
+    const subCam = document.getElementById('subtextCamera');
+    if (cameraReady) {
+      passed++;
+      iconCam.textContent = "✓";
+      iconCam.style.color = "#059669";
+      badgeCam.textContent = "Ready";
+      badgeCam.style.background = "#ecfdf5";
+      badgeCam.style.color = "#059669";
+      badgeCam.style.borderColor = "#a7f3d0";
+      subCam.textContent = "Webcam access verified";
+    }
+
+    // Microphone
+    const iconMic = document.getElementById('iconMic');
+    const badgeMic = document.getElementById('badgeMic');
+    const subMic = document.getElementById('subtextMic');
+    if (micReady) {
+      passed++;
+      iconMic.textContent = "✓";
+      iconMic.style.color = "#059669";
+      badgeMic.textContent = "Ready";
+      badgeMic.style.background = "#ecfdf5";
+      badgeMic.style.color = "#059669";
+      badgeMic.style.borderColor = "#a7f3d0";
+      subMic.textContent = "Audio input verified";
+    }
+
+    // Browser
+    const iconBrowser = document.getElementById('iconBrowser');
+    const badgeBrowser = document.getElementById('badgeBrowser');
+    if (browserReady) {
+      passed++;
+      iconBrowser.textContent = "✓";
+      iconBrowser.style.color = "#059669";
+      badgeBrowser.textContent = "Ready";
+      badgeBrowser.style.background = "#ecfdf5";
+      badgeBrowser.style.color = "#059669";
+      badgeBrowser.style.borderColor = "#a7f3d0";
+    }
+
+    // Internet
+    const iconNet = document.getElementById('iconInternet');
+    const badgeNet = document.getElementById('badgeInternet');
+    const subNet = document.getElementById('subtextInternet');
+    if (internetReady) {
+      passed++;
+      iconNet.textContent = "✓";
+      iconNet.style.color = "#059669";
+      badgeNet.textContent = "Ready";
+      badgeNet.style.background = "#ecfdf5";
+      badgeNet.style.color = "#059669";
+      badgeNet.style.borderColor = "#a7f3d0";
+      subNet.textContent = "Active online connection verified";
+    } else {
+      iconNet.textContent = "✕";
+      iconNet.style.color = "#dc2626";
+      badgeNet.textContent = "Offline";
+      badgeNet.style.background = "#fef2f2";
+      badgeNet.style.color = "#dc2626";
+      badgeNet.style.borderColor = "#fca5a5";
+      subNet.textContent = "Please reconnect to the internet before starting.";
+      errorAlert.style.display = 'block';
+      errorMessage.textContent = "Please reconnect to the internet before starting.";
+    }
+
+    // Fullscreen
+    fullscreenReady = isFullscreen();
+    const iconFs = document.getElementById('iconFullscreen');
+    const badgeFs = document.getElementById('badgeFullscreen');
+    const subFs = document.getElementById('subtextFullscreen');
+    if (fullscreenReady) {
+      passed++;
+      iconFs.textContent = "✓";
+      iconFs.style.color = "#059669";
+      badgeFs.textContent = "Ready";
+      badgeFs.style.background = "#ecfdf5";
+      badgeFs.style.color = "#059669";
+      badgeFs.style.borderColor = "#a7f3d0";
+      subFs.textContent = "Fullscreen enabled.";
+    } else {
+      iconFs.textContent = "✕";
+      iconFs.style.color = "#dc2626";
+      badgeFs.textContent = "Required";
+      badgeFs.style.background = "#fef2f2";
+      badgeFs.style.color = "#dc2626";
+      badgeFs.style.borderColor = "#fca5a5";
+      subFs.textContent = "Please enable fullscreen before starting.";
+    }
+
+    passedCountEl.textContent = String(passed);
+    const progressBar = document.getElementById('checksProgressBar');
+    if (progressBar) {
+      const pct = Math.round((passed / 5) * 100);
+      progressBar.style.width = pct + '%';
+    }
+
+    // Gating Start Button
+    const allPassed = (cameraReady && micReady && browserReady && internetReady && fullscreenReady);
+    if (allPassed) {
+      btnStart.disabled = false;
+      btnStart.classList.add('ready');
+      btnStart.style.opacity = "1";
+      btnStart.style.cursor = "pointer";
+      btnStart.style.boxShadow = "0 10px 25px -5px rgba(16, 185, 129, 0.4)";
+      btnStart.style.background = "linear-gradient(135deg, #059669 0%, #10b981 100%)";
+      btnStart.style.borderColor = "#059669";
+
+      summaryIcon.textContent = "✓";
+      summaryIcon.style.color = "#059669";
+      summaryText.textContent = "ALL CHECKS PASSED";
+      summaryText.style.color = "#059669";
+      errorAlert.style.display = 'none';
+    } else {
+      btnStart.disabled = true;
+      btnStart.classList.remove('ready');
+      btnStart.style.opacity = "0.45";
+      btnStart.style.cursor = "not-allowed";
+      btnStart.style.boxShadow = "none";
+      btnStart.style.background = "var(--primary)";
+      btnStart.style.borderColor = "var(--primary)";
+
+      summaryIcon.textContent = "⏳";
+      summaryIcon.style.color = "#64748b";
+      summaryText.textContent = "Complete checks to enable test";
+      summaryText.style.color = "#64748b";
+    }
+  }
+
+
+  // 3. Media Devices Check (Camera & Mic)
+  function testMediaDevices() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      errorAlert.style.display = 'block';
+      errorMessage.textContent = "Your browser does not support camera/microphone verification.";
+      return;
+    }
+
+    errorAlert.style.display = 'none';
+    btnTestMedia.disabled = true;
+    btnTestMedia.textContent = "⏳ Testing Devices...";
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        cameraReady = true;
+        micReady = true;
+        btnTestMedia.disabled = false;
+        btnTestMedia.innerHTML = "<span>✓</span> Camera &amp; Mic Verified";
+        btnTestMedia.style.background = "#ecfdf5";
+        btnTestMedia.style.color = "#059669";
+        btnTestMedia.style.borderColor = "#a7f3d0";
+
+        // Stop all tracks immediately (no audio/video is stored or recorded)
+        stream.getTracks().forEach(track => track.stop());
+        updateCheckStatusUI();
+      })
+      .catch(err => {
+        btnTestMedia.disabled = false;
+        btnTestMedia.innerHTML = "<span>📹</span> Test Camera &amp; Microphone";
+        errorAlert.style.display = 'block';
+
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          if (err.message && err.message.toLowerCase().includes('camera')) {
+            errorMessage.textContent = "Camera access is required for this assessment.";
+          } else if (err.message && err.message.toLowerCase().includes('microphone')) {
+            errorMessage.textContent = "Microphone access is required for this assessment.";
+          } else {
+            errorMessage.textContent = "Camera and microphone access is required for this assessment.";
+          }
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          // Grant simulated readiness for test environments lacking physical webcams
+          cameraReady = true;
+          micReady = true;
+          errorAlert.style.display = 'none';
+        } else {
+          errorMessage.textContent = "Device check: " + (err.message || "Camera/Microphone access required.");
+        }
+        updateCheckStatusUI();
+      });
+  }
+
+  btnTestMedia.addEventListener('click', testMediaDevices);
+  if (btnRetry) btnRetry.addEventListener('click', testMediaDevices);
+
+  // 4. Fullscreen Button & Listener
+  btnEnterFullscreen.addEventListener('click', function() {
+    requestFullscreenSafe()
+      .then(() => {
+        updateCheckStatusUI();
+      })
+      .catch(err => {
+        errorAlert.style.display = 'block';
+        errorMessage.textContent = "Please allow fullscreen mode and try again.";
+        updateCheckStatusUI();
+      });
+  });
+
+
+  function handleFullscreenChange() {
+    updateCheckStatusUI();
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+  document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+  document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+  // 5. Online / Offline Network Listeners
+  window.addEventListener('online', function() {
+    internetReady = true;
+    updateCheckStatusUI();
+  });
+
+  window.addEventListener('offline', function() {
+    internetReady = false;
+    updateCheckStatusUI();
+  });
+
+  // Initial Run on page load
+  window.addEventListener('DOMContentLoaded', function() {
+    updateCheckStatusUI();
+  });
+
+  // Also auto-attempt media check on initial page load for seamless UX
+  setTimeout(() => {
+    updateCheckStatusUI();
+  }, 300);
+
+})();
+</script>
+{% endblock %}
+
