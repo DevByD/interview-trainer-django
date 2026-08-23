@@ -117,6 +117,24 @@
     color: #2563eb !important;
   }
 
+  .nav-links-wrapper .nav-role-badge {
+    display: inline-flex !important;
+    align-self: flex-start !important;
+    margin: 0.25rem 0 0.5rem 0 !important;
+    max-width: 100% !important;
+    white-space: nowrap !important;
+  }
+
+  .nav-links-wrapper .nav-logout-form {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .nav-links-wrapper .nav-logout-btn {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
   /* Auth Buttons in Mobile Menu */
   .nav-links-wrapper .nav-auth-group {
     display: flex !important;

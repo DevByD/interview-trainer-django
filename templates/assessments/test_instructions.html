@@ -300,6 +300,11 @@
   let internetReady = navigator.onLine;
   let fullscreenReady = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
 
+  let cameraTested = false;
+  let micTested = false;
+  let camErrorMessage = "";
+  let micErrorMessage = "";
+
   const btnStart = document.getElementById('btnStartAssessment');
   const btnTestMedia = document.getElementById('btnTestMedia');
   const btnEnterFullscreen = document.getElementById('btnEnterFullscreen');
@@ -328,7 +333,7 @@
   }
 
   function isFullscreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || window.__fullscreenOverride);
   }
 
   // 2. Evaluate All Checks
@@ -347,7 +352,23 @@
       badgeCam.style.background = "#ecfdf5";
       badgeCam.style.color = "#059669";
       badgeCam.style.borderColor = "#a7f3d0";
-      subCam.textContent = "Webcam access verified";
+      subCam.textContent = "Webcam stream verified and active";
+    } else if (cameraTested) {
+      iconCam.textContent = "✕";
+      iconCam.style.color = "#dc2626";
+      badgeCam.textContent = "Required";
+      badgeCam.style.background = "#fef2f2";
+      badgeCam.style.color = "#dc2626";
+      badgeCam.style.borderColor = "#fca5a5";
+      subCam.textContent = camErrorMessage || "Camera permission is required.";
+    } else {
+      iconCam.textContent = "⏳";
+      iconCam.style.color = "#d97706";
+      badgeCam.textContent = "Pending Test";
+      badgeCam.style.background = "#fffbeb";
+      badgeCam.style.color = "#d97706";
+      badgeCam.style.borderColor = "#fde68a";
+      subCam.textContent = "Webcam device readiness check";
     }
 
     // Microphone
@@ -362,7 +383,23 @@
       badgeMic.style.background = "#ecfdf5";
       badgeMic.style.color = "#059669";
       badgeMic.style.borderColor = "#a7f3d0";
-      subMic.textContent = "Audio input verified";
+      subMic.textContent = "Microphone input verified and active";
+    } else if (micTested) {
+      iconMic.textContent = "✕";
+      iconMic.style.color = "#dc2626";
+      badgeMic.textContent = "Required";
+      badgeMic.style.background = "#fef2f2";
+      badgeMic.style.color = "#dc2626";
+      badgeMic.style.borderColor = "#fca5a5";
+      subMic.textContent = micErrorMessage || "Microphone access is required.";
+    } else {
+      iconMic.textContent = "⏳";
+      iconMic.style.color = "#d97706";
+      badgeMic.textContent = "Pending Test";
+      badgeMic.style.background = "#fffbeb";
+      badgeMic.style.color = "#d97706";
+      badgeMic.style.borderColor = "#fde68a";
+      subMic.textContent = "Audio input device readiness check";
     }
 
     // Browser
@@ -467,55 +504,119 @@
   }
 
 
-  // 3. Media Devices Check (Camera & Mic)
-  function testMediaDevices() {
+  // 3. Media Devices Check (Camera & Mic with actual stream verification)
+  async function testMediaDevices() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       errorAlert.style.display = 'block';
-      errorMessage.textContent = "Your browser does not support camera/microphone verification.";
+      errorMessage.textContent = "Your browser does not support camera and microphone verification.";
+      cameraReady = false;
+      micReady = false;
+      cameraTested = true;
+      micTested = true;
+      camErrorMessage = "Camera verification unsupported in this browser.";
+      micErrorMessage = "Microphone verification unsupported in this browser.";
+      updateCheckStatusUI();
       return;
     }
 
-    errorAlert.style.display = 'none';
     btnTestMedia.disabled = true;
     btnTestMedia.textContent = "⏳ Testing Devices...";
+    errorAlert.style.display = 'none';
 
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        cameraReady = true;
-        micReady = true;
-        btnTestMedia.disabled = false;
-        btnTestMedia.innerHTML = "<span>✓</span> Camera &amp; Mic Verified";
-        btnTestMedia.style.background = "#ecfdf5";
-        btnTestMedia.style.color = "#059669";
-        btnTestMedia.style.borderColor = "#a7f3d0";
+    let camOk = false;
+    let micOk = false;
+    let camError = null;
+    let micError = null;
 
-        // Stop all tracks immediately (no audio/video is stored or recorded)
-        stream.getTracks().forEach(track => track.stop());
-        updateCheckStatusUI();
-      })
-      .catch(err => {
-        btnTestMedia.disabled = false;
-        btnTestMedia.innerHTML = "<span>📹</span> Test Camera &amp; Microphone";
-        errorAlert.style.display = 'block';
+    // 1. Verify Camera Stream
+    try {
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const videoTracks = videoStream.getVideoTracks();
+      if (videoTracks.length > 0 && videoTracks[0].readyState === 'live' && videoTracks[0].enabled) {
+        camOk = true;
+        camErrorMessage = "";
+      } else {
+        camErrorMessage = "Camera stream is inactive or unavailable.";
+      }
+      videoTracks.forEach(t => t.stop());
+    } catch (err) {
+      camError = err;
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        camErrorMessage = "Camera permission denied.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        camErrorMessage = "No camera hardware detected.";
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        camErrorMessage = "Camera is in use by another app.";
+      } else {
+        camErrorMessage = "Camera error: " + (err.message || err.name);
+      }
+    }
 
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          if (err.message && err.message.toLowerCase().includes('camera')) {
-            errorMessage.textContent = "Camera access is required for this assessment.";
-          } else if (err.message && err.message.toLowerCase().includes('microphone')) {
-            errorMessage.textContent = "Microphone access is required for this assessment.";
-          } else {
-            errorMessage.textContent = "Camera and microphone access is required for this assessment.";
-          }
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          // Grant simulated readiness for test environments lacking physical webcams
-          cameraReady = true;
-          micReady = true;
-          errorAlert.style.display = 'none';
+    // 2. Verify Microphone Stream
+    try {
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioTracks = audioStream.getAudioTracks();
+      if (audioTracks.length > 0 && audioTracks[0].readyState === 'live' && audioTracks[0].enabled) {
+        micOk = true;
+        micErrorMessage = "";
+      } else {
+        micErrorMessage = "Microphone stream is inactive or unavailable.";
+      }
+      audioTracks.forEach(t => t.stop());
+    } catch (err) {
+      micError = err;
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        micErrorMessage = "Microphone permission denied.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        micErrorMessage = "No microphone hardware detected.";
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        micErrorMessage = "Microphone is in use by another app.";
+      } else {
+        micErrorMessage = "Microphone error: " + (err.message || err.name);
+      }
+    }
+
+    cameraReady = camOk;
+    micReady = micOk;
+    cameraTested = true;
+    micTested = true;
+
+    btnTestMedia.disabled = false;
+    if (camOk && micOk) {
+      btnTestMedia.innerHTML = "<span>✓</span> Camera &amp; Mic Verified";
+      btnTestMedia.style.background = "#ecfdf5";
+      btnTestMedia.style.color = "#059669";
+      btnTestMedia.style.borderColor = "#a7f3d0";
+      errorAlert.style.display = 'none';
+    } else {
+      btnTestMedia.innerHTML = "<span>📹</span> Test Camera &amp; Microphone";
+      btnTestMedia.style.background = "";
+      btnTestMedia.style.color = "";
+      btnTestMedia.style.borderColor = "";
+      errorAlert.style.display = 'block';
+
+      if (!camOk && !micOk) {
+        errorMessage.textContent = "Camera and microphone access are both required to start this assessment. Please allow permissions.";
+      } else if (!camOk) {
+        if (camError && (camError.name === 'NotAllowedError' || camError.name === 'PermissionDeniedError')) {
+          errorMessage.textContent = "Camera permission was denied. Please allow camera access in browser settings to continue.";
+        } else if (camError && (camError.name === 'NotFoundError' || camError.name === 'DevicesNotFoundError')) {
+          errorMessage.textContent = "No camera hardware detected on this device. A functional camera is required.";
         } else {
-          errorMessage.textContent = "Device check: " + (err.message || "Camera/Microphone access required.");
+          errorMessage.textContent = "Camera verification failed: " + (camErrorMessage || "Camera not active");
         }
-        updateCheckStatusUI();
-      });
+      } else if (!micOk) {
+        if (micError && (micError.name === 'NotAllowedError' || micError.name === 'PermissionDeniedError')) {
+          errorMessage.textContent = "Microphone permission was denied. Please allow microphone access in browser settings to continue.";
+        } else if (micError && (micError.name === 'NotFoundError' || micError.name === 'DevicesNotFoundError')) {
+          errorMessage.textContent = "No microphone detected on this device. A functional microphone is required.";
+        } else {
+          errorMessage.textContent = "Microphone verification failed: " + (micErrorMessage || "Microphone not active");
+        }
+      }
+    }
+
+    updateCheckStatusUI();
   }
 
   btnTestMedia.addEventListener('click', testMediaDevices);
@@ -533,7 +634,6 @@
         updateCheckStatusUI();
       });
   });
-
 
   function handleFullscreenChange() {
     updateCheckStatusUI();
@@ -560,9 +660,9 @@
     updateCheckStatusUI();
   });
 
-  // Also auto-attempt media check on initial page load for seamless UX
+  // Auto-attempt media check on initial page load
   setTimeout(() => {
-    updateCheckStatusUI();
+    testMediaDevices();
   }, 300);
 
 })();

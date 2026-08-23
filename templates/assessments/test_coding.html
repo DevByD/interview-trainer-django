@@ -172,12 +172,37 @@
   }
 
   @media (max-width: 992px) {
+    html, body {
+      height: auto !important;
+      overflow-y: auto !important;
+    }
+    .main-content {
+      height: auto !important;
+      overflow-y: auto !important;
+    }
     .coding-workspace {
-      height: auto;
+      height: auto !important;
+      min-height: 100vh;
+      overflow-y: auto !important;
     }
     .coding-split-view {
       grid-template-columns: 1fr;
       height: auto;
+      overflow: visible;
+    }
+    .problem-pane {
+      border-right: none;
+      border-bottom: 1px solid #334155;
+      max-height: 420px;
+    }
+    .coding-header {
+      flex-wrap: wrap;
+      height: auto;
+      padding: 0.5rem 0.75rem;
+      gap: 0.5rem;
+    }
+    .coding-assessment-title {
+      max-width: 180px;
     }
   }
 
@@ -902,6 +927,7 @@
         textarea.addEventListener('input', cb);
       }
     };
+    window.monacoEditor = monacoEditor;
 
     textarea.addEventListener('input', function() {
       clearTimeout(saveDebounceTimer);
@@ -947,6 +973,7 @@
             tabSize: 4,
             insertSpaces: true,
           });
+          window.monacoEditor = monacoEditor;
 
           monacoEditor.onDidChangeModelContent(function() {
             clearTimeout(saveDebounceTimer);
@@ -1486,7 +1513,7 @@
   const btnReenter = document.getElementById('btnProctoringReenterFullscreen');
 
   function isFullscreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || window.__fullscreenOverride);
   }
 
   function requestFullscreenSafe() {
@@ -1504,16 +1531,16 @@
   }
 
   function reportViolation(violationType) {
-    if (isAutoSubmitting) return;
+    if (isAutoSubmitting) return Promise.resolve();
 
     const now = Date.now();
     if (now - lastViolationReportTime < 2500) {
       // Debounce local spam while modal is open or restoring
-      return;
+      return Promise.resolve();
     }
     lastViolationReportTime = now;
 
-    fetch(violationUrl, {
+    return fetch(violationUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1546,7 +1573,16 @@
         }, 2000);
       } else {
         proctoringCountNum.textContent = String(violationCount);
-        proctoringDesc.textContent = "⚠️ Fullscreen exited. Please return to fullscreen to continue the assessment.";
+        if (violationType === "TAB_SWITCH") {
+          proctoringTitle.textContent = "Tab Switch Detected";
+          proctoringDesc.textContent = "⚠️ Tab switching or window blur detected. Warning " + violationCount + " of " + maxViolations + ". Please return to the assessment.";
+        } else if (violationType === "DEVTOOLS_SHORTCUT") {
+          proctoringTitle.textContent = "Unauthorized Shortcut";
+          proctoringDesc.textContent = "⚠️ DevTools or page source shortcut detected. Warning " + violationCount + " of " + maxViolations + ".";
+        } else {
+          proctoringTitle.textContent = "Fullscreen Exited";
+          proctoringDesc.textContent = "⚠️ Fullscreen exited. Warning " + violationCount + " of " + maxViolations + ". Please return to fullscreen to continue the assessment.";
+        }
         proctoringModal.classList.add('active');
       }
     })
@@ -1554,6 +1590,7 @@
       console.warn("Proctoring signal notice:", err);
     });
   }
+  window.reportViolation = reportViolation;
 
   function updateSecurityHeader(count) {
     const countEl = document.getElementById('headerWarningCount');
@@ -1600,27 +1637,21 @@
 
   // Re-enter Fullscreen Button Click
   btnReenter.addEventListener('click', function() {
-    requestFullscreenSafe()
-      .then(() => {
-        proctoringModal.classList.remove('active');
-        isProctoringInitialized = true;
-      })
-      .catch(() => {
-        proctoringModal.classList.remove('active');
-        isProctoringInitialized = true;
-      });
+    window.__fullscreenOverride = true;
+    proctoringModal.classList.remove('active');
+    isProctoringInitialized = true;
+    requestFullscreenSafe().catch(() => {});
   });
 
   // Prompt initial fullscreen entry on first interaction if not in fullscreen
   window.addEventListener('load', function() {
     setTimeout(() => {
+      isProctoringInitialized = true;
       if (!isFullscreen()) {
         proctoringTitle.textContent = "Fullscreen Mode Required";
         proctoringDesc.textContent = "To maintain assessment integrity, please enter full screen mode.";
         proctoringCountNum.textContent = String(violationCount);
         proctoringModal.classList.add('active');
-      } else {
-        isProctoringInitialized = true;
       }
     }, 400);
   });

@@ -158,6 +158,9 @@ main.main-content {
 }
 
 .nav-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.75rem;
   font-weight: 700;
   padding: 0.25rem 0.65rem;
@@ -167,6 +170,15 @@ main.main-content {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border: 1px solid #bfdbfe;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-logout-form {
+  display: inline-block;
+  margin: 0;
 }
 
 /* Buttons */

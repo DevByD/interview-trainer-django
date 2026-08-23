@@ -214,8 +214,8 @@
 </div>
 
 <!-- Proctoring Fullscreen & Violation Modal -->
-<div class="submit-modal-overlay" id="proctoringModal" style="z-index: 9999; backdrop-filter: blur(8px);">
-  <div class="submit-modal-box" style="border: 2px solid #ef4444; text-align: center; max-width: 480px;">
+<div class="modal-overlay" id="proctoringModal" style="z-index: 9999; backdrop-filter: blur(8px);">
+  <div class="modal-dialog" style="border: 2px solid #ef4444; text-align: center; max-width: 480px;">
     <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
     <h3 style="font-size: 1.35rem; font-weight: 800; color: #ef4444; margin-bottom: 0.5rem;" id="proctoringModalTitle">
       Proctoring Violation Warning
@@ -410,7 +410,7 @@
   const btnReenter = document.getElementById('btnProctoringReenterFullscreen');
 
   function isFullscreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || window.__fullscreenOverride);
   }
 
   function requestFullscreenSafe() {
@@ -428,15 +428,15 @@
   }
 
   function reportViolation(violationType) {
-    if (isAutoSubmitting) return;
+    if (isAutoSubmitting) return Promise.resolve();
 
     const now = Date.now();
     if (now - lastViolationReportTime < 2500) {
-      return;
+      return Promise.resolve();
     }
     lastViolationReportTime = now;
 
-    fetch(violationUrl, {
+    return fetch(violationUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -469,7 +469,16 @@
         }, 2000);
       } else {
         proctoringCountNum.textContent = String(violationCount);
-        proctoringDesc.textContent = "⚠️ Fullscreen exited. Please return to fullscreen to continue the assessment.";
+        if (violationType === "TAB_SWITCH") {
+          proctoringTitle.textContent = "Tab Switch Detected";
+          proctoringDesc.textContent = "⚠️ Tab switching or window blur detected. Warning " + violationCount + " of " + maxViolations + ". Please return to the assessment.";
+        } else if (violationType === "DEVTOOLS_SHORTCUT") {
+          proctoringTitle.textContent = "Unauthorized Shortcut";
+          proctoringDesc.textContent = "⚠️ DevTools or page source shortcut detected. Warning " + violationCount + " of " + maxViolations + ".";
+        } else {
+          proctoringTitle.textContent = "Fullscreen Exited";
+          proctoringDesc.textContent = "⚠️ Fullscreen exited. Warning " + violationCount + " of " + maxViolations + ". Please return to fullscreen to continue the assessment.";
+        }
         proctoringModal.classList.add('active');
       }
     })
@@ -477,6 +486,7 @@
       console.warn("Proctoring signal notice:", err);
     });
   }
+  window.reportViolation = reportViolation;
 
   function updateSecurityHeader(count) {
     const countEl = document.getElementById('headerWarningCount');
@@ -494,7 +504,6 @@
   }
 
   function handleFullscreenChange() {
-
     if (!isFullscreen()) {
       if (isProctoringInitialized && !isAutoSubmitting) {
         reportViolation("FULLSCREEN_EXIT");
@@ -519,26 +528,20 @@
   });
 
   btnReenter.addEventListener('click', function() {
-    requestFullscreenSafe()
-      .then(() => {
-        proctoringModal.classList.remove('active');
-        isProctoringInitialized = true;
-      })
-      .catch(() => {
-        proctoringModal.classList.remove('active');
-        isProctoringInitialized = true;
-      });
+    window.__fullscreenOverride = true;
+    proctoringModal.classList.remove('active');
+    isProctoringInitialized = true;
+    requestFullscreenSafe().catch(() => {});
   });
 
   window.addEventListener('load', function() {
     setTimeout(() => {
+      isProctoringInitialized = true;
       if (!isFullscreen()) {
         proctoringTitle.textContent = "Fullscreen Mode Required";
         proctoringDesc.textContent = "To maintain assessment integrity, please enter full screen mode.";
         proctoringCountNum.textContent = String(violationCount);
         proctoringModal.classList.add('active');
-      } else {
-        isProctoringInitialized = true;
       }
     }, 400);
   });

@@ -333,32 +333,33 @@
           <ul class="nav-links">
             {% if user.is_authenticated %}
               {% if user.candidate_profile %}
-                <li><span class="nav-role-badge">Candidate</span></li>
+                <li><span class="nav-role-badge">CANDIDATE</span></li>
                 <li><a href="{% url 'candidates:candidate_dashboard' %}" class="nav-item">Dashboard</a></li>
                 <li><a href="{% url 'candidates:candidate_profile' %}" class="nav-item">My Profile</a></li>
-                <li style="width: 100%;">
-                  <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:block; width: 100%;">
+                <li>
+                  <form action="{% url 'accounts:candidate_logout' %}" method="post" class="nav-logout-form">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-danger btn-sm" style="width: 100%; min-height: 44px;">Logout</button>
+                    <button type="submit" class="btn btn-outline-danger btn-sm nav-logout-btn">Logout</button>
                   </form>
                 </li>
               {% elif user.employer_profile %}
-                <li><span class="nav-role-badge">Employer: {{ user.employer_profile.company }}</span></li>
+                <li><span class="nav-role-badge">EMPLOYER · {{ user.employer_profile.company|default:user.username }}</span></li>
                 <li><a href="{% url 'dashboard:employer_dashboard' %}" class="nav-item">Dashboard</a></li>
                 <li><a href="{% url 'dashboard:employer_candidates_list' %}" class="nav-item">Candidates</a></li>
                 <li><a href="{% url 'assessments:employer_assessment_list' %}" class="nav-item">Assessments</a></li>
-                <li style="width: 100%;">
-                  <form action="{% url 'accounts:employer_logout' %}" method="post" style="display:block; width: 100%;">
+                <li>
+                  <form action="{% url 'accounts:employer_logout' %}" method="post" class="nav-logout-form">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-danger btn-sm" style="width: 100%; min-height: 44px;">Logout</button>
+                    <button type="submit" class="btn btn-outline-danger btn-sm nav-logout-btn">Logout</button>
                   </form>
                 </li>
               {% else %}
+                <li><span class="nav-role-badge">ADMIN</span></li>
                 <li><a href="{% url 'admin:index' %}" class="nav-item">Admin</a></li>
-                <li style="width: 100%;">
-                  <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:block; width: 100%;">
+                <li>
+                  <form action="{% url 'accounts:candidate_logout' %}" method="post" class="nav-logout-form">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-danger btn-sm" style="width: 100%; min-height: 44px;">Logout</button>
+                    <button type="submit" class="btn btn-outline-danger btn-sm nav-logout-btn">Logout</button>
                   </form>
                 </li>
               {% endif %}
