@@ -276,6 +276,38 @@
     padding: 0.75rem 1.25rem;
     font-size: 0.98rem;
   }
+
+  .campaign-hero {
+    padding: 1.25rem !important;
+  }
+
+  .campaign-hero h1 {
+    font-size: 1.6rem !important;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  .metric-card {
+    padding: 1rem !important;
+  }
+
+  .metric-card-value {
+    font-size: 1.5rem !important;
+  }
+
+  .filter-tabs {
+    width: 100% !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+  }
+
+  .cand-selector-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
 }
 
 /* --------------------------------------------------------------------------

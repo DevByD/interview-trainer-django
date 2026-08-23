@@ -1,0 +1,659 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ group.title }} — Assessment Campaign Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  .campaign-hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border-radius: 14px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  }
+
+  .campaign-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .campaign-meta-chip {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* Summary Metric Cards */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .metric-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric-card-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .metric-card-value {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1;
+  }
+
+  .metric-subtext {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.4rem;
+  }
+
+  .card-highlight-blue { border-top: 4px solid #2563eb; }
+  .card-highlight-green { border-top: 4px solid #16a34a; }
+  .card-highlight-amber { border-top: 4px solid #d97706; }
+  .card-highlight-purple { border-top: 4px solid #7c3aed; }
+  .card-highlight-rose { border-top: 4px solid #e11d48; }
+
+  /* AI Decision Support Banner */
+  .ai-disclaimer-banner {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: #166534;
+  }
+
+  /* Candidate Table Controls */
+  .campaign-table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .filter-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    background: #f1f5f9;
+    padding: 0.3rem;
+    border-radius: 8px;
+  }
+
+  .filter-tab-btn {
+    border: none;
+    background: transparent;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .filter-tab-btn.active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  /* AI Badges */
+  .badge-ai-strong {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .badge-ai-review {
+    background: #fef9c3;
+    color: #a16207;
+    border: 1px solid #fde047;
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .badge-ai-low {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    font-weight: 800;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .badge-ai-pending {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+
+  /* Shortlist Toggle Button */
+  .btn-shortlist-toggle {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .btn-shortlist-toggle:hover {
+    border-color: #f59e0b;
+    color: #b45309;
+  }
+
+  .btn-shortlist-toggle.is-shortlisted {
+    background: #fffbeb;
+    border-color: #f59e0b;
+    color: #b45309;
+    font-weight: 800;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="campaign-detail" style="max-width: 1200px; margin: 0 auto; padding: 1rem 0 3rem 0;">
+
+  <!-- Campaign Hero Header -->
+  <div class="campaign-hero">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.25rem;">
+      <div>
+        <span class="badge" style="background: rgba(37, 99, 235, 0.4); color: #93c5fd; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem; display: inline-block;">
+          Assessment Campaign #{{ group.id }}
+        </span>
+        <h1 style="font-size: 2.2rem; font-weight: 900; margin: 0.2rem 0; color: #ffffff;">
+          {{ group.title }}
+        </h1>
+        <p style="color: #94a3b8; font-size: 0.95rem; margin-top: 0.25rem;">
+          Created {{ group.created_at|date:"M d, Y" }} &bull; Employer: {{ request.user.employer_profile.company|default:request.user.username }}
+        </p>
+
+        <div class="campaign-meta-chips">
+          <div class="campaign-meta-chip">
+            <span>⏱️</span>
+            <strong>Duration:</strong> {{ group.duration_minutes }} minutes
+          </div>
+          <div class="campaign-meta-chip">
+            <span>📅</span>
+            <strong>Window:</strong> {{ group.start_time|date:"M d, H:i" }} &rarr; {{ group.expire_time|date:"M d, H:i" }}
+          </div>
+          <div class="campaign-meta-chip">
+            <span>🧠</span>
+            <strong>Aptitude:</strong> {{ group.total_mcq_count }} Questions
+          </div>
+          {% if group.has_coding %}
+            <div class="campaign-meta-chip" style="background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.3);">
+              <span>💻</span>
+              <strong style="color: #4ade80;">Coding:</strong> {{ group.total_coding_count }} Algorithmic Challenges
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Campaign Actions -->
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <form method="post" action="{% url 'assessments:employer_campaign_ai_shortlist' group.id %}" id="aiShortlistForm">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary" id="btnRunAiShortlist" style="background: #2563eb; font-weight: 800; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.25rem;">
+            <span>⚡</span> AI Shortlist Candidates
+          </button>
+        </form>
+        <a href="{% url 'assessments:employer_campaign_list' %}" class="btn btn-secondary" style="font-weight: 700;">
+          &larr; Campaigns
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaign Summary Statistics Dashboard (Part 10) -->
+  <div class="metrics-grid">
+    <!-- Total Assigned -->
+    <div class="metric-card card-highlight-blue">
+      <div class="metric-card-title">Candidates Assigned</div>
+      <div class="metric-card-value">{{ total_assigned }}</div>
+      <div class="metric-subtext">Total test tokens issued</div>
+    </div>
+
+    <!-- Completed & Attended -->
+    <div class="metric-card card-highlight-green">
+      <div class="metric-card-title">Completed Tests</div>
+      <div class="metric-card-value" style="color: #16a34a;">{{ completed_count }}</div>
+      <div class="metric-subtext">{{ in_progress_count }} in progress &bull; {{ not_started_count }} not started</div>
+    </div>
+
+    <!-- AI Recommended Breakdown -->
+    <div class="metric-card card-highlight-purple">
+      <div class="metric-card-title">AI Decision Support</div>
+      <div class="metric-card-value" style="font-size: 1.6rem; display: flex; align-items: baseline; gap: 0.5rem;">
+        <span style="color: #16a34a;">{{ ai_strong_count }}</span> <span style="font-size: 0.85rem; color: #64748b;">Strong</span>
+        <span style="color: #d97706;">{{ ai_review_count }}</span> <span style="font-size: 0.85rem; color: #64748b;">Review</span>
+        <span style="color: #dc2626;">{{ ai_low_count }}</span> <span style="font-size: 0.85rem; color: #64748b;">Low</span>
+      </div>
+      <div class="metric-subtext">Objective assessment data analysis</div>
+    </div>
+
+    <!-- Employer Shortlisted -->
+    <div class="metric-card card-highlight-amber">
+      <div class="metric-card-title">Employer Shortlisted</div>
+      <div class="metric-card-value" style="color: #d97706;" id="topShortlistedCount">{{ shortlisted_count }}</div>
+      <div class="metric-subtext">Selected for next interview round</div>
+    </div>
+  </div>
+
+  <!-- AI Decision-Support Ethical Disclaimer Banner (Part 8) -->
+  <div class="ai-disclaimer-banner">
+    <div style="display: flex; align-items: center; gap: 0.6rem;">
+      <span style="font-size: 1.2rem;">💡</span>
+      <span><strong>AI Decision-Support Notice:</strong> Recommendations are generated purely from legitimate assessment data (scores, coding test cases passed, proctoring record). The employer retains full discretion to shortlist or reject candidates.</span>
+    </div>
+  </div>
+
+  <!-- Candidate Matrix Card (Part 4) -->
+  <div class="card" style="margin-bottom: 3rem;">
+    <div class="card-header" style="flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h2 class="card-title" style="margin: 0; font-size: 1.25rem;">Candidate Assessment Matrix</h2>
+        <p style="color: #64748b; font-size: 0.85rem; margin: 0.2rem 0 0 0;">View scores, proctoring integrity, AI evaluation, and manage your shortlist.</p>
+      </div>
+
+      <!-- Bulk Shortlisting Actions Form (Part 9) -->
+      <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+        <button type="button" class="btn btn-secondary btn-sm" id="btnSelectAllRows" style="font-weight: 700;">
+          ☑ Select All
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnBulkShortlist" style="font-weight: 700; background: #d97706; border-color: #d97706;">
+          ⭐ Shortlist Selected (<span id="bulkSelectedCount">0</span>)
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm" id="btnBulkRemoveShortlist" style="font-weight: 700;">
+          ✕ Remove from Shortlist
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div style="padding: 1rem 1.5rem; background: #fafafa; border-bottom: 1px solid #e2e8f0;">
+      <div class="campaign-table-toolbar" style="margin: 0;">
+        <div class="filter-tabs">
+          <a href="?status=all{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'all' or not filter_status %}active{% endif %}">
+            All ({{ total_assigned }})
+          </a>
+          <a href="?status=completed{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'completed' %}active{% endif %}">
+            Completed ({{ completed_count }})
+          </a>
+          <a href="?status=in_progress{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'in_progress' %}active{% endif %}">
+            In Progress ({{ in_progress_count }})
+          </a>
+          <a href="?status=not_started{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'not_started' %}active{% endif %}">
+            Not Started ({{ not_started_count }})
+          </a>
+          {% if auto_submitted_count > 0 %}
+            <a href="?status=auto_submitted{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'auto_submitted' %}active{% endif %}" style="color: #dc2626;">
+              ⚠️ Auto-Submitted ({{ auto_submitted_count }})
+            </a>
+          {% endif %}
+          <a href="?status=shortlisted{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'shortlisted' %}active{% endif %}" style="color: #d97706;">
+            ⭐ Shortlisted ({{ shortlisted_count }})
+          </a>
+          <a href="?status=ai_strong{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'ai_strong' %}active{% endif %}" style="color: #16a34a;">
+            🟢 AI Strong ({{ ai_strong_count }})
+          </a>
+          <a href="?status=ai_review{% if search_query %}&q={{ search_query }}{% endif %}" class="filter-tab-btn {% if filter_status == 'ai_review' %}active{% endif %}" style="color: #ca8a04;">
+            🟡 AI Review ({{ ai_review_count }})
+          </a>
+        </div>
+
+        <form method="get" style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="hidden" name="status" value="{{ filter_status }}">
+          <input type="text" name="q" value="{{ search_query }}" class="form-input" placeholder="Search candidate name, email, skills..." style="width: 240px; font-size: 0.85rem; padding: 0.4rem 0.75rem;">
+          <button type="submit" class="btn btn-secondary btn-sm" style="font-weight: 700;">Search</button>
+          {% if search_query %}
+            <a href="?status={{ filter_status }}" class="btn btn-outline-danger btn-sm">Clear</a>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <!-- Candidate Matrix Table -->
+    <div class="table-responsive">
+      <table class="data-table" id="campaignCandidateTable">
+        <thead>
+          <tr>
+            <th style="width: 40px;"><input type="checkbox" id="headerCheckbox"></th>
+            <th>Candidate</th>
+            <th>Status</th>
+            <th>Overall Score</th>
+            <th>Coding Score</th>
+            <th>Aptitude Score</th>
+            <th>Proctoring</th>
+            <th>AI Recommendation</th>
+            <th>Shortlist</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if assessments %}
+            {% for item in assessments %}
+              <tr data-assessment-id="{{ item.id }}" class="{% if item.is_shortlisted %}row-shortlisted{% endif %}">
+                <td>
+                  <input type="checkbox" class="row-checkbox" value="{{ item.id }}" data-candidate-name="{{ item.candidate.get_full_name|default:item.candidate.username }}">
+                </td>
+                <td>
+                  <div style="display: flex; flex-direction: column;">
+                    <strong style="color: #0f172a;">{{ item.candidate.get_full_name|default:item.candidate.username }}</strong>
+                    <span style="font-size: 0.8rem; color: #64748b;">{{ item.candidate.email }}</span>
+                    {% if item.candidate.candidate_profile.skills %}
+                      <span style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem;">{{ item.candidate.candidate_profile.skills|truncatechars:35 }}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  {% if item.status == "PENDING" %}
+                    <span class="badge badge-pending">Not Started</span>
+                  {% elif item.status == "ONGOING" %}
+                    <span class="badge badge-ongoing">In Progress</span>
+                  {% elif item.status == "COMPLETED" %}
+                    <span class="badge badge-completed">Completed</span>
+                  {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                    <span class="badge badge-expired">Missed</span>
+                  {% else %}
+                    <span class="badge">{{ item.get_status_display }}</span>
+                  {% endif %}
+
+                  {% if item.auto_submitted_for_malpractice %}
+                    <div style="font-size: 0.72rem; color: #dc2626; font-weight: 700; margin-top: 0.2rem;">
+                      ⚠️ Auto-Submitted
+                    </div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.result %}
+                    <strong style="font-size: 1.05rem; color: {% if item.result.passed %}#16a34a{% else %}#dc2626{% endif %};">
+                      {% if item.has_coding %}{{ item.result.overall_score }}%{% else %}{{ item.result.percentage }}%{% endif %}
+                    </strong>
+                  {% else %}
+                    <span style="color: #94a3b8;">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.has_coding %}
+                    {% if item.result and item.status == "COMPLETED" %}
+                      <span style="font-weight: 700; color: #0284c7;">{{ item.result.coding_score }}%</span>
+                    {% else %}
+                      <span style="color: #94a3b8;">Pending</span>
+                    {% endif %}
+                  {% else %}
+                    <span style="color: #94a3b8; font-size: 0.8rem;">N/A (MCQ Only)</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.result and item.status == "COMPLETED" %}
+                    <span style="font-weight: 700; color: #475569;">
+                      {% if item.has_coding %}{{ item.result.aptitude_score }}%{% else %}{{ item.result.percentage }}%{% endif %}
+                    </span>
+                    <div style="font-size: 0.72rem; color: #64748b;">
+                      L: {{ item.result.logical_correct }}/{{ item.result.logical_total }} &bull; Q: {{ item.result.quant_correct }}/{{ item.result.quant_total }} &bull; T: {{ item.result.technical_correct }}/{{ item.result.technical_total }}
+                    </div>
+                  {% else %}
+                    <span style="color: #94a3b8;">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.violation_count == 0 %}
+                    <span style="color: #16a34a; font-weight: 700; font-size: 0.85rem;">✓ Clean</span>
+                  {% elif item.violation_count < 3 %}
+                    <span style="color: #d97706; font-weight: 700; font-size: 0.85rem;">⚠️ {{ item.violation_count }} Warning{{ item.violation_count|pluralize }}</span>
+                  {% else %}
+                    <span style="color: #dc2626; font-weight: 800; font-size: 0.85rem;">🛑 Flagged ({{ item.violation_count }})</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.ai_recommendation == "STRONG_MATCH" %}
+                    <span class="badge-ai-strong" title="{{ item.ai_reasoning }}">🟢 Strong Match</span>
+                  {% elif item.ai_recommendation == "REVIEW_RECOMMENDED" %}
+                    <span class="badge-ai-review" title="{{ item.ai_reasoning }}">🟡 Review Recommended</span>
+                  {% elif item.ai_recommendation == "LOW_MATCH" %}
+                    <span class="badge-ai-low" title="{{ item.ai_reasoning }}">🔴 Low Match</span>
+                  {% else %}
+                    <span class="badge-ai-pending">Pending AI</span>
+                  {% endif %}
+
+                  {% if item.ai_reasoning %}
+                    <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.25rem; max-width: 200px; line-height: 1.3;">
+                      {{ item.ai_reasoning|truncatechars:75 }}
+                    </div>
+                  {% endif %}
+                </td>
+                <td>
+                  <button type="button" class="btn-shortlist-toggle {% if item.is_shortlisted %}is-shortlisted{% endif %}" data-assessment-id="{{ item.id }}">
+                    {% if item.is_shortlisted %}
+                      ★ Shortlisted
+                    {% else %}
+                      ☆ Shortlist
+                    {% endif %}
+                  </button>
+                </td>
+                <td>
+                  <div style="display: flex; gap: 0.35rem; align-items: center;">
+                    {% if item.status == "COMPLETED" and item.result %}
+                      <a href="{% url 'results:employer_result' item.result.id %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+                        View Result
+                      </a>
+                    {% elif item.status == "PENDING" or item.status == "ONGOING" %}
+                      <a href="{% url 'assessments:test_entry' item.token %}" target="_blank" class="btn btn-secondary btn-sm" title="Preview secure candidate portal">
+                        Test Link
+                      </a>
+                    {% else %}
+                      <span style="color: #94a3b8; font-size: 0.85rem;">—</span>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="10" style="text-align: center; padding: 2.5rem; color: #64748b;">
+                No candidates match the selected filters in this campaign.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    const csrfToken = '{{ csrf_token }}';
+    const actionUrl = "{% url 'assessments:employer_campaign_shortlist_action' group.id %}";
+
+    const headerCb = document.getElementById('headerCheckbox');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const bulkCountSpan = document.getElementById('bulkSelectedCount');
+    const btnSelectAllRows = document.getElementById('btnSelectAllRows');
+    const btnBulkShortlist = document.getElementById('btnBulkShortlist');
+    const btnBulkRemoveShortlist = document.getElementById('btnBulkRemoveShortlist');
+    const topShortlistedSpan = document.getElementById('topShortlistedCount');
+
+    function updateBulkCount() {
+      const selected = document.querySelectorAll('.row-checkbox:checked');
+      if (bulkCountSpan) {
+        bulkCountSpan.textContent = String(selected.length);
+      }
+    }
+
+    if (headerCb) {
+      headerCb.addEventListener('change', function() {
+        rowCheckboxes.forEach(cb => cb.checked = headerCb.checked);
+        updateBulkCount();
+      });
+    }
+
+    if (btnSelectAllRows) {
+      btnSelectAllRows.addEventListener('click', function() {
+        const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
+        rowCheckboxes.forEach(cb => cb.checked = !allChecked);
+        if (headerCb) headerCb.checked = !allChecked;
+        updateBulkCount();
+      });
+    }
+
+    rowCheckboxes.forEach(cb => {
+      cb.addEventListener('change', updateBulkCount);
+    });
+
+    // Individual Shortlist Toggle via AJAX
+    document.querySelectorAll('.btn-shortlist-toggle').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const assessId = this.getAttribute('data-assessment-id');
+        fetch(actionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify({
+            action: 'toggle',
+            assessment_id: assessId,
+          }),
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'ok') {
+            const isNowShortlisted = !btn.classList.contains('is-shortlisted');
+            if (isNowShortlisted) {
+              btn.classList.add('is-shortlisted');
+              btn.textContent = '★ Shortlisted';
+            } else {
+              btn.classList.remove('is-shortlisted');
+              btn.textContent = '☆ Shortlist';
+            }
+            if (topShortlistedSpan && data.shortlisted_count !== undefined) {
+              topShortlistedSpan.textContent = String(data.shortlisted_count);
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Shortlist toggle error:", err);
+        });
+      });
+    });
+
+    // Bulk Shortlist / Remove Actions
+    function sendBulkShortlistAction(action) {
+      const selected = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+      if (selected.length === 0) {
+        alert("Please select at least one candidate row.");
+        return;
+      }
+
+      fetch(actionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+          action: action,
+          assessment_ids: selected,
+        }),
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          window.location.reload();
+        }
+      })
+      .catch(err => {
+        console.error("Bulk shortlist action error:", err);
+      });
+    }
+
+    if (btnBulkShortlist) {
+      btnBulkShortlist.addEventListener('click', () => sendBulkShortlistAction('shortlist'));
+    }
+
+    if (btnBulkRemoveShortlist) {
+      btnBulkRemoveShortlist.addEventListener('click', () => sendBulkShortlistAction('remove'));
+    }
+
+    // AI Shortlist Spinner on Submit
+    const aiForm = document.getElementById('aiShortlistForm');
+    const aiBtn = document.getElementById('btnRunAiShortlist');
+    if (aiForm && aiBtn) {
+      aiForm.addEventListener('submit', function() {
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = '<span>⏳</span> Analyzing Candidates...';
+      });
+    }
+  })();
+</script>
+{% endblock %}

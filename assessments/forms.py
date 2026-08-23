@@ -1,4 +1,4 @@
-"""Forms for creating and configuring assessments."""
+"""Forms for creating and configuring assessments with single and bulk candidate assignment."""
 
 from datetime import datetime, time
 from django import forms
@@ -13,13 +13,25 @@ from assessments.question_bank import ensure_question_bank_seeded
 
 
 class AssessmentCreateForm(forms.Form):
+    """Form to create and schedule assessments with support for single and bulk candidate assignment."""
 
+    # Bulk candidate selection (Multiple Candidates)
+    candidates = forms.ModelMultipleChoiceField(
+        queryset=User.objects.filter(candidate_profile__isnull=False).select_related("candidate_profile"),
+        label="Select Candidates",
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "candidate-checkbox"}),
+    )
+
+    # Legacy single candidate selection (Preserved for backwards-compatibility)
     candidate = forms.ModelChoiceField(
         queryset=User.objects.filter(candidate_profile__isnull=False).select_related("candidate_profile"),
-        label="Select Candidate",
+        label="Select Candidate (Single)",
         empty_label="-- Select a registered candidate --",
+        required=False,
         widget=forms.Select(attrs={"class": "form-input candidate-select"}),
     )
+
     title = forms.CharField(
         max_length=200,
         label="Assessment Title",
@@ -95,12 +107,11 @@ class AssessmentCreateForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-input", "min": "1"}),
     )
 
-    def __init__(self, *args, initial_candidate=None, **kwargs):
+    def __init__(self, *args, initial_candidate=None, initial_candidates=None, **kwargs):
         ensure_question_bank_seeded()
         ensure_coding_bank_seeded()
         super().__init__(*args, **kwargs)
         now = timezone.localtime(timezone.now())
-
 
         if not self.is_bound:
             self.fields["start_date"].initial = now.date()
@@ -112,9 +123,13 @@ class AssessmentCreateForm(forms.Form):
 
         if initial_candidate:
             self.fields["candidate"].initial = initial_candidate
+            self.fields["candidates"].initial = [initial_candidate]
+        elif initial_candidates:
+            self.fields["candidates"].initial = initial_candidates
 
     def clean(self):
         cleaned_data = super().clean()
+        candidates = cleaned_data.get("candidates")
         candidate = cleaned_data.get("candidate")
         sections = cleaned_data.get("sections") or []
         logical_count = cleaned_data.get("logical_count") or 0
@@ -126,9 +141,22 @@ class AssessmentCreateForm(forms.Form):
         expire_time = cleaned_data.get("expire_time")
         duration_minutes = cleaned_data.get("duration_minutes")
 
-        # 1. Candidate validation
-        if candidate and not hasattr(candidate, "candidate_profile"):
-            self.add_error("candidate", "Selected user is not registered as a candidate.")
+        # 1. Candidate Selection Resolution (Support both bulk list and single select)
+        selected_candidates_list = []
+        if candidates and len(candidates) > 0:
+            selected_candidates_list = list(candidates)
+        elif candidate:
+            selected_candidates_list = [candidate]
+
+        if not selected_candidates_list:
+            self.add_error("candidates", "Please select at least one candidate for this assessment.")
+        else:
+            # Validate candidate profile existence
+            for cand in selected_candidates_list:
+                if not hasattr(cand, "candidate_profile"):
+                    self.add_error("candidates", f"User '{cand.username}' does not have a candidate profile.")
+
+        cleaned_data["selected_candidates"] = selected_candidates_list
 
         # 2. Sections and question counts validation
         if not sections:
@@ -158,7 +186,6 @@ class AssessmentCreateForm(forms.Form):
                 else:
                     total_selected_questions += count
 
-
         include_coding = cleaned_data.get("include_coding", False)
         coding_count = cleaned_data.get("coding_count") or 0
 
@@ -175,7 +202,6 @@ class AssessmentCreateForm(forms.Form):
 
         if sections and total_selected_questions <= 0 and not self.errors:
             raise ValidationError("Assessment must have at least one question assigned.")
-
 
         # 3. Schedule & Datetime validation
         if start_date and start_time and expire_date and expire_time:

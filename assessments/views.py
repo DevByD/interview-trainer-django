@@ -6,9 +6,10 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
-
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import models
+from django.db.models import F, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -19,6 +20,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import candidate_required, employer_required
 from accounts.models import CandidateProfile
+from assessments.ai_shortlist_service import analyze_assessment_with_ai, analyze_campaign_assessments
 from assessments.code_executor import get_code_executor
 from assessments.coding_bank import ensure_coding_bank_seeded
 from assessments.email_service import send_assessment_invitation
@@ -27,6 +29,7 @@ from assessments.models import (
     Answer,
     Assessment,
     AssessmentCodingQuestion,
+    AssessmentGroup,
     AssessmentQuestion,
     CodingQuestion,
     CodingSubmission,
@@ -39,13 +42,12 @@ from assessments.services import expire_past_due_assessments, grade_and_complete
 
 
 # ---------------------------------------------------------------------------
-# Employer Assessment Views
+# Employer Assessment & Campaign Views
 # ---------------------------------------------------------------------------
 
 @employer_required
 def employer_assessment_create(request):
-    """Create and configure a new assessment for a registered candidate."""
-    # Ensure default question banks are seeded
+    """Create and configure an assessment campaign for one or many registered candidates."""
     ensure_question_bank_seeded()
     ensure_coding_bank_seeded()
 
@@ -58,7 +60,6 @@ def employer_assessment_create(request):
         except CandidateProfile.DoesNotExist:
             pass
 
-    # Provide question bank totals for the interactive UI counters
     logical_bank_count = Question.objects.filter(section=Question.Sections.LOGICAL).count()
     quant_bank_count = Question.objects.filter(section=Question.Sections.QUANTITATIVE).count()
     tech_bank_count = Question.objects.filter(section=Question.Sections.TECHNICAL).count()
@@ -69,22 +70,31 @@ def employer_assessment_create(request):
         initial_candidate=initial_user,
     )
 
-    # Candidate profile data for JS live preview
-    candidate_profiles_qs = CandidateProfile.objects.select_related("user").all()
+    candidate_profiles_qs = CandidateProfile.objects.select_related("user").all().order_by("-created_at")
     candidates_meta = {}
     for cp in candidate_profiles_qs:
+        # Check if candidate has an existing active assessment created by this employer
+        has_active = Assessment.objects.filter(
+            employer=request.user,
+            candidate=cp.user,
+            status__in=[Assessment.Status.PENDING, Assessment.Status.ONGOING],
+        ).exists()
+
         candidates_meta[str(cp.user_id)] = {
+            "id": cp.user_id,
             "name": cp.user.get_full_name() or cp.user.username,
             "email": cp.user.email,
             "phone": cp.phone or "Not specified",
             "education": cp.education or "Not specified",
             "skills": cp.skills or "Not specified",
+            "experience": cp.experience or 0,
             "completed": cp.profile_completed,
             "percentage": cp.completion_percentage,
+            "has_active_assessment": has_active,
         }
 
     if request.method == "POST" and form.is_valid():
-        candidate_user = form.cleaned_data["candidate"]
+        selected_candidates = form.cleaned_data["selected_candidates"]
         title = form.cleaned_data["title"]
         start_datetime = form.cleaned_data["start_datetime"]
         expire_datetime = form.cleaned_data["expire_datetime"]
@@ -96,88 +106,113 @@ def employer_assessment_create(request):
         include_coding = form.cleaned_data.get("include_coding", False)
         coding_count = form.cleaned_data.get("coding_count") or 0
 
-        # Create Assessment instance
-        assessment = Assessment.objects.create(
+        # Pre-select randomized questions for this assessment batch once
+        selected_mcq_questions = []
+        if "LOGICAL" in sections and logical_count > 0:
+            selected_mcq_questions.extend(
+                list(Question.objects.filter(section=Question.Sections.LOGICAL).order_by("?")[:logical_count])
+            )
+        if "QUANTITATIVE" in sections and quant_count > 0:
+            selected_mcq_questions.extend(
+                list(Question.objects.filter(section=Question.Sections.QUANTITATIVE).order_by("?")[:quant_count])
+            )
+        if "TECHNICAL" in sections and technical_count > 0:
+            selected_mcq_questions.extend(
+                list(Question.objects.filter(section=Question.Sections.TECHNICAL).order_by("?")[:technical_count])
+            )
+
+        selected_coding_questions = []
+        if include_coding and coding_count > 0:
+            selected_coding_questions = list(CodingQuestion.objects.order_by("?")[:coding_count])
+
+        # 1. Create AssessmentGroup (Campaign) ONCE
+        group = AssessmentGroup.objects.create(
             employer=request.user,
-            candidate=candidate_user,
             title=title,
             start_time=start_datetime,
             expire_time=expire_datetime,
             duration_minutes=duration_minutes,
-            status=Assessment.Status.PENDING,
-            candidate_status=Assessment.CandidateStatus.NOT_STARTED,
             has_coding=include_coding,
+            total_mcq_count=len(selected_mcq_questions),
+            total_coding_count=len(selected_coding_questions),
         )
 
-        # Assign randomly selected unique questions in order
-        order_index = 1
-        questions_to_link = []
+        created_assessments = []
+        skipped_duplicates = []
+        emails_sent_count = 0
 
-        if "LOGICAL" in sections and logical_count > 0:
-            logical_qs = Question.objects.filter(section=Question.Sections.LOGICAL).order_by("?")[:logical_count]
-            for q in logical_qs:
-                questions_to_link.append(AssessmentQuestion(assessment=assessment, question=q, order=order_index))
-                order_index += 1
+        # 2. Create individual Assessment assignments for each selected candidate
+        for cand_user in selected_candidates:
+            # Check duplicate assignment in this group
+            if Assessment.objects.filter(group=group, candidate=cand_user).exists():
+                skipped_duplicates.append(cand_user)
+                continue
 
-        if "QUANTITATIVE" in sections and quant_count > 0:
-            quant_qs = Question.objects.filter(section=Question.Sections.QUANTITATIVE).order_by("?")[:quant_count]
-            for q in quant_qs:
-                questions_to_link.append(AssessmentQuestion(assessment=assessment, question=q, order=order_index))
-                order_index += 1
-
-        if "TECHNICAL" in sections and technical_count > 0:
-            tech_qs = Question.objects.filter(section=Question.Sections.TECHNICAL).order_by("?")[:technical_count]
-            for q in tech_qs:
-                questions_to_link.append(AssessmentQuestion(assessment=assessment, question=q, order=order_index))
-                order_index += 1
-
-        AssessmentQuestion.objects.bulk_create(questions_to_link)
-
-        # Assign Coding Questions if coding is enabled
-        if include_coding and coding_count > 0:
-            coding_qs = list(CodingQuestion.objects.order_by("?")[:coding_count])
-            coding_to_link = []
-            for c_idx, cq in enumerate(coding_qs, start=1):
-                coding_to_link.append(AssessmentCodingQuestion(assessment=assessment, question=cq, order=c_idx))
-            AssessmentCodingQuestion.objects.bulk_create(coding_to_link)
-
-            # Initialize baseline CodingSubmission records with clean empty source code
-            for cq in coding_qs:
-                CodingSubmission.objects.get_or_create(
-                    assessment=assessment,
-                    question=cq,
-                    defaults={
-                        "language": "python",
-                        "source_code": "",
-                        "total_test_cases": cq.test_cases.count(),
-                    },
-                )
-
-
-        # Sync Assessment to Firestore
-        try:
-            from services.firebase_service import sync_assessment_to_firestore
-            q_ids = [aq.question_id for aq in questions_to_link]
-            sync_assessment_to_firestore(assessment, q_ids)
-        except Exception:
-            pass
-
-        # Dispatch email invitation
-        email_sent = send_assessment_invitation(assessment, request=request)
-
-        cand_name = candidate_user.get_full_name() or candidate_user.username
-        if email_sent:
-            messages.success(
-                request,
-                f"Assessment '{title}' created and invitation email delivered to {cand_name}.",
+            assessment = Assessment.objects.create(
+                group=group,
+                employer=request.user,
+                candidate=cand_user,
+                title=title,
+                start_time=start_datetime,
+                expire_time=expire_datetime,
+                duration_minutes=duration_minutes,
+                status=Assessment.Status.PENDING,
+                candidate_status=Assessment.CandidateStatus.NOT_STARTED,
+                has_coding=include_coding,
             )
-        else:
-            messages.success(
-                request,
-                f"Assessment '{title}' created successfully for {cand_name}. Test link generated.",
-            )
+            created_assessments.append(assessment)
 
-        return redirect("assessments:employer_assessment_list")
+            # Bulk link MCQ questions
+            if selected_mcq_questions:
+                q_links = [
+                    AssessmentQuestion(assessment=assessment, question=q, order=idx + 1)
+                    for idx, q in enumerate(selected_mcq_questions)
+                ]
+                AssessmentQuestion.objects.bulk_create(q_links)
+
+            # Bulk link Coding questions & scaffold submissions
+            if selected_coding_questions:
+                coding_links = [
+                    AssessmentCodingQuestion(assessment=assessment, question=cq, order=c_idx + 1)
+                    for c_idx, cq in enumerate(selected_coding_questions)
+                ]
+                AssessmentCodingQuestion.objects.bulk_create(coding_links)
+
+                for cq in selected_coding_questions:
+                    CodingSubmission.objects.get_or_create(
+                        assessment=assessment,
+                        question=cq,
+                        defaults={
+                            "language": "python",
+                            "source_code": "",
+                            "total_test_cases": cq.test_cases.count(),
+                        },
+                    )
+
+            # Optional Firestore synchronization
+            try:
+                from services.firebase_service import sync_assessment_to_firestore
+                q_ids = [q.id for q in selected_mcq_questions]
+                sync_assessment_to_firestore(assessment, q_ids)
+            except Exception:
+                pass
+
+            # Dispatch invitation email
+            email_delivered = send_assessment_invitation(assessment, request=request)
+            if email_delivered:
+                emails_sent_count += 1
+
+        # Flash outcome message
+        cand_count = len(created_assessments)
+        dup_count = len(skipped_duplicates)
+        msg = f"Assessment campaign '{title}' created successfully! Assigned to {cand_count} candidate(s)."
+        if emails_sent_count > 0:
+            msg += f" {emails_sent_count} invitation email(s) dispatched."
+        if dup_count > 0:
+            msg += f" ({dup_count} duplicate candidate assignment(s) prevented)."
+
+        messages.success(request, msg)
+        return redirect("assessments:employer_campaign_detail", group_id=group.id)
 
     context = {
         "form": form,
@@ -185,18 +220,236 @@ def employer_assessment_create(request):
         "quant_bank_count": quant_bank_count,
         "tech_bank_count": tech_bank_count,
         "coding_bank_count": coding_bank_count,
+        "candidate_profiles": candidate_profiles_qs,
         "candidates_meta_json": json.dumps(candidates_meta),
     }
     return render(request, "assessments/create_assessment.html", context)
 
 
+@employer_required
+def employer_campaign_detail(request, group_id):
+    """Campaign dashboard view with candidate matrix, metrics, AI shortlisting, and filters."""
+    group = get_object_or_404(AssessmentGroup, pk=group_id, employer=request.user)
+
+    # Base query for all assessments in this campaign
+    assessments_qs = (
+        group.assessments.select_related("candidate", "candidate__candidate_profile", "result")
+        .prefetch_related("coding_submissions")
+        .order_by("-created_at")
+    )
+
+    # Calculate overall campaign statistics (Parts 4 & 10)
+    total_assigned = assessments_qs.count()
+    completed_count = assessments_qs.filter(status=Assessment.Status.COMPLETED).count()
+    in_progress_count = assessments_qs.filter(status=Assessment.Status.ONGOING).count()
+    not_started_count = assessments_qs.filter(
+        status=Assessment.Status.PENDING,
+        candidate_status=Assessment.CandidateStatus.NOT_STARTED,
+    ).count()
+    missed_count = assessments_qs.filter(
+        models.Q(status=Assessment.Status.EXPIRED)
+        | models.Q(candidate_status=Assessment.CandidateStatus.NOT_ATTENDED)
+    ).count()
+    auto_submitted_count = assessments_qs.filter(
+        models.Q(auto_submitted_for_malpractice=True)
+        | models.Q(submission_reason__icontains="malpractice")
+        | models.Q(violation_count__gte=3)
+    ).count()
+    malpractice_count = assessments_qs.filter(
+        models.Q(malpractice_status=True) | models.Q(violation_count__gt=0)
+    ).count()
+
+    # AI Shortlist Recommendations Summary
+    ai_strong_count = assessments_qs.filter(ai_recommendation=Assessment.AIRecommendation.STRONG_MATCH).count()
+    ai_review_count = assessments_qs.filter(ai_recommendation=Assessment.AIRecommendation.REVIEW_RECOMMENDED).count()
+    ai_low_count = assessments_qs.filter(ai_recommendation=Assessment.AIRecommendation.LOW_MATCH).count()
+    ai_pending_count = total_assigned - (ai_strong_count + ai_review_count + ai_low_count)
+
+    # Employer Shortlisted Count
+    shortlisted_count = assessments_qs.filter(is_shortlisted=True).count()
+
+    # Filter by status / category
+    filter_status = request.GET.get("status", "all").strip().lower()
+    filtered_qs = assessments_qs
+
+    if filter_status == "completed":
+        filtered_qs = filtered_qs.filter(status=Assessment.Status.COMPLETED)
+    elif filter_status == "in_progress":
+        filtered_qs = filtered_qs.filter(status=Assessment.Status.ONGOING)
+    elif filter_status == "not_started":
+        filtered_qs = filtered_qs.filter(
+            status=Assessment.Status.PENDING,
+            candidate_status=Assessment.CandidateStatus.NOT_STARTED,
+        )
+    elif filter_status == "missed":
+        filtered_qs = filtered_qs.filter(
+            models.Q(status=Assessment.Status.EXPIRED)
+            | models.Q(candidate_status=Assessment.CandidateStatus.NOT_ATTENDED)
+        )
+    elif filter_status == "auto_submitted":
+        filtered_qs = filtered_qs.filter(
+            models.Q(auto_submitted_for_malpractice=True)
+            | models.Q(submission_reason__icontains="malpractice")
+            | models.Q(violation_count__gte=3)
+        )
+    elif filter_status == "malpractice":
+        filtered_qs = filtered_qs.filter(
+            models.Q(malpractice_status=True) | models.Q(violation_count__gt=0)
+        )
+    elif filter_status == "shortlisted":
+        filtered_qs = filtered_qs.filter(is_shortlisted=True)
+    elif filter_status == "ai_strong":
+        filtered_qs = filtered_qs.filter(ai_recommendation=Assessment.AIRecommendation.STRONG_MATCH)
+    elif filter_status == "ai_review":
+        filtered_qs = filtered_qs.filter(ai_recommendation=Assessment.AIRecommendation.REVIEW_RECOMMENDED)
+    elif filter_status == "ai_low":
+        filtered_qs = filtered_qs.filter(ai_recommendation=Assessment.AIRecommendation.LOW_MATCH)
+
+    # Search filter by candidate name / email / skills
+    search_query = request.GET.get("q", "").strip()
+    if search_query:
+        filtered_qs = filtered_qs.filter(
+            models.Q(candidate__first_name__icontains=search_query)
+            | models.Q(candidate__last_name__icontains=search_query)
+            | models.Q(candidate__email__icontains=search_query)
+            | models.Q(candidate__username__icontains=search_query)
+            | models.Q(candidate__candidate_profile__skills__icontains=search_query)
+        )
+
+    context = {
+        "group": group,
+        "assessments": filtered_qs,
+        "filter_status": filter_status,
+        "search_query": search_query,
+        "total_assigned": total_assigned,
+        "completed_count": completed_count,
+        "in_progress_count": in_progress_count,
+        "not_started_count": not_started_count,
+        "missed_count": missed_count,
+        "auto_submitted_count": auto_submitted_count,
+        "malpractice_count": malpractice_count,
+        "ai_strong_count": ai_strong_count,
+        "ai_review_count": ai_review_count,
+        "ai_low_count": ai_low_count,
+        "ai_pending_count": ai_pending_count,
+        "shortlisted_count": shortlisted_count,
+    }
+    return render(request, "assessments/campaign_detail.html", context)
+
+
+@employer_required
+@require_POST
+def employer_campaign_ai_shortlist(request, group_id):
+    """Run AI shortlisting analysis for all completed candidates in an assessment campaign."""
+    group = get_object_or_404(AssessmentGroup, pk=group_id, employer=request.user)
+    assessments_qs = group.assessments.all()
+
+    analysis_data = analyze_campaign_assessments(assessments_qs)
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.POST.get("format") == "json":
+        return JsonResponse({
+            "status": "ok",
+            "message": f"AI shortlisting completed for {len(analysis_data['results'])} candidates.",
+            "data": analysis_data,
+        })
+
+    messages.success(
+        request,
+        f"AI shortlisting analysis completed for '{group.title}'. Review recommendations below.",
+    )
+    return redirect("assessments:employer_campaign_detail", group_id=group.id)
+
+
+@employer_required
+@require_POST
+def employer_campaign_shortlist_action(request, group_id):
+    """Execute employer shortlist actions: shortlist, remove, or toggle."""
+    group = get_object_or_404(AssessmentGroup, pk=group_id, employer=request.user)
+
+    action = request.POST.get("action", "").strip().lower()
+    raw_ids = request.POST.getlist("assessment_ids")
+    notes = request.POST.get("notes", "").strip()
+
+    if not raw_ids and request.POST.get("assessment_id"):
+        raw_ids = [request.POST.get("assessment_id")]
+
+    # If body is JSON
+    if not raw_ids and request.body:
+        try:
+            body_data = json.loads(request.body.decode("utf-8"))
+            action = body_data.get("action", action)
+            raw_ids = body_data.get("assessment_ids", [])
+            notes = body_data.get("notes", notes)
+            if not raw_ids and body_data.get("assessment_id"):
+                raw_ids = [body_data.get("assessment_id")]
+        except Exception:
+            pass
+
+    target_assessments = Assessment.objects.filter(
+        group=group,
+        employer=request.user,
+        id__in=raw_ids,
+    )
+
+    updated_count = 0
+    now = timezone.now()
+
+    if action == "shortlist":
+        updated_count = target_assessments.update(
+            is_shortlisted=True,
+            shortlisted_at=now,
+            shortlist_notes=notes or models.F("shortlist_notes"),
+        )
+        msg = f"Shortlisted {updated_count} candidate(s) successfully."
+    elif action == "remove":
+        updated_count = target_assessments.update(
+            is_shortlisted=False,
+            shortlisted_at=None,
+        )
+        msg = f"Removed {updated_count} candidate(s) from shortlist."
+    elif action == "toggle":
+        for a in target_assessments:
+            a.is_shortlisted = not a.is_shortlisted
+            a.shortlisted_at = now if a.is_shortlisted else None
+            a.save(update_fields=["is_shortlisted", "shortlisted_at"])
+            updated_count += 1
+        msg = "Shortlist status updated."
+    else:
+        msg = "No action specified."
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.POST.get("format") == "json":
+        return JsonResponse({
+            "status": "ok",
+            "message": msg,
+            "updated_count": updated_count,
+            "shortlisted_count": group.shortlisted_count,
+        })
+
+    messages.success(request, msg)
+    return redirect("assessments:employer_campaign_detail", group_id=group.id)
+
+
+@employer_required
+def employer_campaign_list(request):
+    """List all assessment campaigns created by this employer."""
+    campaigns = (
+        AssessmentGroup.objects.filter(employer=request.user)
+        .prefetch_related("assessments")
+        .order_by("-created_at")
+    )
+    context = {
+        "campaigns": campaigns,
+        "total_campaigns": campaigns.count(),
+    }
+    return render(request, "assessments/campaign_list.html", context)
+
 
 @employer_required
 def employer_assessment_list(request):
-    """List all assessments created by this employer."""
+    """List all individual candidate assessments created by this employer."""
     assessments = (
         Assessment.objects.filter(employer=request.user)
-        .select_related("candidate", "result")
+        .select_related("candidate", "result", "group")
         .order_by("-created_at")
     )
     context = {

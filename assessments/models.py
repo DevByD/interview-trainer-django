@@ -73,6 +73,58 @@ class Question(models.Model):
         }
 
 
+class AssessmentGroup(models.Model):
+    """An assessment campaign/batch created by an employer for one or more candidates."""
+
+    employer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="assessment_groups",
+    )
+    title = models.CharField(max_length=200, db_index=True)
+    description = models.TextField(blank=True, default="")
+    start_time = models.DateTimeField()
+    expire_time = models.DateTimeField()
+    duration_minutes = models.PositiveIntegerField(default=30)
+    has_coding = models.BooleanField(default=False)
+    total_mcq_count = models.PositiveIntegerField(default=0)
+    total_coding_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["employer", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} (Campaign #{self.id})"
+
+    @property
+    def total_assigned(self) -> int:
+        return self.assessments.count()
+
+    @property
+    def completed_count(self) -> int:
+        return self.assessments.filter(status=Assessment.Status.COMPLETED).count()
+
+    @property
+    def in_progress_count(self) -> int:
+        return self.assessments.filter(status=Assessment.Status.ONGOING).count()
+
+    @property
+    def not_started_count(self) -> int:
+        return self.assessments.filter(
+            status=Assessment.Status.PENDING,
+            candidate_status=Assessment.CandidateStatus.NOT_STARTED,
+        ).count()
+
+    @property
+    def shortlisted_count(self) -> int:
+        return self.assessments.filter(is_shortlisted=True).count()
+
+
 class Assessment(models.Model):
     """An assessment assigned by an employer to a single candidate."""
 
@@ -87,6 +139,20 @@ class Assessment(models.Model):
         ATTENDED = "ATTENDED", "Attended"
         NOT_ATTENDED = "NOT_ATTENDED", "Not Attended"
 
+    class AIRecommendation(models.TextChoices):
+        STRONG_MATCH = "STRONG_MATCH", "Strong Match"
+        REVIEW_RECOMMENDED = "REVIEW_RECOMMENDED", "Review Recommended"
+        LOW_MATCH = "LOW_MATCH", "Low Match"
+        PENDING = "PENDING", "Pending Analysis"
+
+    group = models.ForeignKey(
+        AssessmentGroup,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="assessments",
+        help_text="Optional campaign/batch group if part of a multi-candidate assessment",
+    )
     employer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -148,10 +214,43 @@ class Assessment(models.Model):
         default="",
         help_text="Reason for assessment submission (e.g. standard completion, auto-submitted for malpractice)",
     )
+
+    # Shortlist & Decision-Support Fields
+    is_shortlisted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Employer final shortlist status",
+    )
+    shortlisted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the candidate was shortlisted by the employer",
+    )
+    shortlist_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Optional recruiter notes or feedback on shortlisting",
+    )
+    ai_recommendation = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        choices=AIRecommendation.choices,
+        help_text="AI decision support recommendation: STRONG_MATCH, REVIEW_RECOMMENDED, LOW_MATCH",
+    )
+    ai_reasoning = models.TextField(
+        blank=True,
+        default="",
+        help_text="Legitimate data-backed explanation for the AI recommendation",
+    )
+    ai_analyzed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of the most recent AI assessment analysis",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
-
     updated_at = models.DateTimeField(auto_now=True)
-
 
     class Meta:
         ordering = ["-created_at"]
@@ -159,6 +258,9 @@ class Assessment(models.Model):
             models.Index(fields=["status", "candidate_status"]),
             models.Index(fields=["expire_time"]),
             models.Index(fields=["employer", "candidate"]),
+            models.Index(fields=["group", "status"]),
+            models.Index(fields=["is_shortlisted"]),
+            models.Index(fields=["ai_recommendation"]),
         ]
         constraints = [
             models.CheckConstraint(
@@ -168,6 +270,11 @@ class Assessment(models.Model):
             models.CheckConstraint(
                 condition=Q(duration_minutes__gt=0),
                 name="assessment_duration_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["group", "candidate"],
+                name="unique_candidate_per_assessment_group",
+                condition=Q(group__isnull=False),
             ),
         ]
 

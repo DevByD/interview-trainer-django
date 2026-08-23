@@ -14,16 +14,23 @@
       <h1 class="page-title">Assessment Management</h1>
       <p class="page-subtitle">Track, monitor, and evaluate scheduled and completed assessments across all candidates.</p>
     </div>
-    <div style="display: flex; gap: 0.75rem;">
-      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-sm">+ Create New Assessment</a>
-      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-secondary btn-sm">Browse Candidates</a>
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+      <a href="{% url 'assessments:employer_campaign_list' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+        📁 Campaigns
+      </a>
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-sm" style="font-weight: 800;">
+        + Create Assessment / Campaign
+      </a>
+      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-secondary btn-sm">
+        Browse Candidates
+      </a>
     </div>
   </div>
 
   <!-- Assessment List Table -->
   <div class="card">
     <div class="card-header">
-      <h2 class="card-title">All Scheduled Assessments ({{ total_count }})</h2>
+      <h2 class="card-title">All Individual Candidate Assessments ({{ total_count }})</h2>
       <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-outline-primary btn-sm">+ Schedule Test</a>
     </div>
     <div class="table-responsive">
@@ -32,23 +39,32 @@
           <thead>
             <tr>
               <th>Candidate</th>
-              <th>Email</th>
-              <th>Assessment Title</th>
+              <th>Assessment Title / Campaign</th>
               <th>Start Time</th>
               <th>Expiry Time</th>
               <th>Duration</th>
               <th>Status</th>
-              <th>Candidate Status</th>
               <th>Score</th>
+              <th>AI Evaluation</th>
+              <th>Shortlist</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for item in assessments %}
-              <tr>
-                <td><strong>{{ item.candidate.get_full_name|default:item.candidate.username }}</strong></td>
-                <td>{{ item.candidate.email }}</td>
-                <td>{{ item.title }}</td>
+              <tr class="{% if item.is_shortlisted %}row-shortlisted{% endif %}">
+                <td>
+                  <strong>{{ item.candidate.get_full_name|default:item.candidate.username }}</strong>
+                  <div style="font-size: 0.8rem; color: #64748b;">{{ item.candidate.email }}</div>
+                </td>
+                <td>
+                  <div style="font-weight: 600; color: #0f172a;">{{ item.title }}</div>
+                  {% if item.group %}
+                    <a href="{% url 'assessments:employer_campaign_detail' item.group.id %}" class="badge badge-pending" style="text-decoration: none; font-size: 0.75rem; margin-top: 0.2rem; display: inline-block;">
+                      📁 Campaign #{{ item.group.id }}
+                    </a>
+                  {% endif %}
+                </td>
                 <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
                 <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
                 <td>{{ item.duration_minutes }} min{{ item.duration_minutes|pluralize }}</td>
@@ -64,27 +80,40 @@
                   {% else %}
                     <span class="badge">{{ item.get_status_display }}</span>
                   {% endif %}
-                </td>
-                <td>
-                  {% if item.candidate_status == "NOT_STARTED" %}
-                    {% if item.status == "EXPIRED" %}
-                      <span class="badge badge-not-attended">Not Attended</span>
-                    {% else %}
-                      <span class="badge badge-pending">Not Started</span>
-                    {% endif %}
-                  {% elif item.candidate_status == "ATTENDED" %}
-                    <span class="badge badge-attended">Attended</span>
-                  {% elif item.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-not-attended">Not Attended</span>
+
+                  {% if item.auto_submitted_for_malpractice %}
+                    <div style="font-size: 0.72rem; color: #dc2626; font-weight: 700; margin-top: 0.2rem;">
+                      ⚠️ Malpractice
+                    </div>
                   {% endif %}
                 </td>
                 <td>
                   {% if item.result %}
                     <strong style="color: {% if item.result.passed %}var(--success-dark){% else %}var(--danger-dark){% endif %};">
-                      {{ item.result.percentage }}%
+                      {% if item.has_coding %}{{ item.result.overall_score }}%{% else %}{{ item.result.percentage }}%{% endif %}
                     </strong>
                   {% else %}
                     <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.ai_recommendation == "STRONG_MATCH" %}
+                    <span class="badge" style="background: #dcfce7; color: #15803d; font-weight: 800; font-size: 0.75rem;">🟢 Strong Match</span>
+                  {% elif item.ai_recommendation == "REVIEW_RECOMMENDED" %}
+                    <span class="badge" style="background: #fef9c3; color: #a16207; font-weight: 800; font-size: 0.75rem;">🟡 Review</span>
+                  {% elif item.ai_recommendation == "LOW_MATCH" %}
+                    <span class="badge" style="background: #fee2e2; color: #b91c1c; font-weight: 800; font-size: 0.75rem;">🔴 Low Match</span>
+                  {% else %}
+                    <span class="text-muted" style="font-size: 0.8rem;">—</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.is_shortlisted %}
+                    <span class="badge" style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-weight: 800; font-size: 0.78rem;">
+                      ★ Shortlisted
+                    </span>
+                  {% else %}
+                    <span class="text-muted" style="font-size: 0.8rem;">—</span>
                   {% endif %}
                 </td>
                 <td>

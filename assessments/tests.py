@@ -15,6 +15,7 @@ from assessments.models import (
     Answer,
     Assessment,
     AssessmentCodingQuestion,
+    AssessmentGroup,
     AssessmentQuestion,
     CodingQuestion,
     CodingSubmission,
@@ -1625,3 +1626,340 @@ class Phase6SecureCodeExecutionTests(TestCase):
         self.assertNotIn("expected_output", cand_dict)
         self.assertNotIn("actual_output", cand_dict)
         self.assertTrue(cand_dict["passed"])
+
+
+class BulkCandidateAssignmentAndShortlistingTests(TestCase):
+    """Unit tests for Bulk Candidate Selection, Campaign Views, AI Shortlisting, and Multi-Tenancy."""
+
+    def setUp(self):
+        self.client = Client()
+        self.now = timezone.now()
+
+        # Seed Questions
+        self.logical_q = Question.objects.create(
+            section=Question.Sections.LOGICAL,
+            question_text="Logical Q1",
+            option_a="A", option_b="B", option_c="C", option_d="D",
+            correct_answer="A", difficulty=Question.Difficulties.EASY,
+        )
+        self.quant_q = Question.objects.create(
+            section=Question.Sections.QUANTITATIVE,
+            question_text="Quant Q1",
+            option_a="A", option_b="B", option_c="C", option_d="D",
+            correct_answer="B", difficulty=Question.Difficulties.EASY,
+        )
+        self.tech_q = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="Tech Q1",
+            option_a="A", option_b="B", option_c="C", option_d="D",
+            correct_answer="C", difficulty=Question.Difficulties.EASY,
+        )
+        self.coding_q = CodingQuestion.objects.create(
+            title="Two Sum Problem",
+            slug="two-sum-problem",
+            description="Find indices of two numbers that add up to target.",
+            input_format="List of ints and target",
+            output_format="List of two indices",
+            sample_input="[2, 7, 11, 15]\n9",
+            sample_output="[0, 1]",
+            difficulty=Question.Difficulties.EASY,
+            category=CodingQuestion.Categories.ARRAYS,
+            starter_code={"python": "def two_sum(): pass"},
+        )
+        self.tc1 = CodingTestCase.objects.create(
+            question=self.coding_q,
+            input_data="[2, 7, 11, 15]\n9",
+            expected_output="[0, 1]",
+            is_sample=True,
+            order=1,
+        )
+
+        # Employer 1
+        self.emp_user1 = User.objects.create_user(
+            username="recruiter1@hiring.com", email="recruiter1@hiring.com", password="Password123!", first_name="RecruiterOne"
+        )
+        self.emp_prof1 = EmployerProfile.objects.create(user=self.emp_user1, company="AlphaTech")
+
+        # Employer 2 (for multi-tenant isolation testing)
+        self.emp_user2 = User.objects.create_user(
+            username="recruiter2@other.com", email="recruiter2@other.com", password="Password123!", first_name="RecruiterTwo"
+        )
+        self.emp_prof2 = EmployerProfile.objects.create(user=self.emp_user2, company="BetaCorp")
+
+        # Candidates (Rahul, Priya, Sneha, Arjun)
+        self.cand_rahul = User.objects.create_user(
+            username="rahul@test.com", email="rahul@test.com", password="Password123!", first_name="Rahul", last_name="Sharma"
+        )
+        CandidateProfile.objects.create(user=self.cand_rahul, skills="Python, Algorithms", experience=3)
+
+        self.cand_priya = User.objects.create_user(
+            username="priya@test.com", email="priya@test.com", password="Password123!", first_name="Priya", last_name="Verma"
+        )
+        CandidateProfile.objects.create(user=self.cand_priya, skills="Python, React", experience=2)
+
+        self.cand_sneha = User.objects.create_user(
+            username="sneha@test.com", email="sneha@test.com", password="Password123!", first_name="Sneha", last_name="Patel"
+        )
+        CandidateProfile.objects.create(user=self.cand_sneha, skills="Django, SQL", experience=1)
+
+        self.cand_arjun = User.objects.create_user(
+            username="arjun@test.com", email="arjun@test.com", password="Password123!", first_name="Arjun", last_name="Reddy"
+        )
+        CandidateProfile.objects.create(user=self.cand_arjun, skills="DevOps, Docker", experience=4)
+
+    def test_01_bulk_candidate_assignment_creation(self):
+        """Verify employer creates an assessment once for multiple candidates with 1 group and individual tokens."""
+        self.client.login(username="recruiter1@hiring.com", password="Password123!")
+
+        post_data = {
+            "candidates": [self.cand_rahul.id, self.cand_priya.id, self.cand_sneha.id],
+            "title": "Software Developer Screening Test",
+            "sections": ["LOGICAL", "QUANTITATIVE", "TECHNICAL"],
+            "logical_count": 1,
+            "quant_count": 1,
+            "technical_count": 1,
+            "include_coding": True,
+            "coding_count": 1,
+            "start_date": self.now.date().isoformat(),
+            "start_time": (self.now - timedelta(minutes=5)).strftime("%H:%M"),
+            "expire_date": (self.now + timedelta(days=2)).date().isoformat(),
+            "expire_time": (self.now + timedelta(days=2)).strftime("%H:%M"),
+            "duration_minutes": 60,
+        }
+
+        url = reverse("assessments:employer_assessment_create")
+        response = self.client.post(url, post_data)
+
+        # Asserts AssessmentGroup is created
+        group = AssessmentGroup.objects.filter(employer=self.emp_user1, title="Software Developer Screening Test").first()
+        self.assertIsNotNone(group)
+        self.assertRedirects(response, reverse("assessments:employer_campaign_detail", kwargs={"group_id": group.id}))
+
+        # Asserts 3 distinct Assessment instances were created
+        assessments = Assessment.objects.filter(group=group)
+        self.assertEqual(assessments.count(), 3)
+        assigned_user_ids = set(assessments.values_list("candidate_id", flat=True))
+        self.assertEqual(assigned_user_ids, {self.cand_rahul.id, self.cand_priya.id, self.cand_sneha.id})
+
+        # Asserts all tokens are unique and non-empty
+        tokens = list(assessments.values_list("token", flat=True))
+        self.assertEqual(len(set(tokens)), 3)
+        for t in tokens:
+            self.assertTrue(len(t) > 10)
+
+        # Asserts questions and coding submissions are linked
+        for a in assessments:
+            self.assertEqual(a.questions.count(), 3)
+            self.assertEqual(a.coding_questions.count(), 1)
+            self.assertEqual(a.coding_submissions.count(), 1)
+
+    def test_02_campaign_dashboard_view_and_filtering(self):
+        """Verify campaign dashboard aggregates metrics, candidate rows, and supports status & search filters."""
+        group = AssessmentGroup.objects.create(
+            employer=self.emp_user1,
+            title="Full Stack Engineer Assessment",
+            start_time=self.now - timedelta(hours=1),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=45,
+            has_coding=True,
+            total_mcq_count=3,
+            total_coding_count=1,
+        )
+
+        # Candidate 1: Completed with high score
+        a1 = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_rahul,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            duration_minutes=45, status=Assessment.Status.COMPLETED,
+            candidate_status=Assessment.CandidateStatus.ATTENDED, has_coding=True,
+            ai_recommendation=Assessment.AIRecommendation.STRONG_MATCH,
+            ai_reasoning="Strong candidate with high coding and aptitude accuracy.",
+            is_shortlisted=True,
+        )
+        Result.objects.create(
+            assessment=a1, logical_correct=1, logical_total=1, quant_correct=1, quant_total=1,
+            technical_correct=1, technical_total=1, percentage=Decimal("100.00"),
+            aptitude_score=Decimal("100.00"), coding_score=Decimal("90.00"), overall_score=Decimal("95.00"),
+            violation_count=0,
+        )
+
+        # Candidate 2: Ongoing
+        a2 = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_priya,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            duration_minutes=45, status=Assessment.Status.ONGOING,
+            candidate_status=Assessment.CandidateStatus.ATTENDED, has_coding=True,
+        )
+
+        # Candidate 3: Not Started
+        a3 = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_sneha,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            duration_minutes=45, status=Assessment.Status.PENDING,
+            candidate_status=Assessment.CandidateStatus.NOT_STARTED, has_coding=True,
+        )
+
+        self.client.login(username="recruiter1@hiring.com", password="Password123!")
+
+        # 1. Main campaign view
+        url = reverse("assessments:employer_campaign_detail", kwargs={"group_id": group.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_assigned"], 3)
+        self.assertEqual(response.context["completed_count"], 1)
+        self.assertEqual(response.context["in_progress_count"], 1)
+        self.assertEqual(response.context["not_started_count"], 1)
+        self.assertEqual(response.context["shortlisted_count"], 1)
+        self.assertEqual(response.context["ai_strong_count"], 1)
+
+        # 2. Filter by status=completed
+        res_completed = self.client.get(f"{url}?status=completed")
+        self.assertEqual(res_completed.status_code, 200)
+        self.assertEqual(len(res_completed.context["assessments"]), 1)
+
+        # 3. Filter by search query
+        res_search = self.client.get(f"{url}?q=Rahul")
+        self.assertEqual(res_search.status_code, 200)
+        self.assertEqual(len(res_search.context["assessments"]), 1)
+        self.assertEqual(res_search.context["assessments"][0].candidate.username, "rahul@test.com")
+
+    def test_03_multi_tenant_campaign_isolation(self):
+        """Verify Employer 2 cannot view or manipulate Employer 1's campaign."""
+        group = AssessmentGroup.objects.create(
+            employer=self.emp_user1,
+            title="Private Alpha Campaign",
+            start_time=self.now,
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=30,
+        )
+
+        # Log in as Employer 2
+        self.client.login(username="recruiter2@other.com", password="Password123!")
+
+        # Attempt to access Employer 1's campaign detail
+        url_detail = reverse("assessments:employer_campaign_detail", kwargs={"group_id": group.id})
+        res1 = self.client.get(url_detail)
+        self.assertEqual(res1.status_code, 404)
+
+        # Attempt to run AI Shortlist on Employer 1's campaign
+        url_ai = reverse("assessments:employer_campaign_ai_shortlist", kwargs={"group_id": group.id})
+        res2 = self.client.post(url_ai)
+        self.assertEqual(res2.status_code, 404)
+
+        # Attempt to perform Shortlist action on Employer 1's campaign
+        url_action = reverse("assessments:employer_campaign_shortlist_action", kwargs={"group_id": group.id})
+        res3 = self.client.post(url_action, {"action": "shortlist"})
+        self.assertEqual(res3.status_code, 404)
+
+    def test_04_ai_shortlisting_service_logic(self):
+        """Verify AI shortlisting categorizes strong match, review recommended, and low match accurately."""
+        from assessments.ai_shortlist_service import analyze_assessment_with_ai
+
+        group = AssessmentGroup.objects.create(
+            employer=self.emp_user1,
+            title="AI Benchmark Test",
+            start_time=self.now - timedelta(hours=2),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=30,
+            has_coding=True,
+        )
+
+        # Candidate A: 92% overall, clean proctoring -> STRONG_MATCH
+        a_strong = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_rahul,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            status=Assessment.Status.COMPLETED, has_coding=True, violation_count=0,
+        )
+        Result.objects.create(
+            assessment=a_strong, percentage=Decimal("92.00"), aptitude_score=Decimal("90.00"),
+            coding_score=Decimal("94.00"), overall_score=Decimal("92.00"), has_coding=True,
+        )
+        res_strong = analyze_assessment_with_ai(a_strong)
+        self.assertEqual(res_strong["recommendation"], Assessment.AIRecommendation.STRONG_MATCH)
+        self.assertTrue(len(res_strong["reasoning"]) > 10)
+
+        # Candidate B: 62% overall -> REVIEW_RECOMMENDED
+        a_review = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_priya,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            status=Assessment.Status.COMPLETED, has_coding=True, violation_count=1,
+        )
+        Result.objects.create(
+            assessment=a_review, percentage=Decimal("62.00"), aptitude_score=Decimal("60.00"),
+            coding_score=Decimal("65.00"), overall_score=Decimal("62.00"), has_coding=True,
+        )
+        res_review = analyze_assessment_with_ai(a_review)
+        self.assertEqual(res_review["recommendation"], Assessment.AIRecommendation.REVIEW_RECOMMENDED)
+
+        # Candidate C: 35% overall / malpractice -> LOW_MATCH
+        a_low = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_sneha,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            status=Assessment.Status.COMPLETED, has_coding=True, violation_count=3,
+            auto_submitted_for_malpractice=True, submission_reason="Auto-submitted: 3 proctoring violations recorded",
+        )
+        Result.objects.create(
+            assessment=a_low, percentage=Decimal("35.00"), aptitude_score=Decimal("35.00"),
+            coding_score=Decimal("0.00"), overall_score=Decimal("35.00"), has_coding=True,
+        )
+        res_low = analyze_assessment_with_ai(a_low)
+        self.assertEqual(res_low["recommendation"], Assessment.AIRecommendation.LOW_MATCH)
+        self.assertIn("proctoring", res_low["reasoning"].lower())
+
+    def test_05_employer_shortlist_actions(self):
+        """Verify employer can shortlist, remove from shortlist, and toggle candidates."""
+        group = AssessmentGroup.objects.create(
+            employer=self.emp_user1,
+            title="Shortlist Action Test",
+            start_time=self.now,
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=30,
+        )
+        a1 = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_rahul,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            status=Assessment.Status.COMPLETED,
+        )
+        a2 = Assessment.objects.create(
+            group=group, employer=self.emp_user1, candidate=self.cand_priya,
+            title=group.title, start_time=group.start_time, expire_time=group.expire_time,
+            status=Assessment.Status.COMPLETED,
+        )
+
+        self.client.login(username="recruiter1@hiring.com", password="Password123!")
+        url_action = reverse("assessments:employer_campaign_shortlist_action", kwargs={"group_id": group.id})
+
+        # 1. Bulk Shortlist both candidates
+        res1 = self.client.post(url_action, {
+            "action": "shortlist",
+            "assessment_ids": [a1.id, a2.id],
+            "notes": "Fast-track to technical phone screen",
+        })
+        self.assertEqual(res1.status_code, 302)
+        a1.refresh_from_db()
+        a2.refresh_from_db()
+        self.assertTrue(a1.is_shortlisted)
+        self.assertIsNotNone(a1.shortlisted_at)
+        self.assertEqual(a1.shortlist_notes, "Fast-track to technical phone screen")
+        self.assertTrue(a2.is_shortlisted)
+
+        # 2. Toggle Candidate 1 off via AJAX
+        res2 = self.client.post(
+            url_action,
+            data=json.dumps({"action": "toggle", "assessment_id": a1.id}),
+            content_type="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.json()["status"], "ok")
+        a1.refresh_from_db()
+        self.assertFalse(a1.is_shortlisted)
+
+        # 3. Bulk Remove Candidate 2
+        res3 = self.client.post(url_action, {
+            "action": "remove",
+            "assessment_ids": [a2.id],
+        })
+        self.assertEqual(res3.status_code, 302)
+        a2.refresh_from_db()
+        self.assertFalse(a2.is_shortlisted)

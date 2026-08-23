@@ -346,6 +346,7 @@
                 <li><span class="nav-role-badge">EMPLOYER · {{ user.employer_profile.company|default:user.username }}</span></li>
                 <li><a href="{% url 'dashboard:employer_dashboard' %}" class="nav-item">Dashboard</a></li>
                 <li><a href="{% url 'dashboard:employer_candidates_list' %}" class="nav-item">Candidates</a></li>
+                <li><a href="{% url 'assessments:employer_campaign_list' %}" class="nav-item">Campaigns</a></li>
                 <li><a href="{% url 'assessments:employer_assessment_list' %}" class="nav-item">Assessments</a></li>
                 <li>
                   <form action="{% url 'accounts:employer_logout' %}" method="post" class="nav-logout-form">

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Assessment Campaigns — Interview Trainer{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  .campaigns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .campaign-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .campaign-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    border-color: #cbd5e1;
+  }
+
+  .campaign-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .campaign-card-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .campaign-stat-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0 1.25rem 0;
+  }
+
+  .stat-pill {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="campaign-list" style="max-width: 1140px; margin: 0 auto; padding: 1rem 0 3rem 0;">
+  <!-- Header -->
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
+    <div>
+      <h1 class="page-title" style="font-size: 2rem; font-weight: 900; color: #0f172a; margin: 0;">
+        Assessment Campaigns
+      </h1>
+      <p class="page-subtitle" style="color: #64748b; margin-top: 0.25rem;">
+        Grouped evaluation campaigns created for multiple candidate cohorts.
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary" style="font-weight: 800;">
+        + Create New Campaign
+      </a>
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary" style="font-weight: 700;">
+        All Individual Tests
+      </a>
+    </div>
+  </div>
+
+  {% if campaigns %}
+    <div class="campaigns-grid">
+      {% for c in campaigns %}
+        <div class="campaign-card">
+          <div>
+            <div class="campaign-card-header">
+              <h2 class="campaign-card-title">{{ c.title }}</h2>
+              <span class="badge badge-pending" style="font-size: 0.75rem;">#{{ c.id }}</span>
+            </div>
+
+            <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">
+              Created {{ c.created_at|date:"M d, Y" }} &bull; {{ c.duration_minutes }} mins
+            </div>
+
+            <div class="campaign-stat-pills">
+              <span class="stat-pill">
+                👥 <strong>{{ c.total_assigned }}</strong> Assigned
+              </span>
+              <span class="stat-pill" style="color: #16a34a; background: #f0fdf4; border-color: #bbf7d0;">
+                ✓ <strong>{{ c.completed_count }}</strong> Completed
+              </span>
+              <span class="stat-pill" style="color: #d97706; background: #fffbeb; border-color: #fde68a;">
+                ⭐ <strong>{{ c.shortlisted_count }}</strong> Shortlisted
+              </span>
+              {% if c.has_coding %}
+                <span class="stat-pill" style="color: #0284c7; background: #f0f9ff; border-color: #bae6fd;">
+                  💻 {{ c.total_coding_count }} Coding
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #f1f5f9;">
+            <a href="{% url 'assessments:employer_campaign_detail' c.id %}" class="btn btn-primary btn-sm" style="font-weight: 700; width: 100%; text-align: center;">
+              Open Campaign Dashboard &rarr;
+            </a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card" style="padding: 3.5rem 2rem; text-align: center;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+      <h2 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem;">No Assessment Campaigns Yet</h2>
+      <p style="color: #64748b; max-width: 500px; margin: 0 auto 1.5rem auto;">
+        Create a new assessment once and assign it to multiple candidates simultaneously.
+      </p>
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-lg" style="font-weight: 800;">
+        + Create First Campaign &rarr;
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

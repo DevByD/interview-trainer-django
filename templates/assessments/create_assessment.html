@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Create Assessment — Interview Trainer{% endblock %}
+{% block title %}Create &amp; Assign Assessment — Interview Trainer{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/assessment.css' %}">
@@ -9,7 +9,7 @@
   .creation-section-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 1.75rem;
     margin-bottom: 1.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -34,28 +34,163 @@
     color: #0f172a;
     margin: 0;
   }
+
+  /* Candidate Selector Styling */
+  .cand-selector-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .cand-search-input-wrapper {
+    flex: 1;
+    min-width: 240px;
+    position: relative;
+  }
+
+  .cand-search-input-wrapper input {
+    width: 100%;
+    padding-left: 2.2rem;
+  }
+
+  .cand-search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+  }
+
+  .cand-list-container {
+    max-height: 380px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .cand-item-row {
+    display: grid;
+    grid-template-columns: 40px 48px 1.5fr 1fr 1fr auto;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s ease;
+    gap: 0.75rem;
+    cursor: pointer;
+  }
+
+  .cand-item-row:last-child {
+    border-bottom: none;
+  }
+
+  .cand-item-row:hover {
+    background: #f8fafc;
+  }
+
+  .cand-item-row.selected {
+    background: #eff6ff;
+  }
+
+  .cand-avatar-initials {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #e0e7ff;
+    color: #4338ca;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+
+  .cand-info-primary {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cand-name {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 0.95rem;
+  }
+
+  .cand-email {
+    font-size: 0.82rem;
+    color: #64748b;
+  }
+
+  .cand-skills-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    max-height: 44px;
+    overflow: hidden;
+  }
+
+  .skill-chip {
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .count-badge-highlight {
+    background: #2563eb;
+    color: #ffffff;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  @media (max-width: 768px) {
+    .cand-item-row {
+      grid-template-columns: 36px 38px 1fr auto;
+    }
+    .cand-skills-cell, .cand-edu-cell {
+      display: none;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="create-assessment" style="max-width: 960px; margin: 0 auto; padding: 1rem 0 3rem 0;">
+<div class="create-assessment" style="max-width: 1020px; margin: 0 auto; padding: 1rem 0 3rem 0;">
   <!-- Page Header -->
   <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
     <div>
-      <span class="badge badge-ongoing" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.4rem;">Evaluation Builder</span>
+      <span class="badge badge-ongoing" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.4rem;">Bulk Assignment &amp; Campaign Builder</span>
       <h1 class="page-title" style="font-size: 2rem; font-weight: 900; color: #0f172a; margin: 0.2rem 0 0 0;">
-        Schedule New Assessment
+        Create &amp; Assign Assessment
       </h1>
       <p class="page-subtitle" style="color: #64748b; margin-top: 0.25rem;">
-        Configure sections, question distribution, scheduling window, and duration for candidate testing.
+        Configure assessment content once and assign simultaneously to multiple candidates with automated test links and proctoring.
       </p>
     </div>
     <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+      <a href="{% url 'assessments:employer_campaign_list' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+        📁 Campaigns
+      </a>
       <a href="{% url 'assessments:employer_ai_question_generator' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
         ⚡ AI Question Generator
       </a>
       <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm" style="font-weight: 700;">
-        &larr; Assessment List
+        &larr; All Assessments
       </a>
     </div>
   </div>
@@ -80,9 +215,10 @@
       </div>
       <div class="form-group" style="margin-bottom: 0;">
         <label for="{{ form.title.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.4rem; color: #1e293b;">
-          Assessment Title <span style="color: var(--danger);">*</span>
+          Assessment / Campaign Title <span style="color: var(--danger);">*</span>
         </label>
         {{ form.title }}
+        <span style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; display: block;">This title identifies this evaluation campaign across all assigned candidates.</span>
         {% if form.title.errors %}
           <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
             {{ form.title.errors|striptags }}
@@ -91,33 +227,96 @@
       </div>
     </div>
 
-    <!-- 2. Candidate Settings -->
+    <!-- 2. Candidate Selection (One Assessment -> Many Candidates) -->
     <div class="creation-section-card" style="border-top: 4px solid #0284c7;">
-      <div class="creation-section-header">
-        <span class="creation-section-icon">👤</span>
-        <h2 class="creation-section-title">Candidate Settings</h2>
+      <div class="creation-section-header" style="justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span class="creation-section-icon">👥</span>
+          <h2 class="creation-section-title">Select Candidates</h2>
+        </div>
+        <div class="count-badge-highlight">
+          <span id="selectedCountBadge">0</span> candidates selected
+        </div>
       </div>
-      <div class="form-group" style="margin-bottom: 1rem;">
-        <label for="{{ form.candidate.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.4rem; color: #1e293b;">
-          Select Candidate <span style="color: var(--danger);">*</span>
-        </label>
-        {{ form.candidate }}
-        {% if form.candidate.errors %}
-          <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-            {{ form.candidate.errors|striptags }}
+
+      <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1rem;">
+        Select one or more registered candidates below. Each candidate receives an individual secure test link and proctoring session.
+      </p>
+
+      {% if form.candidates.errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1rem; padding: 0.6rem 1rem;">
+          {{ form.candidates.errors|striptags }}
+        </div>
+      {% endif %}
+
+      <!-- Search and Selection Controls -->
+      <div class="cand-selector-toolbar">
+        <div class="cand-search-input-wrapper">
+          <span class="cand-search-icon">🔍</span>
+          <input type="text" id="candidateSearchInput" class="form-input" placeholder="Search candidates by name, email, skills, education...">
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnSelectAll" style="font-weight: 700;">
+            ☑ Select All
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnDeselectAll" style="font-weight: 700;">
+            ☐ Deselect All
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" id="btnClearSelection" style="font-weight: 700;">
+            ✕ Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Candidate Selection List -->
+      <div class="cand-list-container" id="candidatesListContainer">
+        {% if candidate_profiles %}
+          {% for cp in candidate_profiles %}
+            <label class="cand-item-row" data-name="{{ cp.user.get_full_name|default:cp.user.username|lower }}" data-email="{{ cp.user.email|lower }}" data-skills="{{ cp.skills|lower }}" data-edu="{{ cp.education|lower }}">
+              <div>
+                <input type="checkbox" name="candidates" value="{{ cp.user_id }}" class="cand-item-checkbox"
+                       {% if cp.user in form.candidates.value or cp.user == form.candidate.value %}checked{% endif %}>
+              </div>
+              <div class="cand-avatar-initials">
+                {{ cp.user.first_name|slice:":1"|default:cp.user.username|slice:":1"|upper }}
+              </div>
+              <div class="cand-info-primary">
+                <span class="cand-name">{{ cp.user.get_full_name|default:cp.user.username }}</span>
+                <span class="cand-email">{{ cp.user.email }}</span>
+              </div>
+              <div class="cand-edu-cell" style="font-size: 0.85rem; color: #475569;">
+                {{ cp.education|default:"—"|truncatechars:28 }}
+              </div>
+              <div class="cand-skills-cell">
+                <div class="cand-skills-chips">
+                  {% if cp.skills %}
+                    {% for skill in cp.skills.split|slice:":3" %}
+                      <span class="skill-chip">{{ skill }}</span>
+                    {% endfor %}
+                  {% else %}
+                    <span style="font-size: 0.8rem; color: #94a3b8;">No skills listed</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div>
+                {% if cp.experience > 0 %}
+                  <span class="badge badge-pending" style="font-size: 0.75rem;">{{ cp.experience }} yr{{ cp.experience|pluralize }} exp</span>
+                {% else %}
+                  <span class="badge" style="font-size: 0.75rem; background: #f1f5f9; color: #64748b;">Fresher</span>
+                {% endif %}
+              </div>
+            </label>
+          {% endfor %}
+        {% else %}
+          <div style="padding: 2rem; text-align: center; color: #64748b;">
+            No registered candidates found. Candidates will appear here once registered.
           </div>
         {% endif %}
       </div>
 
-      <!-- Live Candidate Preview Card -->
-      <div id="candidatePreviewCard" class="candidate-preview-card" style="margin-top: 1rem;">
-        <h4 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem;" id="previewName">Candidate Details</h4>
-        <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
-          <div><span class="detail-label">Email</span> <span id="previewEmail" class="detail-value" style="font-size: 0.9rem;"></span></div>
-          <div><span class="detail-label">Phone</span> <span id="previewPhone" class="detail-value" style="font-size: 0.9rem;"></span></div>
-          <div><span class="detail-label">Education</span> <span id="previewEdu" class="detail-value" style="font-size: 0.9rem;"></span></div>
-          <div><span class="detail-label">Profile Status</span> <span id="previewStatus" class="detail-value" style="font-size: 0.9rem;"></span></div>
-        </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; font-size: 0.85rem; color: #64748b;">
+        <span id="visibleCandidatesInfo">Showing all registered candidates</span>
+        <span>Duplicate assignments are prevented automatically.</span>
       </div>
     </div>
 
@@ -212,7 +411,7 @@
                 Include Hands-on Coding Assessment
               </label>
               <span style="font-size: 0.85rem; color: #64748b;">
-                Adds hands-on programming challenges (Python, Java, C++, JavaScript) with live code execution &amp; auto-grading.
+                Adds algorithmic programming challenges (Python, Java, C++, JavaScript) with live code execution &amp; auto-grading.
               </span>
             </div>
           </div>
@@ -329,8 +528,8 @@
     <!-- Submit Actions -->
     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 3rem;">
       <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary" style="font-weight: 700;">Cancel</a>
-      <button type="submit" class="btn btn-primary btn-lg" style="font-weight: 800; padding: 0.85rem 2rem;">
-        Create Assessment &amp; Generate Secure Link &rarr;
+      <button type="submit" class="btn btn-primary btn-lg" id="btnSubmitAssessment" style="font-weight: 800; padding: 0.85rem 2rem;">
+        🚀 CREATE &amp; ASSIGN ASSESSMENT &rarr;
       </button>
     </div>
   </form>
@@ -340,35 +539,106 @@
 {% block extra_js %}
 <script>
   (function() {
-    const candidatesMeta = JSON.parse('{{ candidates_meta_json|escapejs }}');
-    const candSelect = document.querySelector('.candidate-select');
-    const previewCard = document.getElementById('candidatePreviewCard');
-    const previewName = document.getElementById('previewName');
-    const previewEmail = document.getElementById('previewEmail');
-    const previewPhone = document.getElementById('previewPhone');
-    const previewEdu = document.getElementById('previewEdu');
-    const previewStatus = document.getElementById('previewStatus');
+    const searchInput = document.getElementById('candidateSearchInput');
+    const rows = document.querySelectorAll('.cand-item-row');
+    const selectedBadge = document.getElementById('selectedCountBadge');
+    const visibleInfo = document.getElementById('visibleCandidatesInfo');
+    const btnSelectAll = document.getElementById('btnSelectAll');
+    const btnDeselectAll = document.getElementById('btnDeselectAll');
+    const btnClearSelection = document.getElementById('btnClearSelection');
 
-    function updatePreview() {
-      const selectedId = candSelect.value;
-      if (selectedId && candidatesMeta[selectedId]) {
-        const data = candidatesMeta[selectedId];
-        previewName.textContent = data.name;
-        previewEmail.textContent = data.email;
-        previewPhone.textContent = data.phone;
-        previewEdu.textContent = data.education;
-        previewStatus.textContent = data.completed ? `Complete (${data.percentage}%)` : `Incomplete (${data.percentage}%)`;
-        previewCard.classList.add('active');
-      } else {
-        previewCard.classList.remove('active');
+    function updateSelectedCount() {
+      const checkedBoxes = document.querySelectorAll('.cand-item-checkbox:checked');
+      const count = checkedBoxes.length;
+      if (selectedBadge) {
+        selectedBadge.textContent = String(count);
+      }
+
+      // Update row visual state
+      document.querySelectorAll('.cand-item-row').forEach(row => {
+        const cb = row.querySelector('.cand-item-checkbox');
+        if (cb && cb.checked) {
+          row.classList.add('selected');
+        } else {
+          row.classList.remove('selected');
+        }
+      });
+    }
+
+    function filterCandidates() {
+      const query = (searchInput.value || '').toLowerCase().trim();
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const email = row.getAttribute('data-email') || '';
+        const skills = row.getAttribute('data-skills') || '';
+        const edu = row.getAttribute('data-edu') || '';
+
+        const matches = !query || name.includes(query) || email.includes(query) || skills.includes(query) || edu.includes(query);
+        if (matches) {
+          row.style.display = 'grid';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      if (visibleInfo) {
+        if (query) {
+          visibleInfo.textContent = `Found ${visibleCount} matching candidate(s)`;
+        } else {
+          visibleInfo.textContent = `Showing all registered candidates (${rows.length})`;
+        }
       }
     }
 
-    if (candSelect) {
-      candSelect.addEventListener('change', updatePreview);
-      updatePreview();
+    if (searchInput) {
+      searchInput.addEventListener('input', filterCandidates);
     }
 
+    // Select All Visible
+    if (btnSelectAll) {
+      btnSelectAll.addEventListener('click', function() {
+        rows.forEach(row => {
+          if (row.style.display !== 'none') {
+            const cb = row.querySelector('.cand-item-checkbox');
+            if (cb) cb.checked = true;
+          }
+        });
+        updateSelectedCount();
+      });
+    }
+
+    // Deselect All
+    if (btnDeselectAll) {
+      btnDeselectAll.addEventListener('click', function() {
+        rows.forEach(row => {
+          const cb = row.querySelector('.cand-item-checkbox');
+          if (cb) cb.checked = false;
+        });
+        updateSelectedCount();
+      });
+    }
+
+    // Clear Selection
+    if (btnClearSelection) {
+      btnClearSelection.addEventListener('click', function() {
+        document.querySelectorAll('.cand-item-checkbox').forEach(cb => cb.checked = false);
+        if (searchInput) {
+          searchInput.value = '';
+          filterCandidates();
+        }
+        updateSelectedCount();
+      });
+    }
+
+    // Individual checkbox changes
+    document.querySelectorAll('.cand-item-checkbox').forEach(cb => {
+      cb.addEventListener('change', updateSelectedCount);
+    });
+
+    // Toggle coding questions input
     const codingCheck = document.getElementById('id_include_coding');
     const codingWrapper = document.getElementById('codingCountWrapper');
     if (codingCheck && codingWrapper) {
@@ -376,6 +646,9 @@
         codingWrapper.style.display = this.checked ? 'block' : 'none';
       });
     }
+
+    // Initial count
+    updateSelectedCount();
   })();
 </script>
 {% endblock %}
