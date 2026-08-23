@@ -11,59 +11,277 @@
   <link rel="stylesheet" href="{% static 'css/auth.css' %}">
   <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
   <link rel="stylesheet" href="{% static 'css/responsive.css' %}">
+  
+  <style>
+    /* Navbar Auth & Dropdown Styles */
+    .nav-auth-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .nav-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .nav-dropdown-toggle {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 700;
+      user-select: none;
+    }
+
+    /* 16 & 17. Polished Dropdown Menu Animation */
+    .nav-dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 0.5rem;
+      background: #ffffff;
+      min-width: 245px;
+      box-shadow: 0 14px 30px -4px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      z-index: 1050;
+      padding: 0.75rem 0.5rem 0.5rem 0.5rem;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px) scale(0.96);
+      transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.18s ease;
+      pointer-events: none;
+    }
+
+    .nav-dropdown.is-open .nav-dropdown-menu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .dropdown-header-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: #64748b;
+      text-transform: uppercase;
+      padding: 0.2rem 0.75rem 0.5rem 0.75rem;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 0.4rem;
+    }
+
+    .dropdown-role-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #0f172a;
+      transition: background-color 0.15s ease, transform 0.12s ease;
+      margin-bottom: 0.25rem;
+    }
+
+    .dropdown-role-card:hover {
+      background-color: #f1f5f9;
+      transform: translateX(2px);
+    }
+
+    .dropdown-role-card .role-icon {
+      font-size: 1.4rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .dropdown-role-card .role-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .dropdown-role-card .role-desc {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-top: 0.1rem;
+    }
+
+    /* 18. Mobile Navigation Toggle */
+    .mobile-nav-toggle {
+      display: none;
+      background: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 0.4rem 0.65rem;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: #334155;
+    }
+
+    @media (max-width: 900px) {
+      .mobile-nav-toggle {
+        display: block;
+      }
+
+      .navbar-inner {
+        flex-wrap: wrap;
+      }
+
+      .nav-links-wrapper {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        gap: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+        margin-top: 0.75rem;
+      }
+
+      .nav-links-wrapper.is-open {
+        display: flex;
+      }
+
+      .nav-links-wrapper .nav-links {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        gap: 0.75rem;
+      }
+
+      .nav-links-wrapper .nav-auth-group {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 0.5rem;
+      }
+
+      .nav-dropdown-menu {
+        position: static;
+        transform: none !important;
+        box-shadow: none;
+        border: 1px solid #e2e8f0;
+        margin-top: 0.25rem;
+      }
+    }
+  </style>
   {% block extra_css %}{% endblock %}
 </head>
 <body>
 
-  <!-- Navigation Bar -->
+  <!-- 15. Responsive Platform Navbar -->
   <header class="navbar">
-    <div class="container navbar-inner">
-      <a href="{% url 'home' %}" class="brand">
-        <div class="brand-icon">IT</div>
-        <span>Interview Trainer</span>
+    <div class="container navbar-inner" style="display: flex; justify-content: space-between; align-items: center;">
+      <!-- Logo Left -->
+      <a href="{% url 'home' %}" class="brand" style="display: flex; align-items: center; gap: 0.6rem; text-decoration: none;">
+        <div class="brand-icon" style="background: #2563eb; color: #fff; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-weight: 900; border-radius: 8px;">IT</div>
+        <span style="font-size: 1.25rem; font-weight: 800; color: #0f172a;">Interview Trainer</span>
       </a>
 
-      <nav>
-        <ul class="nav-links">
-          {% if user.is_authenticated %}
-            {% if user.candidate_profile %}
-              <li><span class="nav-role-badge">Candidate</span></li>
-              <li><a href="{% url 'candidates:candidate_dashboard' %}" class="nav-item">Dashboard</a></li>
-              <li><a href="{% url 'candidates:candidate_profile' %}" class="nav-item">My Profile</a></li>
-              <li>
-                <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:inline;">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
-                </form>
-              </li>
-            {% elif user.employer_profile %}
-              <li><span class="nav-role-badge">Employer: {{ user.employer_profile.company }}</span></li>
-              <li><a href="{% url 'dashboard:employer_dashboard' %}" class="nav-item">Dashboard</a></li>
-              <li><a href="{% url 'dashboard:employer_candidates_list' %}" class="nav-item">Candidates</a></li>
-              <li><a href="{% url 'assessments:employer_assessment_list' %}" class="nav-item">Assessments</a></li>
-              <li>
-                <form action="{% url 'accounts:employer_logout' %}" method="post" style="display:inline;">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
-                </form>
-              </li>
+      <!-- Mobile Toggle Button -->
+      <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Toggle navigation">
+        ☰
+      </button>
+
+      <!-- Center & Right Navigation Wrapper -->
+      <div class="nav-links-wrapper" id="navLinksWrapper" style="display: flex; align-items: center; gap: 2rem;">
+        <nav>
+          <ul class="nav-links" style="display: flex; align-items: center; gap: 1.5rem; list-style: none; margin: 0; padding: 0;">
+            {% if user.is_authenticated %}
+              {% if user.candidate_profile %}
+                <li><span class="nav-role-badge">Candidate</span></li>
+                <li><a href="{% url 'candidates:candidate_dashboard' %}" class="nav-item">Dashboard</a></li>
+                <li><a href="{% url 'candidates:candidate_profile' %}" class="nav-item">My Profile</a></li>
+                <li>
+                  <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                  </form>
+                </li>
+              {% elif user.employer_profile %}
+                <li><span class="nav-role-badge">Employer: {{ user.employer_profile.company }}</span></li>
+                <li><a href="{% url 'dashboard:employer_dashboard' %}" class="nav-item">Dashboard</a></li>
+                <li><a href="{% url 'dashboard:employer_candidates_list' %}" class="nav-item">Candidates</a></li>
+                <li><a href="{% url 'assessments:employer_assessment_list' %}" class="nav-item">Assessments</a></li>
+                <li>
+                  <form action="{% url 'accounts:employer_logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                  </form>
+                </li>
+              {% else %}
+                <li><a href="{% url 'admin:index' %}" class="nav-item">Admin</a></li>
+                <li>
+                  <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                  </form>
+                </li>
+              {% endif %}
             {% else %}
-              <li><a href="{% url 'admin:index' %}" class="nav-item">Admin</a></li>
-              <li>
-                <form action="{% url 'accounts:candidate_logout' %}" method="post" style="display:inline;">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
-                </form>
-              </li>
+              <!-- Unauthenticated Public Navigation -->
+              <li><a href="{% url 'home' %}#features" class="nav-item" style="color: #475569; font-weight: 600; text-decoration: none;">Features</a></li>
+              <li><a href="{% url 'home' %}#how-it-works" class="nav-item" style="color: #475569; font-weight: 600; text-decoration: none;">How It Works</a></li>
+              <li><a href="{% url 'home' %}#employers" class="nav-item" style="color: #475569; font-weight: 600; text-decoration: none;">For Employers</a></li>
+              <li><a href="{% url 'home' %}#candidates" class="nav-item" style="color: #475569; font-weight: 600; text-decoration: none;">For Candidates</a></li>
+              <li><a href="{% url 'home' %}#security" class="nav-item" style="color: #475569; font-weight: 600; text-decoration: none;">Security</a></li>
             {% endif %}
-          {% else %}
-            <li><a href="{% url 'accounts:candidate_login' %}" class="nav-item">Candidate Login</a></li>
-            <li><a href="{% url 'accounts:candidate_register' %}" class="btn btn-outline-primary btn-sm">Candidate Sign Up</a></li>
-            <li><a href="{% url 'accounts:employer_login' %}" class="nav-item">Employer Login</a></li>
-            <li><a href="{% url 'accounts:employer_register' %}" class="btn btn-primary btn-sm">Employer Sign Up</a></li>
-          {% endif %}
-        </ul>
-      </nav>
+          </ul>
+        </nav>
+
+        <!-- Right Auth Action Buttons (Only [Login] & [Register]) -->
+        {% if not user.is_authenticated %}
+          <div class="nav-auth-group">
+            <!-- 16. Login Dropdown -->
+            <div class="nav-dropdown" id="loginDropdownContainer">
+              <button type="button" class="btn btn-outline-primary btn-sm nav-dropdown-toggle" id="loginDropdownBtn" aria-expanded="false">
+                Login ▾
+              </button>
+              <div class="nav-dropdown-menu" id="loginDropdownMenu">
+                <div class="dropdown-header-label">LOGIN AS</div>
+                <a href="{% url 'accounts:employer_login' %}" class="dropdown-role-card">
+                  <span class="role-icon">👨‍💼</span>
+                  <div>
+                    <div class="role-title">Employer</div>
+                    <div class="role-desc">Manage assessments and candidates</div>
+                  </div>
+                </a>
+                <a href="{% url 'accounts:candidate_login' %}" class="dropdown-role-card">
+                  <span class="role-icon">🧑‍🎓</span>
+                  <div>
+                    <div class="role-title">Candidate</div>
+                    <div class="role-desc">Take assessments and view results</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            <!-- 17. Register Dropdown -->
+            <div class="nav-dropdown" id="registerDropdownContainer">
+              <button type="button" class="btn btn-primary btn-sm nav-dropdown-toggle" id="registerDropdownBtn" aria-expanded="false">
+                Register ▾
+              </button>
+              <div class="nav-dropdown-menu" id="registerDropdownMenu">
+                <div class="dropdown-header-label">REGISTER AS</div>
+                <a href="{% url 'accounts:employer_register' %}" class="dropdown-role-card">
+                  <span class="role-icon">👨‍💼</span>
+                  <div>
+                    <div class="role-title">Employer</div>
+                    <div class="role-desc">Create an employer account</div>
+                  </div>
+                </a>
+                <a href="{% url 'accounts:candidate_register' %}" class="dropdown-role-card">
+                  <span class="role-icon">🧑‍🎓</span>
+                  <div>
+                    <div class="role-title">Candidate</div>
+                    <div class="role-desc">Create a candidate account</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
   </header>
 
@@ -85,17 +303,147 @@
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div>
-        <strong>Interview Trainer</strong> &copy; 2026. Smarter Online Interview Assessments.
+  <!-- 14. Professional 4-Column Platform Footer -->
+  <footer class="footer" style="background: #0f172a; color: #94a3b8; padding: 3.5rem 0 2rem 0; border-top: 1px solid #1e293b; margin-top: 4rem;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin-bottom: 2.5rem;">
+        <!-- Column 1: Platform -->
+        <div>
+          <h4 style="font-size: 0.95rem; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Platform</h4>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.88rem;">
+            <li><a href="{% url 'home' %}#features" style="color: #94a3b8; text-decoration: none;">Assessments</a></li>
+            <li><a href="{% url 'home' %}#features" style="color: #94a3b8; text-decoration: none;">Coding</a></li>
+            <li><a href="{% url 'home' %}#features" style="color: #94a3b8; text-decoration: none;">AI Questions</a></li>
+            <li><a href="{% url 'home' %}#features" style="color: #94a3b8; text-decoration: none;">Analytics</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 2: Candidates -->
+        <div>
+          <h4 style="font-size: 0.95rem; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Candidates</h4>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.88rem;">
+            <li><a href="{% url 'accounts:candidate_login' %}" style="color: #94a3b8; text-decoration: none;">Candidate Login</a></li>
+            <li><a href="{% url 'accounts:candidate_register' %}" style="color: #94a3b8; text-decoration: none;">Candidate Register</a></li>
+            <li><a href="{% url 'home' %}#candidates" style="color: #94a3b8; text-decoration: none;">Candidate Results</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 3: Employers -->
+        <div>
+          <h4 style="font-size: 0.95rem; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Employers</h4>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.88rem;">
+            <li><a href="{% url 'accounts:employer_login' %}" style="color: #94a3b8; text-decoration: none;">Employer Login</a></li>
+            <li><a href="{% url 'accounts:employer_register' %}" style="color: #94a3b8; text-decoration: none;">Employer Register</a></li>
+            <li><a href="{% url 'home' %}#employers" style="color: #94a3b8; text-decoration: none;">Employer Assessments</a></li>
+            <li><a href="{% url 'home' %}#employers" style="color: #94a3b8; text-decoration: none;">Employer Analytics</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 4: Company -->
+        <div>
+          <h4 style="font-size: 0.95rem; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1rem;">Company</h4>
+          <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.88rem;">
+            <li><a href="{% url 'home' %}" style="color: #94a3b8; text-decoration: none;">About</a></li>
+            <li><a href="{% url 'home' %}" style="color: #94a3b8; text-decoration: none;">Contact</a></li>
+            <li><a href="{% url 'home' %}#security" style="color: #94a3b8; text-decoration: none;">Privacy</a></li>
+            <li><a href="{% url 'home' %}#security" style="color: #94a3b8; text-decoration: none;">Terms</a></li>
+          </ul>
+        </div>
       </div>
-      <div>
-        <span class="text-muted">Secure &bull; Timed Assessments &bull; Automated Grading</span>
+
+
+      <!-- Bottom Divider & Copyright -->
+      <div style="border-top: 1px solid #1e293b; padding-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: 0.82rem;">
+        <div>
+          &copy; 2026 Interview Trainer Platform. All rights reserved.
+        </div>
+        <div style="display: flex; gap: 1.5rem;">
+          <span style="color: #64748b;">Multi-Tenant Isolated</span>
+          <span style="color: #64748b;">Zero Secret Exposure</span>
+          <span style="color: #64748b;">Server-Authoritative Timing</span>
+        </div>
       </div>
     </div>
   </footer>
+
+  <!-- Interactive Dropdown & Mobile Nav Scripts -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Dropdown toggle logic
+      const dropdowns = document.querySelectorAll('.nav-dropdown');
+
+      dropdowns.forEach(dropdown => {
+        const toggleBtn = dropdown.querySelector('.nav-dropdown-toggle');
+        
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdown.classList.contains('is-open');
+            // Close other dropdowns
+            dropdowns.forEach(d => {
+              d.classList.remove('is-open');
+              const btn = d.querySelector('.nav-dropdown-toggle');
+              if (btn) btn.setAttribute('aria-expanded', 'false');
+            });
+
+            if (!isOpen) {
+              dropdown.classList.add('is-open');
+              toggleBtn.setAttribute('aria-expanded', 'true');
+            }
+          });
+        }
+      });
+
+      // Close dropdowns on outside click
+      document.addEventListener('click', (e) => {
+        dropdowns.forEach(dropdown => {
+          if (!dropdown.contains(e.target)) {
+            dropdown.classList.remove('is-open');
+            const btn = dropdown.querySelector('.nav-dropdown-toggle');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+          }
+        });
+      });
+
+      // Close dropdowns on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          dropdowns.forEach(dropdown => {
+            dropdown.classList.remove('is-open');
+            const btn = dropdown.querySelector('.nav-dropdown-toggle');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+          });
+        }
+      });
+
+      // Mobile Navigation Toggle
+      const mobileNavToggle = document.getElementById('mobileNavToggle');
+      const navLinksWrapper = document.getElementById('navLinksWrapper');
+
+      if (mobileNavToggle && navLinksWrapper) {
+        mobileNavToggle.addEventListener('click', () => {
+          navLinksWrapper.classList.toggle('is-open');
+        });
+      }
+
+      // Prevent accidental double-click form submissions
+      document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+          if (this.dataset.submitted === 'true') {
+            e.preventDefault();
+            return false;
+          }
+          const submitBtn = this.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            this.dataset.submitted = 'true';
+            submitBtn.style.opacity = '0.7';
+            submitBtn.style.pointerEvents = 'none';
+          }
+        });
+      });
+    });
+  </script>
+
 
   {% block extra_js %}{% endblock %}
 </body>

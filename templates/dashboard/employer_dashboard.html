@@ -1,83 +1,222 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Employer Dashboard — Interview Trainer{% endblock %}
 
+{% block extra_css %}
+<style>
+  .dashboard-metric-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.4rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  }
+
+  .dashboard-metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px -4px rgba(0, 0, 0, 0.07);
+    border-color: #cbd5e1;
+  }
+
+  .quick-action-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #0f172a;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .quick-action-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px -4px rgba(0, 0, 0, 0.08);
+    border-color: #93c5fd;
+  }
+
+  .quick-action-icon {
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: #f8fafc;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .quick-action-card:hover .quick-action-icon {
+    transform: scale(1.12);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-metric-card,
+    .quick-action-card,
+    .quick-action-icon {
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="employer-dashboard">
-  <!-- Page Header -->
-  <div class="page-header">
+<div class="employer-dashboard" style="max-width: 1200px; margin: 0 auto; padding: 1rem 0 3rem 0;">
+  <!-- Header & Primary Action -->
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
     <div>
-      <h1 class="page-title">Employer Dashboard</h1>
-      <p class="page-subtitle">
+      <span class="badge badge-ongoing" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.4rem;">Employer Hub</span>
+      <h1 class="page-title" style="font-size: 2rem; font-weight: 900; color: #0f172a; margin: 0.2rem 0 0 0;">
+        Recruiter Dashboard
+      </h1>
+      <p class="page-subtitle" style="color: #64748b; margin-top: 0.25rem;">
         {% if employer_profile %}
-          <strong>{{ employer_profile.company }}</strong> &bull; Recruiter Portal
+          <strong>{{ employer_profile.company }}</strong> &bull; Assessment &amp; Candidate Evaluation Management
         {% else %}
-          Recruiter Portal &amp; Assessment Management
+          Assessment &amp; Candidate Evaluation Management
         {% endif %}
       </p>
     </div>
-    <div style="display: flex; gap: 0.75rem;">
-      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-primary btn-sm">Browse Candidates</a>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary" style="font-weight: 700;">
+        + Create Assessment
+      </a>
+      <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-outline-primary" style="font-weight: 700;">
+        Browse Candidates
+      </a>
     </div>
   </div>
 
-  <!-- Real Database Counters -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <span class="stat-title">Total Candidates</span>
-      <span class="stat-value" style="color: var(--primary);">{{ total_candidates }}</span>
-      <span class="stat-desc">Registered candidates in platform</span>
+  <!-- Metric Cards Grid -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.25rem; margin-bottom: 2.25rem;">
+    <div class="dashboard-metric-card" style="border-top: 4px solid #2563eb;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Registered Candidates</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #2563eb; margin: 0.35rem 0;">
+        {{ total_candidates }}
+      </div>
+      <span style="font-size: 0.82rem; color: #64748b;">Profiles available for assessment</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-title">Active / Ongoing Tests</span>
-      <span class="stat-value" style="color: var(--info);">{{ active_tests }}</span>
-      <span class="stat-desc">Pending start or currently in progress</span>
+
+    <div class="dashboard-metric-card" style="border-top: 4px solid #0284c7;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Active / Ongoing Tests</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #0284c7; margin: 0.35rem 0;">
+        {{ active_tests }}
+      </div>
+      <span style="font-size: 0.82rem; color: #64748b;">Pending start or currently in progress</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-title">Completed Tests</span>
-      <span class="stat-value" style="color: var(--success);">{{ completed_tests }}</span>
-      <span class="stat-desc">Successfully taken and graded</span>
+
+    <div class="dashboard-metric-card" style="border-top: 4px solid #059669;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Completed Tests</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #059669; margin: 0.35rem 0;">
+        {{ completed_tests }}
+      </div>
+      <span style="font-size: 0.82rem; color: #64748b;">Graded with performance scorecards</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-title">Missed / Expired Tests</span>
-      <span class="stat-value" style="color: var(--danger);">{{ missed_tests }}</span>
-      <span class="stat-desc">Unattended past expiration deadline</span>
+
+    <div class="dashboard-metric-card" style="border-top: 4px solid #dc2626;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Missed / Expired Tests</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #dc2626; margin: 0.35rem 0;">
+        {{ missed_tests }}
+      </div>
+      <span style="font-size: 0.82rem; color: #64748b;">Unattended past expiration deadline</span>
     </div>
   </div>
 
-  <!-- Recent Assessments Table -->
-  <div class="card">
-    <div class="card-header">
-      <h2 class="card-title">Recent Assessments</h2>
+  <!-- Quick Actions Hub -->
+  <div style="margin-bottom: 2.5rem;">
+    <h2 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+      <span>⚡ Quick Actions</span>
+    </h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+      <!-- Quick Action 1: Create Assessment -->
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="quick-action-card">
+        <div class="quick-action-icon" style="background: #eff6ff; color: #2563eb;">➕</div>
+        <div>
+          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Create Assessment</div>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.15rem;">Schedule timed MCQ &amp; coding tests</div>
+        </div>
+      </a>
+
+      <!-- Quick Action 2: Question Bank -->
+      <a href="{% url 'assessments:employer_assessment_create' %}" class="quick-action-card">
+        <div class="quick-action-icon" style="background: #ecfdf5; color: #059669;">📚</div>
+        <div>
+          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Question Bank</div>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.15rem;">Browse 150+ aptitude &amp; DSA questions</div>
+        </div>
+      </a>
+
+      <!-- Quick Action 3: AI Generator -->
+      <a href="{% url 'assessments:employer_ai_question_generator' %}" class="quick-action-card">
+        <div class="quick-action-icon" style="background: #faf5ff; color: #7c3aed;">🤖</div>
+        <div>
+          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">AI Generator</div>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.15rem;">Generate, review &amp; approve questions</div>
+        </div>
+      </a>
+
+      <!-- Quick Action 4: Analytics -->
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="quick-action-card">
+        <div class="quick-action-icon" style="background: #fffbeb; color: #d97706;">📊</div>
+        <div>
+          <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Analytics &amp; Results</div>
+          <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.15rem;">View charts, logs &amp; export CSVs</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Recent Activity / Assessment Cards Table -->
+  <div class="card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; background: #ffffff;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+      <div>
+        <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0;">Recent Assessment Activity</h2>
+        <p style="color: #64748b; font-size: 0.85rem; margin: 0.2rem 0 0 0;">Latest scheduled candidate evaluations and submissions</p>
+      </div>
       <div style="display: flex; gap: 0.5rem;">
-        <a href="{% url 'assessments:employer_assessment_create' %}" class="btn btn-primary btn-sm">+ Create Assessment</a>
-        <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-outline-primary btn-sm">View All</a>
+        <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">View All Assessments &rarr;</a>
       </div>
     </div>
+
     <div class="table-responsive">
       {% if recent_assessments %}
-        <table class="data-table">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
           <thead>
-            <tr>
-              <th>Candidate</th>
-              <th>Email</th>
-              <th>Assessment</th>
-              <th>Start Time</th>
-              <th>Expiry Time</th>
-              <th>Status</th>
-              <th>Score</th>
-              <th>Action</th>
+            <tr style="border-bottom: 2px solid #f1f5f9; text-align: left; font-size: 0.82rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+              <th style="padding: 0.75rem 0.5rem;">Candidate</th>
+              <th style="padding: 0.75rem 0.5rem;">Assessment Title</th>
+              <th style="padding: 0.75rem 0.5rem;">Scheduled / Expiry</th>
+              <th style="padding: 0.75rem 0.5rem;">Status</th>
+              <th style="padding: 0.75rem 0.5rem;">Score</th>
+              <th style="padding: 0.75rem 0.5rem; text-align: right;">Action</th>
             </tr>
           </thead>
           <tbody>
             {% for a in recent_assessments %}
-              <tr>
-                <td><strong>{{ a.candidate.get_full_name|default:a.candidate.username }}</strong></td>
-                <td>{{ a.candidate.email }}</td>
-                <td>{{ a.title }}</td>
-                <td>{{ a.start_time|date:"M d, Y H:i" }}</td>
-                <td>{{ a.expire_time|date:"M d, Y H:i" }}</td>
-                <td>
+              <tr style="border-bottom: 1px solid #f1f5f9; font-size: 0.9rem;">
+                <td style="padding: 0.85rem 0.5rem;">
+                  <div style="font-weight: 700; color: #0f172a;">{{ a.candidate.get_full_name|default:a.candidate.username }}</div>
+                  <div style="font-size: 0.78rem; color: #64748b;">{{ a.candidate.email }}</div>
+                </td>
+                <td style="padding: 0.85rem 0.5rem;">
+                  <span style="font-weight: 600; color: #1e293b;">{{ a.title }}</span>
+                </td>
+                <td style="padding: 0.85rem 0.5rem; font-size: 0.82rem; color: #64748b;">
+                  <div>Start: {{ a.start_time|date:"M d, Y H:i" }}</div>
+                  <div>Expiry: {{ a.expire_time|date:"M d, Y H:i" }}</div>
+                </td>
+                <td style="padding: 0.85rem 0.5rem;">
                   {% if a.status == "PENDING" %}
                     <span class="badge badge-pending">Pending</span>
                   {% elif a.status == "ONGOING" %}
@@ -85,31 +224,31 @@
                   {% elif a.status == "COMPLETED" %}
                     <span class="badge badge-completed">Completed</span>
                   {% elif a.status == "EXPIRED" or a.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-expired">MISSED TEST</span>
+                    <span class="badge badge-expired">Missed Test</span>
                   {% else %}
                     <span class="badge">{{ a.get_status_display }}</span>
                   {% endif %}
                 </td>
-                <td>
+                <td style="padding: 0.85rem 0.5rem;">
                   {% if a.result %}
-                    <strong style="color: {% if a.result.passed %}var(--success-dark){% else %}var(--danger-dark){% endif %};">
+                    <strong style="color: {% if a.result.passed %}#059669{% else %}#dc2626{% endif %}; font-size: 0.95rem;">
                       {{ a.result.percentage }}%
                     </strong>
                   {% else %}
-                    <span class="text-muted">—</span>
+                    <span class="text-muted" style="color: #94a3b8;">—</span>
                   {% endif %}
                 </td>
-                <td>
+                <td style="padding: 0.85rem 0.5rem; text-align: right;">
                   {% if a.status == "COMPLETED" and a.result %}
-                    <a href="{% url 'results:employer_result' a.result.id %}" class="btn btn-outline-primary btn-sm">
+                    <a href="{% url 'results:employer_result' a.result.id %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
                       View Result
                     </a>
                   {% elif a.status == "PENDING" or a.status == "ONGOING" %}
-                    <a href="{% url 'assessments:test_entry' a.token %}" target="_blank" class="btn btn-secondary btn-sm">
+                    <a href="{% url 'assessments:test_entry' a.token %}" target="_blank" class="btn btn-secondary btn-sm" style="font-weight: 700;">
                       Test Link
                     </a>
                   {% else %}
-                    <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
+                    <span class="text-muted" style="font-size: 0.82rem; color: #94a3b8;">Closed</span>
                   {% endif %}
                 </td>
               </tr>
@@ -117,10 +256,11 @@
           </tbody>
         </table>
       {% else %}
-        <div class="empty-state">
-          <p style="font-size: 1.1rem; font-weight: 600; color: var(--dark-bg); margin-bottom: 0.5rem;">No assessments created yet.</p>
-          <p style="margin-bottom: 1.25rem;">Browse registered candidates to schedule your first online assessment.</p>
-          <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-primary btn-sm">Browse Candidates Directory</a>
+        <div class="empty-state" style="text-align: center; padding: 3rem 1.5rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📋</div>
+          <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem;">No assessments created yet</h3>
+          <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.25rem;">Browse registered candidates to schedule your first online assessment.</p>
+          <a href="{% url 'dashboard:employer_candidates_list' %}" class="btn btn-primary btn-sm" style="font-weight: 700;">Browse Candidates Directory</a>
         </div>
       {% endif %}
     </div>

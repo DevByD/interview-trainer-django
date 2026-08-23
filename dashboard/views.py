@@ -13,7 +13,22 @@ def home(request):
             return redirect("candidates:candidate_dashboard")
         elif hasattr(request.user, "employer_profile"):
             return redirect("dashboard:employer_dashboard")
-    return render(request, "home.html")
+
+    from assessments.models import Question, CodingQuestion, Assessment
+
+    total_candidates = CandidateProfile.objects.count()
+    total_assessments = Assessment.objects.count()
+    total_questions = Question.objects.count()
+    total_coding_problems = CodingQuestion.objects.count()
+
+    context = {
+        "stat_candidates": total_candidates,
+        "stat_assessments": total_assessments,
+        "stat_questions": total_questions,
+        "stat_coding_problems": total_coding_problems,
+    }
+    return render(request, "home.html", context)
+
 
 
 @employer_required

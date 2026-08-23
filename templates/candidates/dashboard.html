@@ -1,148 +1,217 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Candidate Dashboard — Interview Trainer{% endblock %}
 
+{% block extra_css %}
+<style>
+  .candidate-stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.4rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .candidate-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px -4px rgba(0, 0, 0, 0.07);
+  }
+
+  .assessment-item-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .assessment-item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px -4px rgba(0,0,0,0.06);
+    border-color: #cbd5e1;
+  }
+
+  .badge-available {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  .badge-inprogress {
+    background-color: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  .badge-completed {
+    background-color: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+
+  .badge-expired {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="candidate-dashboard">
+<div class="candidate-dashboard" style="max-width: 1100px; margin: 0 auto; padding: 1rem 0 3rem 0;">
   <!-- Page Header / Welcome -->
-  <div class="page-header">
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
     <div>
-      <h1 class="page-title">Welcome, {{ user.first_name|default:user.username }}!</h1>
-      <p class="page-subtitle">Track your assigned online assessments, view results, and maintain your candidate profile.</p>
+      <span class="badge badge-ongoing" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.4rem;">Candidate Portal</span>
+      <h1 class="page-title" style="font-size: 2rem; font-weight: 900; color: #0f172a; margin: 0.2rem 0 0 0;">
+        Welcome, {{ user.first_name|default:user.username }}!
+      </h1>
+      <p class="page-subtitle" style="color: #64748b; margin-top: 0.25rem;">
+        Track your assigned online assessments, view results, and maintain your candidate profile.
+      </p>
     </div>
     <div>
-      <a href="{% url 'candidates:candidate_profile' %}" class="btn btn-secondary btn-sm">Edit Profile</a>
+      <a href="{% url 'candidates:candidate_profile' %}" class="btn btn-secondary btn-sm" style="font-weight: 700;">Edit Profile</a>
     </div>
   </div>
 
   <!-- Profile Completion Banner -->
-  <div class="card" style="margin-bottom: 2rem; border-left: 4px solid var(--primary);">
-    <div class="card-body">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div>
-          <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 0.25rem;">
-            Profile Completion: {{ completion_percentage }}%
-          </h3>
-          <p style="color: var(--text-muted); font-size: 0.9rem;">
-            {% if profile.profile_completed %}
-              🎉 Your profile is complete and ready for employers to review!
-            {% else %}
-              Complete your contact details, education, skills, and resume to improve visibility for recruiters.
-            {% endif %}
-          </p>
-        </div>
-        <div>
-          <a href="{% url 'candidates:candidate_profile' %}" class="btn btn-outline-primary btn-sm">
-            {% if profile.profile_completed %}Update Details{% else %}Complete Profile Now{% endif %}
-          </a>
-        </div>
+  <div class="card" style="margin-bottom: 2rem; border-left: 4px solid #2563eb; border-radius: 10px; padding: 1.5rem; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h3 style="font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 0.25rem;">
+          Profile Completion: {{ completion_percentage }}%
+        </h3>
+        <p style="color: #64748b; font-size: 0.9rem; margin: 0;">
+          {% if profile.profile_completed %}
+            🎉 Your profile is complete and visible to hiring teams and recruiters.
+          {% else %}
+            Complete your contact details, education, skills, and resume to improve visibility for recruiters.
+          {% endif %}
+        </p>
       </div>
+      <div>
+        <a href="{% url 'candidates:candidate_profile' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+          {% if profile.profile_completed %}Update Details{% else %}Complete Profile Now{% endif %}
+        </a>
+      </div>
+    </div>
 
-      <div class="progress-bar-track" style="margin-top: 1rem;">
-        <div class="progress-bar-fill" style="width: {{ completion_percentage }}%;"></div>
-      </div>
+    <div class="progress-bar-track" style="margin-top: 1rem; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+      <div class="progress-bar-fill" style="width: {{ completion_percentage }}%; background: #2563eb; height: 100%; transition: width 0.3s ease;"></div>
     </div>
   </div>
 
   <!-- Assessment Stats Grid -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <span class="stat-title">Upcoming Tests</span>
-      <span class="stat-value" style="color: var(--warning-dark);">{{ upcoming_count }}</span>
-      <span class="stat-desc">Scheduled assessments pending start</span>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem;">
+    <div class="candidate-stat-card" style="border-top: 4px solid #0284c7;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Available / Upcoming</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #0284c7; margin: 0.35rem 0;">{{ upcoming_count }}</div>
+      <span style="font-size: 0.82rem; color: #64748b;">Scheduled tests pending start</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-title">Ongoing Tests</span>
-      <span class="stat-value" style="color: var(--info);">{{ ongoing_count }}</span>
-      <span class="stat-desc">Tests currently in progress</span>
+
+    <div class="candidate-stat-card" style="border-top: 4px solid #2563eb;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">In Progress</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #2563eb; margin: 0.35rem 0;">{{ ongoing_count }}</div>
+      <span style="font-size: 0.82rem; color: #64748b;">Active assessments currently open</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-title">Completed Tests</span>
-      <span class="stat-value" style="color: var(--success);">{{ completed_count }}</span>
-      <span class="stat-desc">Submitted and graded tests</span>
+
+    <div class="candidate-stat-card" style="border-top: 4px solid #059669;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Completed Tests</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #059669; margin: 0.35rem 0;">{{ completed_count }}</div>
+      <span style="font-size: 0.82rem; color: #64748b;">Submitted and graded scorecards</span>
     </div>
-    <div class="stat-card">
-      <span class="stat-title">Missed Tests</span>
-      <span class="stat-value" style="color: var(--danger);">{{ missed_count }}</span>
-      <span class="stat-desc">Expired without attendance</span>
+
+    <div class="candidate-stat-card" style="border-top: 4px solid #dc2626;">
+      <span style="font-size: 0.8rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Expired / Missed</span>
+      <div style="font-size: 2.2rem; font-weight: 900; color: #dc2626; margin: 0.35rem 0;">{{ missed_count }}</div>
+      <span style="font-size: 0.82rem; color: #64748b;">Unattended past expiration deadline</span>
     </div>
   </div>
 
-  <!-- Assessments Table -->
-  <div class="card">
-    <div class="card-header">
-      <h2 class="card-title">Assigned Assessments</h2>
-      <span class="badge badge-ongoing">{{ assessments|length }} Total</span>
+  <!-- Assessment Cards Section -->
+  <div style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+      <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0;">Assigned Assessments</h2>
+      <span class="badge badge-ongoing" style="font-size: 0.8rem;">{{ assessments|length }} Total</span>
     </div>
-    <div class="table-responsive">
-      {% if assessments %}
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Assessment Title</th>
-              <th>Employer</th>
-              <th>Start Time</th>
-              <th>Expiry Time</th>
-              <th>Duration</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in assessments %}
-              <tr>
-                <td><strong>{{ item.title }}</strong></td>
-                <td>{{ item.employer.employer_profile.company|default:item.employer.get_full_name|default:item.employer.username }}</td>
-                <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
-                <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
-                <td>{{ item.duration_minutes }} mins</td>
-                <td>
-                  {% if item.status == "PENDING" %}
-                    <span class="badge badge-pending">Pending</span>
-                  {% elif item.status == "ONGOING" %}
-                    <span class="badge badge-ongoing">Ongoing</span>
-                  {% elif item.status == "COMPLETED" %}
-                    <span class="badge badge-completed">Completed</span>
-                  {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-expired">MISSED TEST</span>
-                  {% else %}
-                    <span class="badge">{{ item.get_status_display }}</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
-                    <span class="badge badge-expired" style="font-size: 0.8rem;">MISSED TEST</span>
-                  {% elif item.status == "PENDING" %}
-                    <a href="{% url 'assessments:test_entry' item.token %}" class="btn btn-primary btn-sm">
-                      Start Assessment
-                    </a>
-                  {% elif item.status == "ONGOING" %}
-                    <a href="{% url 'assessments:test_entry' item.token %}" class="btn btn-primary btn-sm" style="background-color: #0284c7;">
-                      Continue Test
-                    </a>
-                  {% elif item.status == "COMPLETED" %}
-                    {% if item.result %}
-                      <a href="{% url 'results:candidate_result' item.result.id %}" class="btn btn-outline-primary btn-sm">
-                        View Result ({{ item.result.percentage }}%)
-                      </a>
-                    {% else %}
-                      <span class="badge badge-completed">Submitted</span>
-                    {% endif %}
-                  {% else %}
-                    <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <div class="empty-state">
-          <p style="font-size: 1.1rem; font-weight: 600; color: var(--dark-bg); margin-bottom: 0.5rem;">No assessments assigned yet.</p>
-          <p>When an employer schedules an assessment for you, it will appear here with instructions and start link.</p>
-        </div>
-      {% endif %}
-    </div>
+
+    {% if assessments %}
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for item in assessments %}
+          <div class="assessment-item-card">
+            <!-- Left Info -->
+            <div style="flex: 1; min-width: 260px;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem;">
+                <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0;">{{ item.title }}</h3>
+                <!-- Status Badge -->
+                {% if item.status == "PENDING" %}
+                  <span class="badge badge-available">Available</span>
+                {% elif item.status == "ONGOING" %}
+                  <span class="badge badge-inprogress">In Progress</span>
+                {% elif item.status == "COMPLETED" %}
+                  <span class="badge badge-completed">Completed</span>
+                {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                  <span class="badge badge-expired">Expired</span>
+                {% else %}
+                  <span class="badge">{{ item.get_status_display }}</span>
+                {% endif %}
+              </div>
+              <div style="font-size: 0.85rem; color: #64748b; display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.35rem;">
+                <span>🏢 Employer: <strong>{{ item.employer.employer_profile.company|default:item.employer.get_full_name|default:item.employer.username }}</strong></span>
+                <span>⏱️ Duration: <strong>{{ item.duration_minutes }} mins</strong></span>
+                <span>📅 Expiry: <strong>{{ item.expire_time|date:"M d, Y H:i" }}</strong></span>
+              </div>
+            </div>
+
+            <!-- Right Actions / Score -->
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              {% if item.status == "COMPLETED" and item.result %}
+                <div style="text-align: right; margin-right: 0.5rem;">
+                  <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Score</div>
+                  <div style="font-size: 1.25rem; font-weight: 900; color: {% if item.result.passed %}#059669{% else %}#dc2626{% endif %};">
+                    {{ item.result.percentage }}%
+                  </div>
+                </div>
+                <a href="{% url 'results:candidate_result' item.result.id %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+                  View Scorecard &rarr;
+                </a>
+              {% elif item.status == "PENDING" %}
+                <a href="{% url 'assessments:test_entry' item.token %}" class="btn btn-primary" style="font-weight: 700; padding: 0.6rem 1.25rem;">
+                  Start Assessment &rarr;
+                </a>
+              {% elif item.status == "ONGOING" %}
+                <a href="{% url 'assessments:test_entry' item.token %}" class="btn btn-primary" style="background-color: #0284c7; border-color: #0284c7; font-weight: 700; padding: 0.6rem 1.25rem;">
+                  Continue Test &rarr;
+                </a>
+              {% elif item.status == "EXPIRED" or item.candidate_status == "NOT_ATTENDED" %}
+                <span class="badge badge-expired" style="font-size: 0.85rem; padding: 0.45rem 0.85rem;">Missed Test</span>
+              {% else %}
+                <span class="text-muted" style="font-size: 0.85rem;">Closed</span>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state" style="text-align: center; padding: 3.5rem 1.5rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">🎓</div>
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem;">No assessments assigned yet</h3>
+        <p style="color: #64748b; font-size: 0.9rem; margin: 0;">When an employer schedules an assessment for you, it will appear here with instructions and start link.</p>
+      </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

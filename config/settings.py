@@ -254,9 +254,14 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", "False")
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0") or "0")
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", "False")
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", "False")
 
 # ---------------------------------------------------------------------------
 # Platform Configuration
 # ---------------------------------------------------------------------------
 CRON_SECRET_KEY = os.getenv("CRON_SECRET_KEY", "dev-cron-secret-key-12345")
 SITE_DOMAIN = os.getenv("SITE_DOMAIN", "localhost:8000")
+

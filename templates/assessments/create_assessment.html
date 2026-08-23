@@ -5,28 +5,65 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  .creation-section-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.75rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .creation-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .creation-section-icon {
+    font-size: 1.3rem;
+  }
+
+  .creation-section-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="create-assessment" style="max-width: 900px; margin: 0 auto;">
-  <div class="page-header">
+<div class="create-assessment" style="max-width: 960px; margin: 0 auto; padding: 1rem 0 3rem 0;">
+  <!-- Page Header -->
+  <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;">
     <div>
-      <h1 class="page-title">Schedule New Assessment</h1>
-      <p class="page-subtitle">Configure sections, question distribution, scheduling window, and duration for candidate testing.</p>
+      <span class="badge badge-ongoing" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.4rem;">Evaluation Builder</span>
+      <h1 class="page-title" style="font-size: 2rem; font-weight: 900; color: #0f172a; margin: 0.2rem 0 0 0;">
+        Schedule New Assessment
+      </h1>
+      <p class="page-subtitle" style="color: #64748b; margin-top: 0.25rem;">
+        Configure sections, question distribution, scheduling window, and duration for candidate testing.
+      </p>
     </div>
-    <div style="display: flex; gap: 0.75rem; align-items: center;">
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
       <a href="{% url 'assessments:employer_ai_question_generator' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
         ⚡ AI Question Generator
       </a>
-      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm">&larr; Assessment List</a>
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary btn-sm" style="font-weight: 700;">
+        &larr; Assessment List
+      </a>
     </div>
   </div>
-
 
   <form method="post" novalidate id="assessmentForm">
     {% csrf_token %}
 
-    <!-- Validation error summary if form has non-field errors -->
+    <!-- Error summary -->
     {% if form.non_field_errors %}
       <div class="alert alert-danger" style="margin-bottom: 1.5rem;">
         {% for error in form.non_field_errors %}
@@ -35,234 +72,265 @@
       </div>
     {% endif %}
 
-    <!-- 1. Candidate Selection Card -->
-    <div class="card" style="margin-bottom: 1.75rem;">
-      <div class="card-header">
-        <h2 class="card-title">1. Select Candidate</h2>
+    <!-- 1. Assessment Details -->
+    <div class="creation-section-card" style="border-top: 4px solid #2563eb;">
+      <div class="creation-section-header">
+        <span class="creation-section-icon">📋</span>
+        <h2 class="creation-section-title">Assessment Details</h2>
       </div>
-      <div class="card-body">
-        <div class="form-group" style="margin-bottom: 1rem;">
-          <label for="{{ form.candidate.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.4rem;">
-            Candidate <span style="color: var(--danger);">*</span>
-          </label>
-          {{ form.candidate }}
-          {% if form.candidate.errors %}
-            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-              {{ form.candidate.errors|striptags }}
-            </div>
-          {% endif %}
-        </div>
-
-        <!-- Live Candidate Preview -->
-        <div id="candidatePreviewCard" class="candidate-preview-card">
-          <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 0.5rem;" id="previewName">Candidate Details</h4>
-          <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
-            <div><span class="detail-label">Email</span> <span id="previewEmail" class="detail-value" style="font-size: 0.9rem;"></span></div>
-            <div><span class="detail-label">Phone</span> <span id="previewPhone" class="detail-value" style="font-size: 0.9rem;"></span></div>
-            <div><span class="detail-label">Education</span> <span id="previewEdu" class="detail-value" style="font-size: 0.9rem;"></span></div>
-            <div><span class="detail-label">Profile Status</span> <span id="previewStatus" class="detail-value" style="font-size: 0.9rem;"></span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2. Assessment Details & Section Configuration -->
-    <div class="card" style="margin-bottom: 1.75rem;">
-      <div class="card-header">
-        <h2 class="card-title">2. Assessment Configuration</h2>
-      </div>
-      <div class="card-body">
-        <div class="form-group" style="margin-bottom: 1.5rem;">
-          <label for="{{ form.title.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.4rem;">
-            Assessment Title <span style="color: var(--danger);">*</span>
-          </label>
-          {{ form.title }}
-          {% if form.title.errors %}
-            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-              {{ form.title.errors|striptags }}
-            </div>
-          {% endif %}
-        </div>
-
-        <label style="font-weight: 600; display: block; margin-bottom: 0.5rem;">
-          Select Sections &amp; Number of Questions <span style="color: var(--danger);">*</span>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="{{ form.title.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.4rem; color: #1e293b;">
+          Assessment Title <span style="color: var(--danger);">*</span>
         </label>
-        {% if form.sections.errors %}
-          <div style="color: var(--danger); font-size: 0.85rem; margin-bottom: 0.5rem;">
-            {{ form.sections.errors|striptags }}
+        {{ form.title }}
+        {% if form.title.errors %}
+          <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+            {{ form.title.errors|striptags }}
           </div>
         {% endif %}
+      </div>
+    </div>
 
-        <div class="section-config-grid">
-          <!-- Logical Reasoning -->
-          <div class="section-card" id="cardLogical">
-            <div class="section-header">
-              <input type="checkbox" name="sections" value="LOGICAL" id="sec_logical" class="section-checkbox"
-                     {% if "LOGICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
-              <label for="sec_logical" class="section-title" style="cursor: pointer;">Logical Reasoning</label>
-            </div>
-            <div class="form-group" style="margin-top: 0.75rem;">
-              <label for="{{ form.logical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
-              {{ form.logical_count }}
-              <div class="bank-count-hint">Available in bank: <strong>{{ logical_bank_count }}</strong> questions</div>
-              {% if form.logical_count.errors %}
-                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                  {{ form.logical_count.errors|striptags }}
-                </div>
-              {% endif %}
-            </div>
+    <!-- 2. Candidate Settings -->
+    <div class="creation-section-card" style="border-top: 4px solid #0284c7;">
+      <div class="creation-section-header">
+        <span class="creation-section-icon">👤</span>
+        <h2 class="creation-section-title">Candidate Settings</h2>
+      </div>
+      <div class="form-group" style="margin-bottom: 1rem;">
+        <label for="{{ form.candidate.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.4rem; color: #1e293b;">
+          Select Candidate <span style="color: var(--danger);">*</span>
+        </label>
+        {{ form.candidate }}
+        {% if form.candidate.errors %}
+          <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+            {{ form.candidate.errors|striptags }}
           </div>
+        {% endif %}
+      </div>
 
-          <!-- Quantitative Aptitude -->
-          <div class="section-card" id="cardQuant">
-            <div class="section-header">
-              <input type="checkbox" name="sections" value="QUANTITATIVE" id="sec_quant" class="section-checkbox"
-                     {% if "QUANTITATIVE" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
-              <label for="sec_quant" class="section-title" style="cursor: pointer;">Quantitative Aptitude</label>
-            </div>
-            <div class="form-group" style="margin-top: 0.75rem;">
-              <label for="{{ form.quant_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
-              {{ form.quant_count }}
-              <div class="bank-count-hint">Available in bank: <strong>{{ quant_bank_count }}</strong> questions</div>
-              {% if form.quant_count.errors %}
-                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                  {{ form.quant_count.errors|striptags }}
-                </div>
-              {% endif %}
-            </div>
+      <!-- Live Candidate Preview Card -->
+      <div id="candidatePreviewCard" class="candidate-preview-card" style="margin-top: 1rem;">
+        <h4 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin-bottom: 0.5rem;" id="previewName">Candidate Details</h4>
+        <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+          <div><span class="detail-label">Email</span> <span id="previewEmail" class="detail-value" style="font-size: 0.9rem;"></span></div>
+          <div><span class="detail-label">Phone</span> <span id="previewPhone" class="detail-value" style="font-size: 0.9rem;"></span></div>
+          <div><span class="detail-label">Education</span> <span id="previewEdu" class="detail-value" style="font-size: 0.9rem;"></span></div>
+          <div><span class="detail-label">Profile Status</span> <span id="previewStatus" class="detail-value" style="font-size: 0.9rem;"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Aptitude Sections -->
+    <div class="creation-section-card" style="border-top: 4px solid #7c3aed;">
+      <div class="creation-section-header">
+        <span class="creation-section-icon">🧠</span>
+        <h2 class="creation-section-title">Aptitude Sections</h2>
+      </div>
+      <label style="font-weight: 700; display: block; margin-bottom: 0.75rem; color: #1e293b;">
+        Select Sections &amp; Configure Question Distribution <span style="color: var(--danger);">*</span>
+      </label>
+      {% if form.sections.errors %}
+        <div style="color: var(--danger); font-size: 0.85rem; margin-bottom: 0.75rem;">
+          {{ form.sections.errors|striptags }}
+        </div>
+      {% endif %}
+
+      <div class="section-config-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+        <!-- Logical Reasoning -->
+        <div class="section-card" id="cardLogical" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+          <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" name="sections" value="LOGICAL" id="sec_logical" class="section-checkbox"
+                   {% if "LOGICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+            <label for="sec_logical" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Logical Reasoning</label>
           </div>
-
-          <!-- Technical Aptitude -->
-          <div class="section-card" id="cardTech">
-            <div class="section-header">
-              <input type="checkbox" name="sections" value="TECHNICAL" id="sec_tech" class="section-checkbox"
-                     {% if "TECHNICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
-              <label for="sec_tech" class="section-title" style="cursor: pointer;">Technical Aptitude</label>
-            </div>
-            <div class="form-group" style="margin-top: 0.75rem;">
-              <label for="{{ form.technical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
-              {{ form.technical_count }}
-              <div class="bank-count-hint">Available in bank: <strong>{{ tech_bank_count }}</strong> questions</div>
-              {% if form.technical_count.errors %}
-                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                  {{ form.technical_count.errors|striptags }}
-                </div>
-              {% endif %}
-            </div>
+          <div class="form-group" style="margin-top: 0.75rem;">
+            <label for="{{ form.logical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+            {{ form.logical_count }}
+            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ logical_bank_count }}</strong> questions</div>
+            {% if form.logical_count.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.logical_count.errors|striptags }}
+              </div>
+            {% endif %}
           </div>
         </div>
 
-        <!-- Optional Coding Assessment Toggle Card -->
-        <div style="margin-top: 1.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 1.25rem;">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <input type="checkbox" name="include_coding" id="id_include_coding" class="coding-toggle-checkbox"
-                     {% if form.include_coding.value %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
-              <div>
-                <label for="id_include_coding" style="font-weight: 700; color: var(--dark-bg); cursor: pointer; display: block;">
-                  💻 Include Coding Assessment Round
-                </label>
-                <span style="font-size: 0.85rem; color: var(--text-muted);">
-                  Adds hands-on programming challenges (Python, Java, C++, JavaScript) with live code execution &amp; auto-grading.
-                </span>
+        <!-- Quantitative Aptitude -->
+        <div class="section-card" id="cardQuant" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+          <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" name="sections" value="QUANTITATIVE" id="sec_quant" class="section-checkbox"
+                   {% if "QUANTITATIVE" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+            <label for="sec_quant" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Quantitative Aptitude</label>
+          </div>
+          <div class="form-group" style="margin-top: 0.75rem;">
+            <label for="{{ form.quant_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+            {{ form.quant_count }}
+            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ quant_bank_count }}</strong> questions</div>
+            {% if form.quant_count.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.quant_count.errors|striptags }}
               </div>
-            </div>
+            {% endif %}
+          </div>
+        </div>
 
-            <div id="codingCountWrapper" style="display: {% if form.include_coding.value %}block{% else %}none{% endif %}; min-width: 180px;">
-              <label for="{{ form.coding_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">
-                Coding Problems
-              </label>
-              {{ form.coding_count }}
-              <div class="bank-count-hint">Available: <strong>{{ coding_bank_count|default:5 }}</strong> problems</div>
-              {% if form.coding_count.errors %}
-                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                  {{ form.coding_count.errors|striptags }}
-                </div>
-              {% endif %}
-            </div>
+        <!-- Technical Aptitude -->
+        <div class="section-card" id="cardTech" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+          <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" name="sections" value="TECHNICAL" id="sec_tech" class="section-checkbox"
+                   {% if "TECHNICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+            <label for="sec_tech" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Technical Aptitude</label>
+          </div>
+          <div class="form-group" style="margin-top: 0.75rem;">
+            <label for="{{ form.technical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+            {{ form.technical_count }}
+            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ tech_bank_count }}</strong> questions</div>
+            {% if form.technical_count.errors %}
+              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                {{ form.technical_count.errors|striptags }}
+              </div>
+            {% endif %}
           </div>
         </div>
       </div>
     </div>
 
-
-    <!-- 3. Schedule & Timing Configuration -->
-    <div class="card" style="margin-bottom: 2rem;">
-      <div class="card-header">
-        <h2 class="card-title">3. Schedule &amp; Duration</h2>
+    <!-- 4. Coding Round -->
+    <div class="creation-section-card" style="border-top: 4px solid #059669;">
+      <div class="creation-section-header">
+        <span class="creation-section-icon">💻</span>
+        <h2 class="creation-section-title">Coding Round</h2>
       </div>
-      <div class="card-body">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
-          <!-- Start Date & Time -->
-          <div>
-            <label for="{{ form.start_date.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-              Start Date <span style="color: var(--danger);">*</span>
-            </label>
-            {{ form.start_date }}
-            {% if form.start_date.errors %}
-              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.start_date.errors|striptags }}
-              </div>
-            {% endif %}
-          </div>
-          <div>
-            <label for="{{ form.start_time.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-              Start Time <span style="color: var(--danger);">*</span>
-            </label>
-            {{ form.start_time }}
-            {% if form.start_time.errors %}
-              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.start_time.errors|striptags }}
-              </div>
-            {% endif %}
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <input type="checkbox" name="include_coding" id="id_include_coding" class="coding-toggle-checkbox"
+                   {% if form.include_coding.value %}checked{% endif %} style="width: 20px; height: 20px; cursor: pointer;">
+            <div>
+              <label for="id_include_coding" style="font-weight: 700; color: #0f172a; cursor: pointer; display: block;">
+                Include Hands-on Coding Assessment
+              </label>
+              <span style="font-size: 0.85rem; color: #64748b;">
+                Adds hands-on programming challenges (Python, Java, C++, JavaScript) with live code execution &amp; auto-grading.
+              </span>
+            </div>
           </div>
 
-          <!-- Expiry Date & Time -->
-          <div>
-            <label for="{{ form.expire_date.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-              Expiry Date <span style="color: var(--danger);">*</span>
+          <div id="codingCountWrapper" style="display: {% if form.include_coding.value %}block{% else %}none{% endif %}; min-width: 180px;">
+            <label for="{{ form.coding_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">
+              Coding Problems Count
             </label>
-            {{ form.expire_date }}
-            {% if form.expire_date.errors %}
+            {{ form.coding_count }}
+            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available: <strong>{{ coding_bank_count|default:5 }}</strong> problems</div>
+            {% if form.coding_count.errors %}
               <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.expire_date.errors|striptags }}
-              </div>
-            {% endif %}
-          </div>
-          <div>
-            <label for="{{ form.expire_time.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-              Expiry Time <span style="color: var(--danger);">*</span>
-            </label>
-            {{ form.expire_time }}
-            {% if form.expire_time.errors %}
-              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.expire_time.errors|striptags }}
+                {{ form.coding_count.errors|striptags }}
               </div>
             {% endif %}
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Duration -->
-        <div style="max-width: 300px;">
-          <label for="{{ form.duration_minutes.id_for_label }}" style="font-weight: 600; display: block; margin-bottom: 0.35rem;">
-            Test Duration (Minutes) <span style="color: var(--danger);">*</span>
+    <!-- 5. Timing & Schedule -->
+    <div class="creation-section-card" style="border-top: 4px solid #d97706;">
+      <div class="creation-section-header">
+        <span class="creation-section-icon">⏱️</span>
+        <h2 class="creation-section-title">Timing &amp; Schedule Window</h2>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+        <!-- Start Date & Time -->
+        <div>
+          <label for="{{ form.start_date.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.35rem; color: #1e293b;">
+            Start Date <span style="color: var(--danger);">*</span>
           </label>
-          {{ form.duration_minutes }}
-          <span class="bank-count-hint">Authoritative time limit allowed once candidate starts.</span>
-          {% if form.duration_minutes.errors %}
+          {{ form.start_date }}
+          {% if form.start_date.errors %}
             <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-              {{ form.duration_minutes.errors|striptags }}
+              {{ form.start_date.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+        <div>
+          <label for="{{ form.start_time.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.35rem; color: #1e293b;">
+            Start Time <span style="color: var(--danger);">*</span>
+          </label>
+          {{ form.start_time }}
+          {% if form.start_time.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+              {{ form.start_time.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Expiry Date & Time -->
+        <div>
+          <label for="{{ form.expire_date.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.35rem; color: #1e293b;">
+            Expiry Date <span style="color: var(--danger);">*</span>
+          </label>
+          {{ form.expire_date }}
+          {% if form.expire_date.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+              {{ form.expire_date.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+        <div>
+          <label for="{{ form.expire_time.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.35rem; color: #1e293b;">
+            Expiry Time <span style="color: var(--danger);">*</span>
+          </label>
+          {{ form.expire_time }}
+          {% if form.expire_time.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+              {{ form.expire_time.errors|striptags }}
             </div>
           {% endif %}
         </div>
       </div>
+
+      <!-- Duration -->
+      <div style="max-width: 320px;">
+        <label for="{{ form.duration_minutes.id_for_label }}" style="font-weight: 700; display: block; margin-bottom: 0.35rem; color: #1e293b;">
+          Test Duration (Minutes) <span style="color: var(--danger);">*</span>
+        </label>
+        {{ form.duration_minutes }}
+        <span class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem; display: block;">Authoritative time limit allowed once candidate starts.</span>
+        {% if form.duration_minutes.errors %}
+          <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+            {{ form.duration_minutes.errors|striptags }}
+          </div>
+        {% endif %}
+      </div>
     </div>
 
-    <!-- Actions -->
+    <!-- 6. Security & Proctoring Safeguards -->
+    <div class="creation-section-card" style="border-top: 4px solid #dc2626;">
+      <div class="creation-section-header">
+        <span class="creation-section-icon">🛡️</span>
+        <h2 class="creation-section-title">Security &amp; Proctoring Settings</h2>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; font-size: 0.88rem; color: #475569;">
+        <div style="background: #f8fafc; padding: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <strong>🖥️ Fullscreen Enforcement:</strong> Active on test launch with warning dialogue on escape.
+        </div>
+        <div style="background: #f8fafc; padding: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <strong>👀 Tab-Switch Logging:</strong> Real-time blur detection recording timestamped violation logs.
+        </div>
+        <div style="background: #f8fafc; padding: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <strong>⚠️ 3-Warning Auto-Submit:</strong> Assessment automatically finalizes after 3 unexcused violations.
+        </div>
+        <div style="background: #f8fafc; padding: 0.85rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <strong>🔒 Server-Side Deadlines:</strong> Expiration times enforced by server clocks preventing tampering.
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Actions -->
     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 3rem;">
-      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary">Cancel</a>
-      <button type="submit" class="btn btn-primary btn-lg">
-        Create Assessment &amp; Generate Secure Link
+      <a href="{% url 'assessments:employer_assessment_list' %}" class="btn btn-secondary" style="font-weight: 700;">Cancel</a>
+      <button type="submit" class="btn btn-primary btn-lg" style="font-weight: 800; padding: 0.85rem 2rem;">
+        Create Assessment &amp; Generate Secure Link &rarr;
       </button>
     </div>
   </form>
@@ -310,5 +378,4 @@
     }
   })();
 </script>
-
 {% endblock %}

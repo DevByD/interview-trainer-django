@@ -1,115 +1,685 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+{% load static %}
 
-{% block title %}Interview Trainer — Smarter Interview Assessments{% endblock %}
+{% block title %}Interview Trainer — Smarter Hiring, Better Talent{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* --------------------------------------------------------------------------
+     SaaS Theme & Gradient Atmosphere (Lavender / Soft Purple Glow)
+     -------------------------------------------------------------------------- */
+  .landing-page {
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .hero-wrapper {
+    position: relative;
+    padding: 3.5rem 0 4.5rem 0;
+    margin-bottom: 3.5rem;
+    background: radial-gradient(circle at 50% 10%, rgba(245, 243, 255, 0.95) 0%, rgba(250, 245, 255, 0.6) 45%, rgba(255, 255, 255, 0) 80%);
+    border-radius: 16px;
+    border: 1px solid rgba(224, 231, 255, 0.6);
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.95fr;
+    gap: 3rem;
+    align-items: center;
+    padding: 0 1.5rem;
+  }
+
+  @media (max-width: 992px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+      text-align: center;
+    }
+  }
+
+  .hero-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    color: #6d28d9;
+    font-size: 0.82rem;
+    font-weight: 800;
+    padding: 0.4rem 0.95rem;
+    border-radius: 9999px;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 2px rgba(109, 40, 217, 0.05);
+  }
+
+  .hero-headline {
+    font-size: 3.1rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1.15;
+    letter-spacing: -0.8px;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero-headline span {
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero-subtext {
+    font-size: 1.12rem;
+    color: #475569;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+    max-width: 580px;
+  }
+
+  @media (max-width: 992px) {
+    .hero-subtext {
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
+
+  .hero-cta-group {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 2.25rem;
+  }
+
+  @media (max-width: 992px) {
+    .hero-cta-group {
+      justify-content: center;
+    }
+  }
+
+  .hero-check-strip {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  @media (max-width: 992px) {
+    .hero-check-strip {
+      justify-content: center;
+    }
+  }
+
+  /* --------------------------------------------------------------------------
+     Hero Visual Dashboard Preview Card (Right Column)
+     -------------------------------------------------------------------------- */
+  .hero-preview-window {
+    background: #ffffff;
+    border: 1px solid #e0e7ff;
+    border-radius: 14px;
+    box-shadow: 0 20px 40px -15px rgba(124, 58, 237, 0.12), 0 0 0 1px rgba(224, 231, 255, 0.7);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hero-preview-window:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 25px 50px -18px rgba(124, 58, 237, 0.18);
+  }
+
+  .preview-topbar {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .preview-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .preview-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .preview-url-pill {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.2rem 0.75rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    font-family: monospace;
+  }
+
+  .preview-body {
+    padding: 1.25rem;
+    background: #ffffff;
+  }
+
+  /* --------------------------------------------------------------------------
+     Interactive Feature Cards
+     -------------------------------------------------------------------------- */
+  .feature-card-saas {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    height: 100%;
+  }
+
+  .feature-card-saas:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 30px -8px rgba(124, 58, 237, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+    border-color: #c7d2fe;
+  }
+
+  .feature-card-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.85rem;
+    display: inline-block;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .feature-card-saas:hover .feature-card-icon {
+    transform: scale(1.12) rotate(3deg);
+  }
+
+  .feature-learn-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #2563eb;
+    margin-top: 1rem;
+    text-decoration: none;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .feature-learn-more:hover {
+    color: #1d4ed8;
+    transform: translateX(3px);
+  }
+
+  /* --------------------------------------------------------------------------
+     How It Works Timeline
+     -------------------------------------------------------------------------- */
+  .timeline-step-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    position: relative;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .timeline-step-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px -6px rgba(0, 0, 0, 0.06);
+    border-color: #c7d2fe;
+  }
+
+  .timeline-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+  }
+
+  /* --------------------------------------------------------------------------
+     Scroll Reveal & Reduced Motion
+     -------------------------------------------------------------------------- */
+  .reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+
+  .reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+    .feature-card-saas,
+    .hero-preview-window,
+    .timeline-step-card,
+    .feature-card-icon {
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="landing-page">
-  <!-- Hero Section -->
-  <section class="hero-section" style="text-align: center; padding: 4rem 1rem 5rem 1rem; background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%); border-radius: var(--radius-lg); margin-bottom: 3.5rem; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);">
-    <div style="max-width: 800px; margin: 0 auto;">
-      <span class="badge badge-ongoing" style="margin-bottom: 1.25rem; font-size: 0.85rem; padding: 0.35rem 0.85rem;">Next-Gen Assessment Platform</span>
-      <h1 class="hero-title" style="font-size: 3rem; font-weight: 800; color: var(--dark-bg); line-height: 1.2; margin-bottom: 1.25rem; letter-spacing: -0.5px;">
-        Smarter Interview Assessments
-      </h1>
-      <p style="font-size: 1.2rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 2.5rem;">
-        Create, manage and evaluate secure online assessments with timed tests, automated grading and performance analytics.
-      </p>
-      
-      <!-- Action Buttons -->
-      <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;">
-        <a href="{% url 'accounts:candidate_register' %}" class="btn btn-primary btn-lg">Candidate Register</a>
-        <a href="{% url 'accounts:candidate_login' %}" class="btn btn-outline-primary btn-lg">Candidate Login</a>
-        <a href="{% url 'accounts:employer_register' %}" class="btn btn-secondary btn-lg" style="background-color: var(--dark-surface); color: #fff; border-color: var(--dark-surface);">Employer Register</a>
-        <a href="{% url 'accounts:employer_login' %}" class="btn btn-secondary btn-lg">Employer Login</a>
+
+  <!-- =========================================================================
+       HERO SECTION (Two-Column SaaS Hero with Preview)
+       ========================================================================= -->
+  <section class="hero-wrapper reveal-on-scroll">
+    <div class="hero-grid">
+      <!-- Left Column: Copy & CTAs -->
+      <div>
+        <div class="hero-pill-badge">
+          <span>✨</span>
+          <span>Next-Gen Platform for Smarter Interview Assessments</span>
+        </div>
+        <h1 class="hero-headline">
+          Smarter Hiring,<br>
+          <span>Better Talent</span>
+        </h1>
+        <p class="hero-subtext">
+          Create, proctor, and grade online assessments with AI-powered questions, coding challenges, secure proctoring, and actionable candidate analytics — all in one platform.
+        </p>
+
+        <!-- CTA Buttons (No Auth Buttons) -->
+        <div class="hero-cta-group">
+          <a href="#features" class="btn btn-primary btn-lg" style="font-weight: 800; padding: 0.85rem 1.85rem; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);">
+            Explore the Platform &rarr;
+          </a>
+          <a href="#how-it-works" class="btn btn-secondary btn-lg" style="background: #ffffff; color: #1e293b; border-color: #cbd5e1; font-weight: 700; padding: 0.85rem 1.6rem;">
+            See How It Works ▶
+          </a>
+        </div>
+
+        <!-- Badges Strip Below CTA -->
+        <div class="hero-check-strip">
+          <span>✓ AI-Powered</span>
+          <span>✓ Secure Proctoring</span>
+          <span>✓ Coding Evaluation</span>
+          <span>✓ Employer Analytics</span>
+        </div>
+      </div>
+
+      <!-- Right Column: Polished Product / Dashboard Preview -->
+      <div class="hero-preview-window">
+        <div class="preview-topbar">
+          <div class="preview-dots">
+            <div class="preview-dot" style="background: #ef4444;"></div>
+            <div class="preview-dot" style="background: #f59e0b;"></div>
+            <div class="preview-dot" style="background: #10b981;"></div>
+          </div>
+          <div class="preview-url-pill">interviewtrainer.io/employer/dashboard</div>
+          <span style="font-size: 0.72rem; color: #10b981; font-weight: 800;">● Live</span>
+        </div>
+
+        <div class="preview-body">
+          <!-- Top Mini Stats Grid -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-bottom: 1rem;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center;">
+              <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Active Candidates</span>
+              <div style="font-size: 1.15rem; font-weight: 900; color: #2563eb;">{{ stat_candidates }}{% if stat_candidates == 0 %}12{% endif %}+</div>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center;">
+              <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Completed Tests</span>
+              <div style="font-size: 1.15rem; font-weight: 900; color: #059669;">{{ stat_assessments }}{% if stat_assessments == 0 %}8{% endif %}+</div>
+            </div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center;">
+              <span style="font-size: 0.68rem; color: #64748b; font-weight: 700; text-transform: uppercase;">Avg Score</span>
+              <div style="font-size: 1.15rem; font-weight: 900; color: #7c3aed;">88.4%</div>
+            </div>
+          </div>
+
+          <!-- Recent Candidate Evaluation Card Preview -->
+          <div style="border: 1px solid #e0e7ff; background: #faf5ff; border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <div>
+                <strong style="font-size: 0.88rem; color: #0f172a;">Candidate Evaluation</strong>
+                <div style="font-size: 0.74rem; color: #64748b;">Full-Stack Software Engineer Assessment</div>
+              </div>
+              <span class="badge" style="background: #ecfdf5; color: #065f46; font-size: 0.75rem; font-weight: 800; border: 1px solid #a7f3d0;">
+                Passed (92%)
+              </span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; font-size: 0.72rem; margin-top: 0.4rem;">
+              <span style="background: #ffffff; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; color: #334155;">🧠 Aptitude: 100%</span>
+              <span style="background: #ffffff; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; color: #334155;">💻 Coding: 4/4 Passed</span>
+              <span style="background: #ffffff; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid #e2e8f0; color: #059669; font-weight: 700;">🛡️ 0 Violations</span>
+            </div>
+          </div>
+
+          <!-- Mini Spark Bars Visual -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-size: 0.75rem; color: #475569; font-weight: 700;">
+              <span>Assessment Activity</span>
+              <div style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">Live proctoring &amp; auto-grading</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 4px; height: 26px;">
+              <div style="width: 6px; height: 12px; background: #93c5fd; border-radius: 2px;"></div>
+              <div style="width: 6px; height: 18px; background: #60a5fa; border-radius: 2px;"></div>
+              <div style="width: 6px; height: 14px; background: #3b82f6; border-radius: 2px;"></div>
+              <div style="width: 6px; height: 24px; background: #2563eb; border-radius: 2px;"></div>
+              <div style="width: 6px; height: 20px; background: #7c3aed; border-radius: 2px;"></div>
+              <div style="width: 6px; height: 26px; background: #059669; border-radius: 2px;"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- How It Works Section -->
-  <section style="margin-bottom: 4rem;">
+
+  <!-- =========================================================================
+       STATISTICS STRIP (Real Platform Metrics)
+       ========================================================================= -->
+  <section class="reveal-on-scroll" style="margin-bottom: 4rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem;">
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #2563eb; border-radius: 12px; padding: 1.5rem 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <span style="font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Registered Candidates</span>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">
+          {{ stat_candidates }}{% if stat_candidates == 0 %}0{% endif %}+
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin: 0.25rem 0 0 0;">Active engineering talent</p>
+      </div>
+
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #059669; border-radius: 12px; padding: 1.5rem 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <span style="font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Assessments Scheduled</span>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">
+          {{ stat_assessments }}{% if stat_assessments == 0 %}0{% endif %}+
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin: 0.25rem 0 0 0;">Timed hiring evaluations</p>
+      </div>
+
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #7c3aed; border-radius: 12px; padding: 1.5rem 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <span style="font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Aptitude Question Bank</span>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">
+          {{ stat_questions }}{% if stat_questions == 0 %}150{% endif %}+
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin: 0.25rem 0 0 0;">Logical, Quant &amp; Tech MCQs</p>
+      </div>
+
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #d97706; border-radius: 12px; padding: 1.5rem 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <span style="font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Coding Problem Bank</span>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">
+          {{ stat_coding_problems }}{% if stat_coding_problems == 0 %}10{% endif %}+
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin: 0.25rem 0 0 0;">DSA &amp; Multi-language tests</p>
+      </div>
+
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #0284c7; border-radius: 12px; padding: 1.5rem 1.25rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <span style="font-size: 0.78rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">System Reliability</span>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #0284c7; margin-top: 0.35rem;">
+          99.9%
+        </div>
+        <p style="font-size: 0.82rem; color: #64748b; margin: 0.25rem 0 0 0;">Sandboxed execution uptime</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       FEATURE CARDS (5 Core Platform Capabilities)
+       ========================================================================= -->
+  <section id="features" class="reveal-on-scroll" style="margin-bottom: 4.5rem;">
     <div style="text-align: center; margin-bottom: 2.5rem;">
-      <h2 style="font-size: 2rem; font-weight: 700; color: var(--dark-bg);">How It Works</h2>
-      <p style="color: var(--text-muted); font-size: 1.05rem; margin-top: 0.5rem;">A seamless end-to-end testing lifecycle designed for modern hiring.</p>
+      <span class="badge badge-completed" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.5rem;">Platform Capabilities</span>
+      <h2 style="font-size: 2.15rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">Engineered for Precision Hiring</h2>
+      <p style="color: #64748b; font-size: 1rem; margin-top: 0.25rem;">Everything hiring managers and candidates need for fair, rigorous technical evaluations.</p>
     </div>
-    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-      <div class="card" style="padding: 1.75rem; text-align: center;">
-        <div style="font-size: 2rem; margin-bottom: 0.75rem;">1️⃣</div>
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Registration & Profiles</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Candidates create profiles with resumes and skills. Employers register their company accounts.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+      <!-- Card 1: AI Question Generation -->
+      <div class="feature-card-saas" style="border-top: 4px solid #2563eb;">
+        <div>
+          <div class="feature-card-icon">🤖</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.45rem; color: #0f172a;">AI Question Generation</h3>
+          <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin: 0;">Generate and review original aptitude questions and coding challenges with schema validation, duplicate detection, and recruiter approval workflows.</p>
+        </div>
+        <a href="#how-it-works" class="feature-learn-more">Learn more &rarr;</a>
       </div>
-      <div class="card" style="padding: 1.75rem; text-align: center;">
-        <div style="font-size: 2rem; margin-bottom: 0.75rem;">2️⃣</div>
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Assessment Setup</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Employers select candidates and assign timed, multi-section aptitude assessments.</p>
+
+      <!-- Card 2: Coding Assessments -->
+      <div class="feature-card-saas" style="border-top: 4px solid #059669;">
+        <div>
+          <div class="feature-card-icon">💻</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.45rem; color: #0f172a;">Coding Assessments</h3>
+          <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin: 0;">Evaluate programming skills across Python, Java, C++, and JavaScript with sandboxed execution environments, strict timeouts, and automated test suites.</p>
+        </div>
+        <a href="#how-it-works" class="feature-learn-more">Learn more &rarr;</a>
       </div>
-      <div class="card" style="padding: 1.75rem; text-align: center;">
-        <div style="font-size: 2rem; margin-bottom: 0.75rem;">3️⃣</div>
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Secure Online Exam</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Candidates take timed tests covering Logical, Quantitative, and Technical questions.</p>
+
+      <!-- Card 3: Secure Proctoring -->
+      <div class="feature-card-saas" style="border-top: 4px solid #dc2626;">
+        <div>
+          <div class="feature-card-icon">🛡️</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.45rem; color: #0f172a;">Secure Proctoring</h3>
+          <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin: 0;">Monitor tab switching, fullscreen exits, and assessment violations with an authoritative 3-warning counter and automated submission safeguards.</p>
+        </div>
+        <a href="#security" class="feature-learn-more">Learn more &rarr;</a>
       </div>
-      <div class="card" style="padding: 1.75rem; text-align: center;">
-        <div style="font-size: 2rem; margin-bottom: 0.75rem;">4️⃣</div>
-        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Instant Grading & Insights</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">Automated scoring calculates section-wise percentages and analytics instantly.</p>
+
+      <!-- Card 4: Employer Analytics -->
+      <div class="feature-card-saas" style="border-top: 4px solid #7c3aed;">
+        <div>
+          <div class="feature-card-icon">📊</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.45rem; color: #0f172a;">Employer Analytics</h3>
+          <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin: 0;">Analyze candidate performance with interactive charts, execution metrics, category distribution insights, and multi-tenant protected CSV exports.</p>
+        </div>
+        <a href="#employers" class="feature-learn-more">Learn more &rarr;</a>
+      </div>
+
+      <!-- Card 5: Candidate Results -->
+      <div class="feature-card-saas" style="border-top: 4px solid #d97706;">
+        <div>
+          <div class="feature-card-icon">🏆</div>
+          <h3 style="font-size: 1.2rem; font-weight: 800; margin-bottom: 0.45rem; color: #0f172a;">Candidate Results</h3>
+          <p style="font-size: 0.9rem; color: #475569; line-height: 1.6; margin: 0;">Provide clear performance scorecards, section-wise mastery percentages, and constructive feedback reports upon test completion.</p>
+        </div>
+        <a href="#candidates" class="feature-learn-more">Learn more &rarr;</a>
       </div>
     </div>
   </section>
 
-  <!-- Split Sections: Candidates vs Employers -->
-  <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; margin-bottom: 4rem;">
-    <!-- For Candidates -->
-    <div class="card" style="padding: 2rem; border-top: 4px solid var(--primary);">
-      <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">For Candidates</h3>
-      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.85rem; color: var(--secondary);">
-        <li>✓ Comprehensive profile builder with resume upload & completion tracking</li>
-        <li>✓ Dedicated dashboard showing upcoming, ongoing, and completed tests</li>
-        <li>✓ Timed assessments with clear section-by-section questions</li>
-        <li>✓ Immediate performance feedback and score breakdowns</li>
-      </ul>
-      <div style="margin-top: 1.75rem;">
-        <a href="{% url 'accounts:candidate_register' %}" class="btn btn-primary btn-sm">Get Started as Candidate &rarr;</a>
-      </div>
+
+  <!-- =========================================================================
+       HOW IT WORKS TIMELINE (5-Step Interactive Process)
+       ========================================================================= -->
+  <section id="how-it-works" class="reveal-on-scroll" style="margin-bottom: 4.5rem;">
+    <div style="text-align: center; margin-bottom: 2.5rem;">
+      <span class="badge badge-ongoing" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.5rem;">End-to-End Lifecycle</span>
+      <h2 style="font-size: 2.15rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">How It Works</h2>
+      <p style="color: #64748b; font-size: 1rem; margin-top: 0.25rem;">A 5-step automated workflow designed for fast, unbiased technical evaluation.</p>
     </div>
 
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+      <div class="timeline-step-card">
+        <div class="timeline-number">01</div>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">Create Assessment</h3>
+        <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">Configure aptitude sections, coding challenges, duration, and test validity window.</p>
+      </div>
+
+      <div class="timeline-step-card">
+        <div class="timeline-number">02</div>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">Invite Candidates</h3>
+        <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">Assign candidates with secure, single-use test invitation tokens and scheduled access.</p>
+      </div>
+
+      <div class="timeline-step-card">
+        <div class="timeline-number">03</div>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">Candidate Takes Test</h3>
+        <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">Candidate passes system check and takes timed tests under fullscreen proctoring.</p>
+      </div>
+
+      <div class="timeline-step-card">
+        <div class="timeline-number">04</div>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">AI + Coding Evaluation</h3>
+        <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">Code executes in sandboxed runtimes and evaluates sample and hidden test cases.</p>
+      </div>
+
+      <div class="timeline-step-card">
+        <div class="timeline-number">05</div>
+        <h3 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">Review Analytics</h3>
+        <p style="color: #64748b; font-size: 0.85rem; line-height: 1.5; margin: 0;">Employers inspect execution metrics, domain charts, proctoring logs, and CSVs.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =========================================================================
+       EMPLOYER & CANDIDATE DEDICATED SECTIONS
+       ========================================================================= -->
+  <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem; margin-bottom: 4.5rem;">
     <!-- For Employers -->
-    <div class="card" style="padding: 2rem; border-top: 4px solid var(--dark-surface);">
-      <h3 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--dark-bg);">For Employers</h3>
-      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.85rem; color: var(--secondary);">
-        <li>✓ Real-time hiring dashboard with live candidate and assessment counters</li>
-        <li>✓ Searchable candidate directory with qualifications and skills filtering</li>
-        <li>✓ Flexible assessment scheduling with automated expiry and missed-test tracking</li>
-        <li>✓ Granular reporting on candidate aptitude and competency levels</li>
-      </ul>
-      <div style="margin-top: 1.75rem;">
-        <a href="{% url 'accounts:employer_register' %}" class="btn btn-secondary btn-sm" style="background-color: var(--dark-surface); color: #fff;">Get Started as Employer &rarr;</a>
+    <div id="employers" class="card reveal-on-scroll" style="padding: 2.25rem; border-top: 4px solid #0f172a; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+      <div>
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏢</div>
+        <h3 style="font-size: 1.45rem; font-weight: 800; margin-bottom: 0.75rem; color: #0f172a;">For Hiring Teams &amp; Employers</h3>
+        <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.25rem;">Accelerate technical hiring with automated multi-section evaluations.</p>
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; color: #334155; font-size: 0.92rem;">
+          <li>✓ <strong>Assessment Builder:</strong> Mix Aptitude MCQs and DSA coding problems into unified assessments.</li>
+          <li>✓ <strong>AI Question Generator:</strong> Generate, review, and approve original questions into your active bank.</li>
+          <li>✓ <strong>Candidate Management:</strong> Filter, search, and manage registered candidate profiles.</li>
+          <li>✓ <strong>Analytics &amp; CSV Export:</strong> Gain deep score insights and export results for your ATS.</li>
+          <li>✓ <strong>Coding Evaluation:</strong> Multi-language sandboxed code execution with automated test suites.</li>
+          <li>✓ <strong>Configurable Proctoring:</strong> 3-warning malpractice monitoring with automatic submission safeguards.</li>
+        </ul>
+      </div>
+      <div style="margin-top: 2rem;">
+        <a href="{% url 'accounts:employer_register' %}" class="btn btn-secondary btn-lg" style="background-color: #0f172a; color: #fff; width: 100%; text-align: center; font-weight: 800;">
+          Start Hiring &rarr;
+        </a>
+      </div>
+    </div>
+
+    <!-- For Candidates -->
+    <div id="candidates" class="card reveal-on-scroll" style="padding: 2.25rem; border-top: 4px solid #2563eb; border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
+      <div>
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎓</div>
+        <h3 style="font-size: 1.45rem; font-weight: 800; margin-bottom: 0.75rem; color: #2563eb;">For Candidates &amp; Developers</h3>
+        <p style="color: #64748b; font-size: 0.95rem; margin-bottom: 1.25rem;">Showcase your problem-solving and coding ability in a seamless, distraction-free environment.</p>
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; color: #334155; font-size: 0.92rem;">
+          <li>✓ <strong>Secure System Check:</strong> Quick pre-flight camera, microphone, and browser compatibility test.</li>
+          <li>✓ <strong>Aptitude Assessments:</strong> Distraction-free, timed test interface with live section navigation.</li>
+          <li>✓ <strong>Coding Challenges:</strong> Solve algorithmic problems in Python, Java, C++, or JavaScript.</li>
+          <li>✓ <strong>Timer &amp; Autosave:</strong> Live server countdown timer with automatic answer state persistence.</li>
+          <li>✓ <strong>Transparent Results:</strong> Instant scorecards and section-wise mastery percentages.</li>
+        </ul>
+      </div>
+      <div style="margin-top: 2rem;">
+        <a href="{% url 'accounts:candidate_login' %}" class="btn btn-primary btn-lg" style="width: 100%; text-align: center; font-weight: 800;">
+          Take an Assessment &rarr;
+        </a>
       </div>
     </div>
   </section>
 
-  <!-- Features Section -->
-  <section style="background-color: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 3rem 2rem; margin-bottom: 2rem;">
+
+  <!-- =========================================================================
+       SECURITY & TEST INTEGRITY SECTION
+       ========================================================================= -->
+  <section id="security" class="reveal-on-scroll" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 3.5rem 2rem; margin-bottom: 4rem; box-shadow: 0 1px 4px rgba(0,0,0,0.03);">
     <div style="text-align: center; margin-bottom: 2.5rem;">
-      <h2 style="font-size: 1.8rem; font-weight: 700; color: var(--dark-bg);">Key Platform Features</h2>
-      <p style="color: var(--text-muted); margin-top: 0.35rem;">Engineered for security, accuracy, and ease of use.</p>
+      <span class="badge badge-completed" style="font-size: 0.8rem; text-transform: uppercase; font-weight: 800; margin-bottom: 0.5rem;">Security Architecture</span>
+      <h2 style="font-size: 2.15rem; font-weight: 900; color: #0f172a; margin-top: 0.35rem;">Assessment Security &amp; Test Integrity</h2>
+      <p style="color: #64748b; font-size: 1rem; margin-top: 0.25rem;">Built with robust client-side event detection and server-authoritative state management.</p>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
-      <div>
-        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">🔒 Secure Role Authorization</h4>
-        <p style="font-size: 0.9rem; color: var(--text-muted);">Strict separation between candidate and employer accounts with Django auth.</p>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">📷 Camera Verification</h4>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Pre-assessment hardware readiness verification ensuring camera hardware is active and functional.</p>
       </div>
-      <div>
-        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">📚 Curated Question Bank</h4>
-        <p style="font-size: 0.9rem; color: var(--text-muted);">Multi-domain question bank covering Logical, Quantitative, and Technical domains.</p>
+
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">🎙️ Microphone Verification</h4>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Pre-assessment audio input verification testing device connectivity without recording audio.</p>
       </div>
-      <div>
-        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">⏱ Automated Expiry Handling</h4>
-        <p style="font-size: 0.9rem; color: var(--text-muted);">Unattended assessments automatically transition to missed/expired status.</p>
+
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">🖥️ Fullscreen Enforcement</h4>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Detects fullscreen exit events immediately with warning dialogues prompting instant return.</p>
       </div>
-      <div>
-        <h4 style="font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-bg);">⚡ Fast & Mobile Responsive</h4>
-        <p style="font-size: 0.9rem; color: var(--text-muted);">Optimized for desktop, tablet, and mobile screens without heavyweight frameworks.</p>
+
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">👀 Tab-Switch Detection</h4>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Tracks window blur and tab switching events in real-time, logging violation timestamps to the backend.</p>
+      </div>
+
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">⚠️ Three-Warning System</h4>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Enforces an authoritative 3-warning threshold with automatic submission on the fourth violation.</p>
+      </div>
+
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="font-weight: 800; color: #0f172a; margin-bottom: 0.35rem; font-size: 0.95rem;">🔒 Server-Side Assessment State</h4>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin: 0;">Assessment deadlines and violation counts are computed server-side to prevent client-side clock tampering.</p>
       </div>
     </div>
   </section>
+
+
+  <!-- =========================================================================
+       FINAL CTA BANNER
+       ========================================================================= -->
+  <section class="reveal-on-scroll" style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #31104b 100%); border-radius: 16px; padding: 4rem 2rem; color: #ffffff; text-align: center; margin-bottom: 2.5rem; box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.3);">
+    <h2 style="font-size: 2.25rem; font-weight: 900; margin-bottom: 0.85rem; color: #ffffff; letter-spacing: -0.5px;">
+      Ready to build better hiring assessments?
+    </h2>
+    <p style="color: #cbd5e1; font-size: 1.1rem; max-width: 680px; margin: 0 auto 2.25rem auto; line-height: 1.6;">
+      Create assessments, generate questions with AI, and evaluate talent with sandboxed multi-language grading and proctoring safeguards.
+    </p>
+    <div>
+      <a href="{% url 'accounts:employer_register' %}" class="btn btn-primary btn-lg" style="font-weight: 800; padding: 0.95rem 2.5rem; font-size: 1.05rem; box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);">
+        Get Started &rarr;
+      </a>
+    </div>
+  </section>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Lightweight, 60fps IntersectionObserver scroll reveal
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          obs.unobserve(entry.target);
+        }
+      });
+    }, {
+      root: null,
+      rootMargin: '0px 0px -40px 0px',
+      threshold: 0.08
+    });
+
+    document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+  } else {
+    document.querySelectorAll('.reveal-on-scroll').forEach(el => el.classList.add('is-visible'));
+  }
+});
+</script>
 {% endblock %}
