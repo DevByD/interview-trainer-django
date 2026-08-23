@@ -27,12 +27,23 @@
       </span>
     </div>
 
-    <!-- Countdown Timer -->
-    <div class="timer-box" id="timerBox">
-      <span class="timer-label">Time Left:</span>
-      <span class="timer-display" id="timerDisplay">--:--</span>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <!-- Security & Violation Indicator -->
+      <div class="security-indicator-box" id="securityIndicatorBox" style="display: flex; align-items: center; gap: 0.4rem; background: #f8fafc; border: 1px solid #cbd5e1; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; color: #059669;">
+        <span id="securityShieldIcon">🛡️</span>
+        <span>Assessment Secure</span>
+        <span style="color: #94a3b8;">&bull;</span>
+        <span id="headerWarningBadge" style="color: #64748b;">Warnings: <strong id="headerWarningCount">{{ assessment.violation_count|default:0 }}</strong>/{{ assessment.max_violations|default:3 }}</span>
+      </div>
+
+      <!-- Countdown Timer -->
+      <div class="timer-box" id="timerBox">
+        <span class="timer-label">Time Left:</span>
+        <span class="timer-display" id="timerDisplay">--:--</span>
+      </div>
     </div>
   </div>
+
 
   <!-- Test Layout Grid: Question on Left, Palette on Right -->
   <div class="test-layout">
@@ -40,6 +51,10 @@
     <div class="test-main-area">
       <form id="assessmentSubmitForm" action="{% url 'assessments:test_submit' assessment.token %}" method="post">
         {% csrf_token %}
+        {% if has_coding %}
+          <input type="hidden" name="action" value="proceed_coding">
+        {% endif %}
+
 
         {% for q in questions_data %}
           <div class="question-pane {% if forloop.first %}active{% endif %}" id="question-pane-{{ q.number }}" data-question-index="{{ q.number }}" data-question-id="{{ q.id }}">
@@ -154,7 +169,11 @@
       </div>
 
       <button type="button" class="btn btn-primary btn-open-modal" style="width: 100%; margin-top: 1.25rem;">
-        Finish &amp; Submit
+        {% if has_coding %}
+          Proceed to Coding &rarr;
+        {% else %}
+          Finish &amp; Submit
+        {% endif %}
       </button>
     </div>
   </div>
@@ -163,9 +182,13 @@
 <!-- Final Submission Confirmation Modal -->
 <div class="modal-overlay" id="submitConfirmModal">
   <div class="modal-dialog">
-    <h3 class="modal-title">Submit Assessment</h3>
+    <h3 class="modal-title">{% if has_coding %}Complete Aptitude &amp; Start Coding{% else %}Submit Assessment{% endif %}</h3>
     <div class="modal-body">
-      <p>Are you sure you want to finish and submit your assessment now?</p>
+      {% if has_coding %}
+        <p>You have finished the Aptitude Section. Ready to move to the <strong>Coding Assessment</strong>?</p>
+      {% else %}
+        <p>Are you sure you want to finish and submit your assessment now?</p>
+      {% endif %}
 
       <div class="modal-summary-box">
         <p><span>Total Questions:</span> <strong>{{ total_questions }}</strong></p>
@@ -174,15 +197,50 @@
       </div>
 
       <p style="color: var(--danger); font-size: 0.85rem; font-weight: 600;">
-        ⚠️ Warning: Once submitted, you cannot change your answers or retake this test.
+        {% if has_coding %}
+          ℹ️ Note: Your timer will continue running through the Coding section.
+        {% else %}
+          ⚠️ Warning: Once submitted, you cannot change your answers or retake this test.
+        {% endif %}
       </p>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel &amp; Continue Test</button>
-      <button type="button" class="btn btn-primary" id="btnConfirmSubmit">Confirm &amp; Submit Test</button>
+      <button type="button" class="btn btn-primary" id="btnConfirmSubmit">
+        {% if has_coding %}Confirm &amp; Proceed to Coding &rarr;{% else %}Confirm &amp; Submit Test{% endif %}
+      </button>
     </div>
   </div>
 </div>
+
+<!-- Proctoring Fullscreen & Violation Modal -->
+<div class="submit-modal-overlay" id="proctoringModal" style="z-index: 9999; backdrop-filter: blur(8px);">
+  <div class="submit-modal-box" style="border: 2px solid #ef4444; text-align: center; max-width: 480px;">
+    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
+    <h3 style="font-size: 1.35rem; font-weight: 800; color: #ef4444; margin-bottom: 0.5rem;" id="proctoringModalTitle">
+      Proctoring Violation Warning
+    </h3>
+    <p style="font-size: 0.95rem; color: #475569; line-height: 1.5; margin-bottom: 1rem;" id="proctoringModalDesc">
+      Fullscreen exited. Please return to fullscreen to continue the assessment.
+    </p>
+
+    <div style="background: #fef2f2; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem;">
+      <div style="font-size: 1.1rem; font-weight: 800; color: #dc2626;" id="proctoringWarningCountText">
+        Warning <span id="proctoringCountNum">1</span> of 3
+      </div>
+      <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.25rem;">
+        Notice: A 3rd violation will result in immediate automatic submission.
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: center; gap: 0.75rem;" id="proctoringModalActions">
+      <button type="button" class="btn btn-primary" id="btnProctoringReenterFullscreen" style="padding: 0.6rem 1.5rem; font-size: 0.95rem; font-weight: 700; width: 100%;">
+        ⛶ Return to Fullscreen
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -336,6 +394,188 @@
     clearInterval(timerInterval);
     form.submit();
   });
+
+  // 5. Proctoring, Fullscreen & Anti-Malpractice Controller
+  const violationUrl = "{% url 'assessments:test_violation' assessment.token %}";
+  let violationCount = {{ assessment.violation_count|default:0 }};
+  const maxViolations = {{ assessment.max_violations|default:3 }};
+  let isAutoSubmitting = false;
+  let isProctoringInitialized = false;
+  let lastViolationReportTime = 0;
+
+  const proctoringModal = document.getElementById('proctoringModal');
+  const proctoringTitle = document.getElementById('proctoringModalTitle');
+  const proctoringDesc = document.getElementById('proctoringModalDesc');
+  const proctoringCountNum = document.getElementById('proctoringCountNum');
+  const btnReenter = document.getElementById('btnProctoringReenterFullscreen');
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+
+  function requestFullscreenSafe() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      return elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      return elem.webkitRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      return elem.mozRequestFullScreen();
+    } else if (elem.msRequestFullscreen) {
+      return elem.msRequestFullscreen();
+    }
+    return Promise.reject("Fullscreen API not supported");
+  }
+
+  function reportViolation(violationType) {
+    if (isAutoSubmitting) return;
+
+    const now = Date.now();
+    if (now - lastViolationReportTime < 2500) {
+      return;
+    }
+    lastViolationReportTime = now;
+
+    fetch(violationUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        violation_type: violationType,
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      violationCount = data.violation_count || 0;
+      updateSecurityHeader(violationCount);
+
+      if (data.status === 'terminated' || data.auto_submitted) {
+        isAutoSubmitting = true;
+        proctoringTitle.textContent = "Assessment Terminated";
+        proctoringDesc.textContent = "Maximum proctoring violations reached (3 of 3). Your assessment has been automatically finalized and submitted.";
+        proctoringCountNum.textContent = "3";
+        proctoringModal.classList.add('active');
+        const actionsBox = document.getElementById('proctoringModalActions');
+        if (actionsBox) actionsBox.style.display = 'none';
+
+        setTimeout(() => {
+          if (data.redirect_url) {
+            window.location.href = data.redirect_url;
+          } else {
+            form.submit();
+          }
+        }, 2000);
+      } else {
+        proctoringCountNum.textContent = String(violationCount);
+        proctoringDesc.textContent = "⚠️ Fullscreen exited. Please return to fullscreen to continue the assessment.";
+        proctoringModal.classList.add('active');
+      }
+    })
+    .catch(err => {
+      console.warn("Proctoring signal notice:", err);
+    });
+  }
+
+  function updateSecurityHeader(count) {
+    const countEl = document.getElementById('headerWarningCount');
+    const badgeEl = document.getElementById('headerWarningBadge');
+    if (countEl) countEl.textContent = String(count);
+    if (badgeEl) {
+      if (count === 1) {
+        badgeEl.style.color = '#d97706';
+      } else if (count === 2) {
+        badgeEl.style.color = '#ea580c';
+      } else if (count >= 3) {
+        badgeEl.style.color = '#dc2626';
+      }
+    }
+  }
+
+  function handleFullscreenChange() {
+
+    if (!isFullscreen()) {
+      if (isProctoringInitialized && !isAutoSubmitting) {
+        reportViolation("FULLSCREEN_EXIT");
+      }
+    } else {
+      if (!isAutoSubmitting) {
+        proctoringModal.classList.remove('active');
+      }
+      isProctoringInitialized = true;
+    }
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+  document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+  document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden && isProctoringInitialized && !isAutoSubmitting) {
+      reportViolation("TAB_SWITCH");
+    }
+  });
+
+  btnReenter.addEventListener('click', function() {
+    requestFullscreenSafe()
+      .then(() => {
+        proctoringModal.classList.remove('active');
+        isProctoringInitialized = true;
+      })
+      .catch(() => {
+        proctoringModal.classList.remove('active');
+        isProctoringInitialized = true;
+      });
+  });
+
+  window.addEventListener('load', function() {
+    setTimeout(() => {
+      if (!isFullscreen()) {
+        proctoringTitle.textContent = "Fullscreen Mode Required";
+        proctoringDesc.textContent = "To maintain assessment integrity, please enter full screen mode.";
+        proctoringCountNum.textContent = String(violationCount);
+        proctoringModal.classList.add('active');
+      } else {
+        isProctoringInitialized = true;
+      }
+    }, 400);
+  });
+
+  // 6. Disable Context Menu
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 7. Suspicious Shortcuts / DevTools Detection
+  document.addEventListener('keydown', function(e) {
+    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+    const isShift = e.shiftKey;
+    const key = e.key ? e.key.toUpperCase() : '';
+
+    if (e.keyCode === 123 || key === 'F12') {
+      e.preventDefault();
+      e.stopPropagation();
+      reportViolation("DEVTOOLS_SHORTCUT");
+      return false;
+    }
+
+    if (isCtrlOrCmd && isShift && (key === 'I' || key === 'J' || key === 'C')) {
+      e.preventDefault();
+      e.stopPropagation();
+      reportViolation("DEVTOOLS_SHORTCUT");
+      return false;
+    }
+
+    if (isCtrlOrCmd && key === 'U') {
+      e.preventDefault();
+      e.stopPropagation();
+      reportViolation("DEVTOOLS_SHORTCUT");
+      return false;
+    }
+  }, true);
 })();
 </script>
 {% endblock %}

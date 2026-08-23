@@ -7,7 +7,8 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from accounts.models import CandidateProfile
-from assessments.models import Question
+from assessments.coding_bank import ensure_coding_bank_seeded
+from assessments.models import CodingQuestion, Question
 from assessments.question_bank import ensure_question_bank_seeded
 
 
@@ -58,6 +59,19 @@ class AssessmentCreateForm(forms.Form):
         required=False,
         widget=forms.NumberInput(attrs={"class": "form-input section-count-input", "min": "0"}),
     )
+    include_coding = forms.BooleanField(
+        label="Include Coding Assessment",
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={"class": "coding-toggle-checkbox", "id": "id_include_coding"}),
+    )
+    coding_count = forms.IntegerField(
+        label="Coding Questions",
+        initial=2,
+        min_value=1,
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-input", "min": "1", "max": "10", "id": "id_coding_count"}),
+    )
     start_date = forms.DateField(
         label="Start Date",
         widget=forms.DateInput(attrs={"type": "date", "class": "form-input"}),
@@ -76,15 +90,17 @@ class AssessmentCreateForm(forms.Form):
     )
     duration_minutes = forms.IntegerField(
         label="Duration (minutes)",
-        initial=30,
+        initial=60,
         min_value=1,
         widget=forms.NumberInput(attrs={"class": "form-input", "min": "1"}),
     )
 
     def __init__(self, *args, initial_candidate=None, **kwargs):
         ensure_question_bank_seeded()
+        ensure_coding_bank_seeded()
         super().__init__(*args, **kwargs)
         now = timezone.localtime(timezone.now())
+
 
         if not self.is_bound:
             self.fields["start_date"].initial = now.date()
@@ -143,8 +159,23 @@ class AssessmentCreateForm(forms.Form):
                     total_selected_questions += count
 
 
+        include_coding = cleaned_data.get("include_coding", False)
+        coding_count = cleaned_data.get("coding_count") or 0
+
+        if include_coding:
+            if coding_count <= 0:
+                self.add_error("coding_count", "Please specify at least 1 coding question when Coding Assessment is enabled.")
+            else:
+                coding_available = CodingQuestion.objects.count()
+                if coding_count > coding_available:
+                    self.add_error(
+                        "coding_count",
+                        f"Requested {coding_count} coding questions, but only {coding_available} questions exist in the coding question bank.",
+                    )
+
         if sections and total_selected_questions <= 0 and not self.errors:
             raise ValidationError("Assessment must have at least one question assigned.")
+
 
         # 3. Schedule & Datetime validation
         if start_date and start_time and expire_date and expire_time:

@@ -42,9 +42,18 @@ def candidate_result(request, result_id):
         "totals": [result.logical_total, result.quant_total, result.technical_total],
     }
 
+    coding_submissions = []
+    if result.has_coding or result.assessment.has_coding:
+        coding_submissions = (
+            result.assessment.coding_submissions.select_related("question")
+            .order_by("question__id")
+        )
+
     context = {
         "result": result,
         "assessment": result.assessment,
+        "has_coding": result.has_coding or result.assessment.has_coding,
+        "coding_submissions": coding_submissions,
         "logical_pct": logical_pct,
         "quant_pct": quant_pct,
         "tech_pct": tech_pct,
@@ -84,11 +93,20 @@ def employer_result(request, result_id):
         "totals": [result.logical_total, result.quant_total, result.technical_total],
     }
 
+    coding_submissions = []
+    if result.has_coding or result.assessment.has_coding:
+        coding_submissions = (
+            result.assessment.coding_submissions.select_related("question")
+            .order_by("question__id")
+        )
+
     context = {
         "result": result,
         "assessment": result.assessment,
         "candidate": result.assessment.candidate,
         "candidate_profile": getattr(result.assessment.candidate, "candidate_profile", None),
+        "has_coding": result.has_coding or result.assessment.has_coding,
+        "coding_submissions": coding_submissions,
         "logical_pct": logical_pct,
         "quant_pct": quant_pct,
         "tech_pct": tech_pct,

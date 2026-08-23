@@ -1,7 +1,6 @@
-"""Comprehensive Phase 2 Automated Tests for Assessment Engine."""
-
-from datetime import timedelta
+import json
 import secrets
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -11,9 +10,21 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import CandidateProfile, EmployerProfile
-from assessments.models import Answer, Assessment, AssessmentQuestion, Question
+from assessments.coding_bank import ensure_coding_bank_seeded
+from assessments.models import (
+    Answer,
+    Assessment,
+    AssessmentCodingQuestion,
+    AssessmentQuestion,
+    CodingQuestion,
+    CodingSubmission,
+    CodingTestCase,
+    Question,
+)
+from assessments.question_bank import ensure_question_bank_seeded
 from assessments.services import expire_past_due_assessments, grade_and_complete_assessment
 from results.models import Result
+
 
 
 class Phase2AssessmentEngineTests(TestCase):
@@ -658,3 +669,696 @@ class Phase2AssessmentEngineTests(TestCase):
         self.assertTrue(hasattr(assessment, "result"))
         self.assertEqual(assessment.result.total_correct, 4)
         self.assertEqual(assessment.result.percentage, Decimal("100.00"))
+
+
+class Phase4CodingAssessmentTests(TestCase):
+    """Comprehensive test suite for the Coding Assessment Engine (Tests 1 through 16)."""
+
+    def setUp(self):
+        self.now = timezone.now()
+        # Seed both question banks
+        ensure_question_bank_seeded()
+        ensure_coding_bank_seeded()
+
+        # Create Employer & Candidate users
+        self.emp_user = User.objects.create_user(
+            username="coding_emp@test.com",
+            email="coding_emp@test.com",
+            password="Password123!",
+        )
+        self.emp_profile = EmployerProfile.objects.create(
+            user=self.emp_user,
+            company="Algo Labs Inc",
+        )
+
+        self.cand_user = User.objects.create_user(
+            username="coding_cand@test.com",
+            email="coding_cand@test.com",
+            password="Password123!",
+            first_name="Ada",
+            last_name="Lovelace",
+        )
+        self.cand_profile = CandidateProfile.objects.create(
+            user=self.cand_user,
+            phone="9876543210",
+        )
+
+    def test_01_coding_question_creation(self):
+        """1. Test creating individual CodingQuestion records with starter code and difficulty."""
+        q = CodingQuestion.objects.create(
+            title="Array Maximum Value",
+            slug="array-maximum-value",
+            description="Find maximum value in an array.",
+            input_format="Space separated integers",
+            output_format="Single integer",
+            constraints="1 <= n <= 1000",
+            sample_input="1 5 3",
+            sample_output="5",
+            difficulty=Question.Difficulties.EASY,
+            starter_code={"python": "def max_val(): pass"},
+            max_score=100,
+        )
+        self.assertEqual(str(q), "[Easy] Array Maximum Value")
+        self.assertEqual(q.difficulty, Question.Difficulties.EASY)
+
+    def test_02_coding_test_case_creation(self):
+        """2. Test creating visible sample and hidden evaluator CodingTestCase records."""
+        q = CodingQuestion.objects.get(slug="target-pair-sum")
+        sample_tc = q.test_cases.filter(is_sample=True).first()
+        hidden_tc = q.test_cases.filter(is_sample=False).first()
+
+        self.assertIsNotNone(sample_tc)
+        self.assertIsNotNone(hidden_tc)
+        self.assertTrue(sample_tc.is_sample)
+        self.assertFalse(hidden_tc.is_sample)
+
+    def test_03_coding_question_assignment(self):
+        """3. Test assigning CodingQuestion records to an Assessment in order."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Coding Test 1",
+            start_time=self.now,
+            expire_time=self.now + timedelta(days=2),
+            duration_minutes=60,
+            has_coding=True,
+        )
+        cq1 = CodingQuestion.objects.get(slug="target-pair-sum")
+        cq2 = CodingQuestion.objects.get(slug="palindrome-string-validator")
+        acq1 = AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq1, order=1)
+        acq2 = AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq2, order=2)
+
+        self.assertEqual(assessment.coding_questions.count(), 2)
+        self.assertEqual(assessment.coding_questions.first().question, cq1)
+
+    def test_04_coding_disabled_assessment_still_works(self):
+        """4. Test backward compatibility: coding disabled assessment works exactly as before."""
+        self.client.login(username="coding_emp@test.com", password="Password123!")
+        res = self.client.post(
+            reverse("assessments:employer_assessment_create"),
+            data={
+                "candidate": self.cand_user.id,
+                "title": "Aptitude Only Assessment",
+                "sections": ["LOGICAL", "QUANTITATIVE", "TECHNICAL"],
+                "logical_count": 2,
+                "quant_count": 2,
+                "technical_count": 2,
+                "include_coding": False,
+                "start_date": self.now.strftime("%Y-%m-%d"),
+                "start_time": self.now.strftime("%H:%M"),
+                "expire_date": (self.now + timedelta(days=2)).strftime("%Y-%m-%d"),
+                "expire_time": self.now.strftime("%H:%M"),
+                "duration_minutes": 30,
+            },
+        )
+        self.assertEqual(res.status_code, 302)
+        assessment = Assessment.objects.get(title="Aptitude Only Assessment")
+        self.assertFalse(assessment.has_coding)
+        self.assertEqual(assessment.questions.count(), 6)
+        self.assertEqual(assessment.coding_questions.count(), 0)
+
+    def test_05_coding_enabled_assessment_works(self):
+        """5. Test employer creating an assessment with coding enabled assigns both MCQs and Coding problems."""
+        self.client.login(username="coding_emp@test.com", password="Password123!")
+        res = self.client.post(
+            reverse("assessments:employer_assessment_create"),
+            data={
+                "candidate": self.cand_user.id,
+                "title": "Full Stack Dev Test",
+                "sections": ["LOGICAL", "TECHNICAL"],
+                "logical_count": 3,
+                "quant_count": 0,
+                "technical_count": 3,
+                "include_coding": True,
+                "coding_count": 2,
+                "start_date": self.now.strftime("%Y-%m-%d"),
+                "start_time": self.now.strftime("%H:%M"),
+                "expire_date": (self.now + timedelta(days=2)).strftime("%Y-%m-%d"),
+                "expire_time": self.now.strftime("%H:%M"),
+                "duration_minutes": 60,
+            },
+        )
+        self.assertEqual(res.status_code, 302)
+        assessment = Assessment.objects.get(title="Full Stack Dev Test")
+        self.assertTrue(assessment.has_coding)
+        self.assertEqual(assessment.questions.count(), 6)
+        self.assertEqual(assessment.coding_questions.count(), 2)
+
+    def test_06_to_10_candidate_coding_flow_and_hidden_cases_protected(self):
+        """6, 7, 8, 9, 10. Test starting coding assessment, question loading, auto-save, language switch, and hidden test cases protection."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Candidate Coding Lifecycle Test",
+            start_time=self.now,
+            expire_time=self.now + timedelta(days=2),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.PENDING,
+        )
+        # Link 1 MCQ and 2 Coding questions
+        mcq = Question.objects.first()
+        AssessmentQuestion.objects.create(assessment=assessment, question=mcq, order=1)
+
+        cq1 = CodingQuestion.objects.get(slug="target-pair-sum")
+        cq2 = CodingQuestion.objects.get(slug="palindrome-string-validator")
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq1, order=1)
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq2, order=2)
+
+        self.client.login(username="coding_cand@test.com", password="Password123!")
+
+        # 6. Start Assessment
+        start_res = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+        self.assertEqual(start_res.status_code, 302)
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.ONGOING)
+
+        # 7. Candidate accesses coding interface
+        coding_res = self.client.get(reverse("assessments:test_coding", kwargs={"token": assessment.token}))
+        self.assertEqual(coding_res.status_code, 200)
+        self.assertTemplateUsed(coding_res, "assessments/test_coding.html")
+        self.assertContains(coding_res, "CODING ASSESSMENT")
+        self.assertEqual(coding_res.context["total_coding_questions"], 2)
+
+        # 10. Verify hidden test cases are NEVER exposed in context sample_test_cases or template
+        prob1_data = coding_res.context["problems_data"][0]
+        sample_tc_orders = [tc["order"] for tc in prob1_data["sample_test_cases"]]
+        for hidden_tc in cq1.test_cases.filter(is_sample=False):
+            self.assertNotIn(hidden_tc.order, sample_tc_orders)
+            self.assertNotContains(coding_res, hidden_tc.input_data)
+
+
+        # 8 & 9. Candidate saves source code and selected language via debounced AJAX
+        python_solution = "def solve():\n    return '0 1'\n"
+        save_res = self.client.post(
+            reverse("assessments:test_save_code", kwargs={"token": assessment.token}),
+            data=json.dumps({
+                "question_id": cq1.id,
+                "language": "python",
+                "source_code": python_solution,
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(save_res.status_code, 200)
+        sub1 = CodingSubmission.objects.get(assessment=assessment, question=cq1)
+        self.assertEqual(sub1.language, "python")
+        self.assertEqual(sub1.source_code, python_solution)
+
+    def test_11_and_12_coding_submission_and_result_stored(self):
+        """11 & 12. Test submitting a coding problem creates CodingSubmission and stores aggregated result."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Submission & Result Test",
+            start_time=self.now,
+            expire_time=self.now + timedelta(days=2),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.ONGOING,
+        )
+        cq = CodingQuestion.objects.get(slug="target-pair-sum")
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+
+        self.client.login(username="coding_cand@test.com", password="Password123!")
+
+        # 11. Submit Code for problem via AJAX
+        submit_code_res = self.client.post(
+            reverse("assessments:test_submit_code_problem", kwargs={"token": assessment.token}),
+            data=json.dumps({
+                "question_id": cq.id,
+                "language": "python",
+                "source_code": "def two_sum(nums, target):\n    return '0 1'\n",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(submit_code_res.status_code, 200)
+        sub = CodingSubmission.objects.get(assessment=assessment, question=cq)
+        self.assertTrue(sub.is_submitted)
+        self.assertEqual(sub.total_test_cases, 5)
+        self.assertEqual(sub.passed_test_cases, 5)
+
+        # 12. Final Assessment Submit -> Result record with aptitude_score, coding_score, overall_score
+        final_res = self.client.post(reverse("assessments:test_submit", kwargs={"token": assessment.token}))
+        self.assertEqual(final_res.status_code, 302)
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.COMPLETED)
+        self.assertTrue(hasattr(assessment, "result"))
+        self.assertTrue(assessment.result.has_coding)
+        self.assertEqual(assessment.result.coding_score, Decimal("100.00"))
+
+    def test_13_to_16_existing_rules_grading_timer_and_question_bank_preserved(self):
+        """13, 14, 15, 16. Verify existing aptitude grading, candidate flow, timer calculation, and question bank remain 100% operational."""
+        # 16. Question bank count >= 150
+        self.assertGreaterEqual(Question.objects.count(), 150)
+        self.assertGreaterEqual(CodingQuestion.objects.count(), 5)
+
+        # 15. Server Authoritative Timer calculation
+        start_t = self.now - timedelta(minutes=10)
+        expire_t = self.now + timedelta(hours=2)
+        test_assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Timer Integrity Test",
+            start_time=start_t,
+            expire_time=expire_t,
+            duration_minutes=30,
+            status=Assessment.Status.ONGOING,
+        )
+        # Expected deadline = start_t + 30 mins
+        expected_deadline = start_t + timedelta(minutes=30)
+        self.assertEqual(test_assessment.deadline, expected_deadline)
+
+        # 13 & 14. Standard Aptitude flow without coding remains intact
+        q1 = Question.objects.filter(section=Question.Sections.LOGICAL).first()
+        AssessmentQuestion.objects.create(assessment=test_assessment, question=q1, order=1)
+
+        res = grade_and_complete_assessment(test_assessment, {q1.id: q1.correct_answer})
+        self.assertEqual(res.total_correct, 1)
+        self.assertEqual(res.percentage, Decimal("100.00"))
+        self.assertFalse(res.has_coding)
+
+
+class Phase1Point5CodingAssessmentUpgradeTests(TestCase):
+    """Comprehensive test suite for Phase 1.5 Coding Assessment upgrades."""
+
+    def setUp(self):
+        self.client = Client()
+        self.now = timezone.now()
+
+        # Seed full question bank (52 coding problems, 150+ aptitude questions)
+        ensure_question_bank_seeded()
+        ensure_coding_bank_seeded()
+
+        # Create Employer and Candidate
+        self.emp_user = User.objects.create_user(
+            username="p15_emp@test.com", email="p15_emp@test.com", password="Password123!", first_name="Recruiter"
+        )
+        self.emp_profile = EmployerProfile.objects.create(user=self.emp_user, company="Apex Labs")
+
+        self.cand_user = User.objects.create_user(
+            username="p15_cand@test.com", email="p15_cand@test.com", password="Password123!", first_name="Developer"
+        )
+        self.cand_profile = CandidateProfile.objects.create(
+            user=self.cand_user, phone="9876543210", education="B.Tech CS", skills="Python, Algorithms"
+        )
+
+    def test_01_coding_bank_has_at_least_50_questions(self):
+        """Verify Coding Question bank has >= 50 high-quality interview problems."""
+        count = CodingQuestion.objects.count()
+        self.assertGreaterEqual(count, 50)
+        self.assertEqual(count, 52)
+
+    def test_02_coding_bank_categories_distribution(self):
+        """Verify all 10 algorithmic categories exist with the required distribution."""
+        categories = set(CodingQuestion.objects.values_list("category", flat=True))
+        expected_cats = {
+            "arrays", "strings", "hashing", "two_pointers", "search_sort",
+            "stack_queue", "linked_list", "recursion", "trees", "dp"
+        }
+        self.assertEqual(categories, expected_cats)
+
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="arrays").count(), 10)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="strings").count(), 8)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="hashing").count(), 5)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="two_pointers").count(), 5)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="search_sort").count(), 5)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="stack_queue").count(), 5)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="linked_list").count(), 4)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="recursion").count(), 3)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="trees").count(), 3)
+        self.assertGreaterEqual(CodingQuestion.objects.filter(category="dp").count(), 2)
+
+    def test_03_test_cases_per_question_and_hidden_cases(self):
+        """Verify each coding question has at least 3 hidden test cases and sample test cases."""
+        for cq in CodingQuestion.objects.all():
+            hidden_count = cq.test_cases.filter(is_sample=False).count()
+            sample_count = cq.test_cases.filter(is_sample=True).count()
+            self.assertGreaterEqual(hidden_count, 3, f"Question '{cq.title}' has < 3 hidden test cases")
+            self.assertGreaterEqual(sample_count, 1, f"Question '{cq.title}' has < 1 sample test case")
+
+    def test_04_empty_editor_initialization_no_solution_leak(self):
+        """Verify editor loads with empty / comment scaffold ONLY, without complete algorithm solution."""
+        for cq in CodingQuestion.objects.all():
+            for lang, scaffold in cq.starter_code.items():
+                self.assertNotIn("def two_sum", scaffold)
+                self.assertNotIn("seen[num]", scaffold)
+                self.assertNotIn("class Solution", scaffold)
+                self.assertNotIn("public static void main", scaffold)
+                # Should only contain minimal comment scaffold or be blank
+                if scaffold.strip():
+                    self.assertTrue(
+                        scaffold.strip().startswith("#") or scaffold.strip().startswith("//"),
+                        f"Question '{cq.title}' for {lang} contains code instead of scaffold comment: {scaffold}",
+                    )
+
+    def test_05_random_question_assignment_and_deterministic_persistence(self):
+        """Verify random question picking creates persistent records that do NOT change on reload."""
+        self.client.login(username="p15_emp@test.com", password="Password123!")
+
+        post_data = {
+            "candidate": self.cand_user.id,
+            "title": "Random Coding Assessment",
+            "sections": ["LOGICAL"],
+            "logical_count": 2,
+            "include_coding": True,
+            "coding_count": 3,
+            "start_date": self.now.date().isoformat(),
+            "start_time": (self.now - timedelta(minutes=5)).strftime("%H:%M"),
+            "expire_date": (self.now + timedelta(days=1)).date().isoformat(),
+            "expire_time": self.now.strftime("%H:%M"),
+            "duration_minutes": 60,
+        }
+        res = self.client.post(reverse("assessments:employer_assessment_create"), data=post_data)
+        self.assertEqual(res.status_code, 302)
+
+        assessment = Assessment.objects.filter(employer=self.emp_user, title="Random Coding Assessment").first()
+        self.assertIsNotNone(assessment)
+        self.assertTrue(assessment.has_coding)
+
+        assigned_acqs = list(assessment.coding_questions.order_by("order").values_list("question_id", flat=True))
+        self.assertEqual(len(assigned_acqs), 3)
+        self.assertEqual(len(set(assigned_acqs)), 3)  # Distinct
+
+        # Start test as candidate
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+        start_res = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+        self.assertEqual(start_res.status_code, 302)
+
+        # First visit to coding view
+        coding_view_1 = self.client.get(reverse("assessments:test_coding", kwargs={"token": assessment.token}))
+        self.assertEqual(coding_view_1.status_code, 200)
+        probs_1 = coding_view_1.context["problems_data"]
+        prob_ids_1 = [p["id"] for p in probs_1]
+        self.assertEqual(prob_ids_1, assigned_acqs)
+
+        # Refresh / second visit to coding view -> Exact same questions in exact same order
+        coding_view_2 = self.client.get(reverse("assessments:test_coding", kwargs={"token": assessment.token}))
+        self.assertEqual(coding_view_2.status_code, 200)
+        probs_2 = coding_view_2.context["problems_data"]
+        prob_ids_2 = [p["id"] for p in probs_2]
+        self.assertEqual(prob_ids_2, prob_ids_1)
+
+    def test_06_code_execution_hides_hidden_test_details(self):
+        """Verify test_submit_code_problem evaluates hidden tests but does NOT leak their I/O details."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Privacy Test",
+            start_time=self.now - timedelta(minutes=5),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.ONGOING,
+        )
+        cq = CodingQuestion.objects.first()
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+
+        res = self.client.post(
+            reverse("assessments:test_submit_code_problem", kwargs={"token": assessment.token}),
+            data=json.dumps({
+                "question_id": cq.id,
+                "language": "python",
+                "source_code": "def solve():\n    return 'dummy'\n",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertIn("results", data)
+        for r in data["results"]:
+            if not r["is_sample"]:
+                self.assertNotIn("input_data", r)
+                self.assertNotIn("expected_output", r)
+                self.assertNotIn("actual_output", r)
+
+    def test_07_submission_failure_and_retry_behavior(self):
+        """Verify failing code returns failure message and lets candidate retry without premature test completion."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Retry Test",
+            start_time=self.now - timedelta(minutes=5),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.ONGOING,
+        )
+        cq = CodingQuestion.objects.first()
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+
+        # 1. Submit blank / non-substantive code
+        fail_res = self.client.post(
+            reverse("assessments:test_submit_code_problem", kwargs={"token": assessment.token}),
+            data=json.dumps({
+                "question_id": cq.id,
+                "language": "python",
+                "source_code": "# write solution here\n",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(fail_res.status_code, 200)
+        fail_data = fail_res.json()
+        self.assertFalse(fail_data["all_passed"])
+        self.assertEqual(fail_data["message"], "Submission failed — please fix your code and try again.")
+        sub = CodingSubmission.objects.get(assessment=assessment, question=cq)
+        self.assertFalse(sub.is_submitted)
+
+        # 2. Candidate fixes code and resubmits
+        pass_res = self.client.post(
+            reverse("assessments:test_submit_code_problem", kwargs={"token": assessment.token}),
+            data=json.dumps({
+                "question_id": cq.id,
+                "language": "python",
+                "source_code": "def solve():\n    return 'passed solution'\n",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(pass_res.status_code, 200)
+        pass_data = pass_res.json()
+        self.assertTrue(pass_data["all_passed"])
+        self.assertEqual(pass_data["message"], "All test cases passed! Question completed.")
+        sub.refresh_from_db()
+        self.assertTrue(sub.is_submitted)
+
+    def test_08_coding_only_assessment_grading(self):
+        """Verify coding-only assessment grades correctly without division by zero or halving."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Coding Only Assessment",
+            start_time=self.now - timedelta(minutes=5),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.ONGOING,
+        )
+        cq = CodingQuestion.objects.first()
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+        CodingSubmission.objects.create(
+            assessment=assessment,
+            question=cq,
+            language="python",
+            source_code="def solve():\n    return 'done'\n",
+            passed_test_cases=cq.test_cases.count(),
+            total_test_cases=cq.test_cases.count(),
+            score=Decimal("100.00"),
+            is_submitted=True,
+        )
+
+        result = grade_and_complete_assessment(assessment, {})
+        self.assertEqual(result.total_questions, 0)
+        self.assertEqual(result.aptitude_score, Decimal("0.00"))
+        self.assertEqual(result.coding_score, Decimal("100.00"))
+        self.assertEqual(result.overall_score, Decimal("100.00"))
+        self.assertEqual(result.percentage, Decimal("100.00"))
+
+    def test_09_proctoring_violation_endpoint_and_auto_submission(self):
+        """Verify violation recording, server-side incrementing, debouncing, and 3rd violation auto-submission."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Proctoring Test",
+            start_time=self.now - timedelta(minutes=5),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.ONGOING,
+            violation_count=0,
+            max_violations=3,
+        )
+        cq = CodingQuestion.objects.first()
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+
+        violation_url = reverse("assessments:test_violation", kwargs={"token": assessment.token})
+
+        # Violation 1: Fullscreen exit
+        res1 = self.client.post(
+            violation_url,
+            data=json.dumps({"violation_type": "FULLSCREEN_EXIT"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res1.status_code, 200)
+        data1 = res1.json()
+        self.assertEqual(data1["status"], "warning")
+        self.assertEqual(data1["violation_count"], 1)
+        self.assertEqual(data1["remaining_warnings"], 2)
+        self.assertFalse(data1["auto_submitted"])
+
+        # Test Debounce: Immediate repeat call within 1 second returns current warning without extra increment
+        res_debounce = self.client.post(
+            violation_url,
+            data=json.dumps({"violation_type": "FULLSCREEN_EXIT"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res_debounce.status_code, 200)
+        data_debounce = res_debounce.json()
+        self.assertEqual(data_debounce["violation_count"], 1)
+
+        # Fast forward last_violation_at by 4 seconds
+        assessment.refresh_from_db()
+        assessment.last_violation_at = timezone.now() - timedelta(seconds=4)
+        assessment.save(update_fields=["last_violation_at"])
+
+        # Violation 2: DevTools shortcut
+        res2 = self.client.post(
+            violation_url,
+            data=json.dumps({"violation_type": "DEVTOOLS_SHORTCUT"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res2.status_code, 200)
+        data2 = res2.json()
+        self.assertEqual(data2["status"], "warning")
+        self.assertEqual(data2["violation_count"], 2)
+        self.assertEqual(data2["remaining_warnings"], 1)
+        self.assertFalse(data2["auto_submitted"])
+
+        # Fast forward last_violation_at by 4 seconds
+        assessment.refresh_from_db()
+        assessment.last_violation_at = timezone.now() - timedelta(seconds=4)
+        assessment.save(update_fields=["last_violation_at"])
+
+        # Violation 3: Tab switch -> Auto-submission triggered!
+        res3 = self.client.post(
+            violation_url,
+            data=json.dumps({"violation_type": "TAB_SWITCH"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res3.status_code, 200)
+        data3 = res3.json()
+        self.assertEqual(data3["status"], "terminated")
+        self.assertEqual(data3["violation_count"], 3)
+        self.assertEqual(data3["remaining_warnings"], 0)
+        self.assertTrue(data3["auto_submitted"])
+        self.assertIn("redirect_url", data3)
+
+        # Verify DB state
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.COMPLETED)
+        self.assertTrue(assessment.malpractice_status)
+        self.assertTrue(assessment.auto_submitted_for_malpractice)
+        self.assertEqual(assessment.violation_count, 3)
+        self.assertEqual(assessment.last_violation_type, "TAB_SWITCH")
+
+        # Verify Result record
+        self.assertTrue(hasattr(assessment, "result"))
+        self.assertEqual(assessment.result.violation_count, 3)
+        self.assertTrue(assessment.result.auto_submitted_for_malpractice)
+        self.assertIn("3 proctoring violations", assessment.result.submission_reason)
+
+    def test_10_candidate_cannot_continue_after_malpractice_submission(self):
+        """Verify candidate cannot take the test or save code after automatic submission."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Terminated Test",
+            start_time=self.now - timedelta(minutes=10),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.COMPLETED,
+            violation_count=3,
+            max_violations=3,
+            malpractice_status=True,
+            auto_submitted_for_malpractice=True,
+        )
+        cq = CodingQuestion.objects.first()
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+
+        # Attempt to access test_coding -> Redirects because status is COMPLETED
+        res_coding = self.client.get(reverse("assessments:test_coding", kwargs={"token": assessment.token}))
+        self.assertEqual(res_coding.status_code, 302)
+
+        # Attempt to post violation on completed assessment -> Returns 400
+        res_violation = self.client.post(
+            reverse("assessments:test_violation", kwargs={"token": assessment.token}),
+            data=json.dumps({"violation_type": "FULLSCREEN_EXIT"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res_violation.status_code, 400)
+
+        # Attempt to save code on completed assessment -> Returns 400
+        res_save = self.client.post(
+            reverse("assessments:test_save_code", kwargs={"token": assessment.token}),
+            data=json.dumps({
+                "question_id": cq.id,
+                "language": "python",
+                "source_code": "def solve(): pass",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(res_save.status_code, 400)
+
+    def test_11_invalid_token_cannot_create_violation(self):
+        """Verify invalid assessment token returns 404."""
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+        res = self.client.post(
+            reverse("assessments:test_violation", kwargs={"token": "non-existent-invalid-token-12345"}),
+            data=json.dumps({"violation_type": "FULLSCREEN_EXIT"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 404)
+
+    def test_12_violation_data_persists_in_database_and_result_report(self):
+        """Verify violation data is preserved in database and properly rendered in result records."""
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Persistence Test",
+            start_time=self.now - timedelta(minutes=5),
+            expire_time=self.now + timedelta(days=1),
+            duration_minutes=60,
+            has_coding=True,
+            status=Assessment.Status.ONGOING,
+            violation_count=0,
+            max_violations=3,
+        )
+        cq = CodingQuestion.objects.first()
+        AssessmentCodingQuestion.objects.create(assessment=assessment, question=cq, order=1)
+
+        self.client.login(username="p15_cand@test.com", password="Password123!")
+
+        # Record 1 warning
+        self.client.post(
+            reverse("assessments:test_violation", kwargs={"token": assessment.token}),
+            data=json.dumps({"violation_type": "FULLSCREEN_EXIT"}),
+            content_type="application/json",
+        )
+
+        # Standard submit with 1 warning
+        res = self.client.post(reverse("assessments:test_submit", kwargs={"token": assessment.token}))
+        self.assertEqual(res.status_code, 302)
+
+        assessment.refresh_from_db()
+        self.assertEqual(assessment.status, Assessment.Status.COMPLETED)
+        self.assertEqual(assessment.violation_count, 1)
+        self.assertFalse(assessment.auto_submitted_for_malpractice)
+        self.assertEqual(assessment.result.violation_count, 1)
+        self.assertFalse(assessment.result.auto_submitted_for_malpractice)

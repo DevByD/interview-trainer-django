@@ -28,8 +28,29 @@
     </div>
   </div>
 
+  {% if result.violation_count > 0 or result.auto_submitted_for_malpractice %}
+    <!-- Proctoring / Malpractice Status Banner -->
+    <div style="background: {% if result.auto_submitted_for_malpractice %}#fef2f2; border: 1px solid #fca5a5;{% else %}#fffbeb; border: 1px solid #fde68a;{% endif %} border-radius: 8px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 1.5rem;">{% if result.auto_submitted_for_malpractice %}⚠️{% else %}🛡️{% endif %}</span>
+        <div>
+          <strong style="color: {% if result.auto_submitted_for_malpractice %}#991b1b{% else %}#92400e{% endif %}; font-size: 0.95rem;">
+            {% if result.auto_submitted_for_malpractice %}Auto-Submitted for Proctoring Malpractice{% else %}Proctoring Integrity Record{% endif %}
+          </strong>
+          <p style="margin: 0; font-size: 0.85rem; color: {% if result.auto_submitted_for_malpractice %}#b91c1c{% else %}#b45309{% endif %};">
+            {{ result.submission_reason|default:"Assessment completed." }}
+          </p>
+        </div>
+      </div>
+      <span class="badge" style="background: {% if result.auto_submitted_for_malpractice %}#ef4444{% else %}#f59e0b{% endif %}; color: #ffffff; font-weight: 700;">
+        Violations: {{ result.violation_count }}/3
+      </span>
+    </div>
+  {% endif %}
+
   <!-- Main Grid: Section Breakdown Cards on Left, Chart on Right -->
   <div class="results-grid">
+
     <!-- Left Column: Section Breakdown -->
     <div class="section-cards-list">
       <div class="card" style="margin-bottom: 1.5rem;">
@@ -40,24 +61,44 @@
           </span>
         </div>
         <div class="card-body">
-          <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
-            <div class="detail-item">
-              <span class="detail-label">Total Questions</span>
-              <span class="detail-value">{{ result.total_questions }}</span>
+          {% if has_coding %}
+            <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+              <div class="detail-item" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 1rem;">
+                <span class="detail-label" style="color: #1e40af; font-weight: 700;">Aptitude Score</span>
+                <span class="detail-value" style="color: #2563eb; font-weight: 800; font-size: 1.5rem;">{{ result.aptitude_score }}%</span>
+                <span style="font-size: 0.8rem; color: #6b7280;">{{ result.total_correct }}/{{ result.total_questions }} MCQs</span>
+              </div>
+              <div class="detail-item" style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 1rem;">
+                <span class="detail-label" style="color: #065f46; font-weight: 700;">Coding Score</span>
+                <span class="detail-value" style="color: #059669; font-weight: 800; font-size: 1.5rem;">{{ result.coding_score }}%</span>
+                <span style="font-size: 0.8rem; color: #6b7280;">{{ coding_submissions|length }} Problems</span>
+              </div>
+              <div class="detail-item" style="background: #fdf4ff; border: 1px solid #f5d0fe; border-radius: 8px; padding: 1rem;">
+                <span class="detail-label" style="color: #86198f; font-weight: 700;">Overall Score</span>
+                <span class="detail-value" style="color: #a21caf; font-weight: 800; font-size: 1.5rem;">{{ result.overall_score }}%</span>
+                <span style="font-size: 0.8rem; color: #6b7280;">Combined Aggregate</span>
+              </div>
             </div>
-            <div class="detail-item">
-              <span class="detail-label">Correct Answers</span>
-              <span class="detail-value" style="color: var(--success-dark); font-weight: 700;">{{ result.total_correct }}</span>
+          {% else %}
+            <div class="detail-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem;">
+              <div class="detail-item">
+                <span class="detail-label">Total Questions</span>
+                <span class="detail-value">{{ result.total_questions }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Correct Answers</span>
+                <span class="detail-value" style="color: var(--success-dark); font-weight: 700;">{{ result.total_correct }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Incorrect / Skipped</span>
+                <span class="detail-value" style="color: var(--danger-dark);">{{ result.total_questions|add:"-"|add:result.total_correct|default:"0" }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Percentage</span>
+                <span class="detail-value" style="color: var(--primary); font-weight: 800;">{{ result.percentage }}%</span>
+              </div>
             </div>
-            <div class="detail-item">
-              <span class="detail-label">Incorrect / Skipped</span>
-              <span class="detail-value" style="color: var(--danger-dark);">{{ result.total_questions|add:"-"|add:result.total_correct|default:"0" }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">Percentage</span>
-              <span class="detail-value" style="color: var(--primary); font-weight: 800;">{{ result.percentage }}%</span>
-            </div>
-          </div>
+          {% endif %}
         </div>
       </div>
 
@@ -99,6 +140,39 @@
           </div>
         </div>
       {% endif %}
+
+      <!-- Coding Challenges Section Breakdown -->
+      {% if has_coding and coding_submissions %}
+        <div class="card" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+          <div class="card-header">
+            <h2 class="card-title">💻 Coding Problems Detailed Breakdown</h2>
+          </div>
+          <div class="card-body" style="padding: 1.25rem;">
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              {% for sub in coding_submissions %}
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: #fafafa;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div>
+                      <strong style="font-size: 1rem; color: var(--dark-bg);">{{ forloop.counter }}. {{ sub.question.title }}</strong>
+                      <span style="font-size: 0.75rem; margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 9999px; background: #e2e8f0;">
+                        {{ sub.question.get_difficulty_display }}
+                      </span>
+                    </div>
+                    <span class="badge {% if sub.passed_test_cases == sub.total_test_cases and sub.total_test_cases > 0 %}badge-completed{% else %}badge-pending{% endif %}">
+                      Score: {{ sub.score }}%
+                    </span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-muted);">
+                    <span>Language: <strong>{{ sub.get_language_display }}</strong></span>
+                    <span>Test Cases Passed: <strong>{{ sub.passed_test_cases }} / {{ sub.total_test_cases }}</strong></span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
 
       <div style="margin-top: 1.5rem;">
         <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">

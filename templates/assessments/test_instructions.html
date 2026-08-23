@@ -33,12 +33,13 @@
         </div>
         <div class="detail-item">
           <span class="detail-label">Total Questions</span>
-          <span class="detail-value">{{ question_count }} Questions</span>
+          <span class="detail-value">{{ question_count }} MCQs{% if has_coding %} + {{ coding_questions_count }} Coding{% endif %}</span>
         </div>
         <div class="detail-item">
           <span class="detail-label">Sections Included</span>
-          <span class="detail-value">{{ sections_display }}</span>
+          <span class="detail-value">{{ sections_display }}{% if has_coding %}, Coding Assessment{% endif %}</span>
         </div>
+
         <div class="detail-item">
           <span class="detail-label">Start Window</span>
           <span class="detail-value" style="font-size: 0.9rem;">{{ assessment.start_time|date:"M d, Y H:i" }}</span>

@@ -118,9 +118,38 @@ def grade_and_complete_assessment(assessment: Assessment, raw_answers: dict[int 
     total_questions = logical_total + quant_total + technical_total
 
     if total_questions > 0:
-        percentage = round(Decimal(total_correct) / Decimal(total_questions) * Decimal("100.00"), 2)
+        aptitude_percentage = round(Decimal(total_correct) / Decimal(total_questions) * Decimal("100.00"), 2)
     else:
-        percentage = Decimal("0.00")
+        aptitude_percentage = Decimal("0.00")
+
+    # Coding scoring
+    has_coding = getattr(assessment, "has_coding", False)
+    coding_score = Decimal("0.00")
+    overall_score = aptitude_percentage
+
+    if has_coding:
+        assigned_coding = assessment.coding_questions.select_related("question").all()
+        total_coding_q = assigned_coding.count()
+        if total_coding_q > 0:
+            coding_scores_sum = Decimal("0.00")
+            for acq in assigned_coding:
+                submission = assessment.coding_submissions.filter(question=acq.question).first()
+                if submission and submission.total_test_cases > 0:
+                    prob_pct = Decimal(str(submission.score)) if submission.score else Decimal(str(round(submission.passed_test_cases / submission.total_test_cases * 100.0, 2)))
+                    coding_scores_sum += prob_pct
+            coding_score = round(coding_scores_sum / Decimal(total_coding_q), 2)
+            if total_questions > 0:
+                overall_score = round((aptitude_percentage + coding_score) / Decimal("2.0"), 2)
+            else:
+                overall_score = coding_score
+
+
+    sub_reason = assessment.submission_reason
+    if not sub_reason:
+        if assessment.auto_submitted_for_malpractice:
+            sub_reason = "Assessment automatically submitted after 3 proctoring violations (fullscreen exit / unauthorized activity)."
+        else:
+            sub_reason = "Standard candidate completion"
 
     result, _ = Result.objects.update_or_create(
         assessment=assessment,
@@ -133,14 +162,25 @@ def grade_and_complete_assessment(assessment: Assessment, raw_answers: dict[int 
             "technical_total": technical_total,
             "total_correct": total_correct,
             "total_questions": total_questions,
-            "percentage": percentage,
+            "percentage": overall_score,
+            "has_coding": has_coding,
+            "aptitude_score": aptitude_percentage,
+            "coding_score": coding_score,
+            "overall_score": overall_score,
+            "violation_count": assessment.violation_count,
+            "auto_submitted_for_malpractice": assessment.auto_submitted_for_malpractice,
+            "submission_reason": sub_reason,
             "completed_at": timezone.now(),
         },
     )
 
     assessment.status = Assessment.Status.COMPLETED
     assessment.candidate_status = Assessment.CandidateStatus.ATTENDED
-    assessment.save(update_fields=["status", "candidate_status", "updated_at"])
+    assessment.submission_reason = sub_reason
+    assessment.save(update_fields=["status", "candidate_status", "submission_reason", "updated_at"])
+
+
+
 
     # Synchronize to Firestore
     try:
@@ -159,4 +199,3 @@ def grade_and_complete_assessment(assessment: Assessment, raw_answers: dict[int 
         logger.warning("Firestore synchronization skipped during assessment completion: %s", e)
 
     return result
-

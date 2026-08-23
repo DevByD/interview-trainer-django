@@ -1,0 +1,1577 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Coding Assessment — {{ assessment.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/assessment.css' %}">
+<style>
+  /* Full Viewport & Zero-Margin Workspace Overrides */
+  html, body {
+    height: 100vh !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #090d16 !important;
+  }
+  .navbar, .footer, .messages-container {
+    display: none !important;
+  }
+  .main-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+  .main-content > .container,
+  .main-content > .container-fluid {
+    max-width: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .coding-workspace {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    background: #0f172a;
+    color: #f8fafc;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: none;
+  }
+
+  /* Header Bar */
+  .coding-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1.25rem;
+    height: 52px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .coding-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .coding-badge {
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .coding-assessment-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+  }
+
+  .problem-tabs-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .problem-nav-pill {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 0.25rem 0.7rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .problem-nav-pill:hover:not(.active) {
+    background: #334155;
+    color: #f1f5f9;
+  }
+  .problem-nav-pill.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+  .problem-nav-pill.problem-completed::after {
+    content: " ✓";
+    color: #4ade80;
+    font-weight: bold;
+  }
+
+  .coding-nav-cluster {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .question-indicator-badge {
+    background: #334155;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+  }
+
+  .coding-timer-box {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #0f172a;
+    border: 1px solid #334155;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+
+
+  .coding-timer-box.warning {
+    border-color: #ef4444;
+    color: #ef4444;
+    animation: timerPulse 1s infinite alternate;
+  }
+
+  @keyframes timerPulse {
+    from { background: #0f172a; }
+    to { background: rgba(239, 68, 68, 0.2); }
+  }
+
+  /* Main Dual-Pane Body */
+  .coding-split-view {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    flex: 1;
+    overflow: hidden;
+    background: #0f172a;
+  }
+
+  @media (max-width: 992px) {
+    .coding-workspace {
+      height: auto;
+    }
+    .coding-split-view {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+  }
+
+  /* Left Pane: Problem Description */
+  .problem-pane {
+    background: #0f172a;
+    border-right: 1px solid #334155;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .problem-header {
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 1rem;
+  }
+
+  .problem-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .problem-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  .difficulty-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+  }
+  .diff-easy { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+  .diff-medium { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); }
+  .diff-hard { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+  .problem-section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 1rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .problem-statement-text {
+    color: #cbd5e1;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    white-space: pre-line;
+  }
+
+  .format-box {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+  }
+
+  .example-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .example-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #38bdf8;
+    margin-bottom: 0.25rem;
+  }
+
+  .code-block {
+    background: #090d16;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: #a5f3fc;
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+  }
+
+  /* Right Pane: Code Editor & Execution Console */
+  .editor-pane {
+    display: flex;
+    flex-direction: column;
+    background: #0b1120;
+    overflow: hidden;
+  }
+
+  /* Editor Toolbar */
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+  }
+
+  .language-selector-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .language-label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+
+  .language-select {
+    background: #0f172a;
+    color: #f1f5f9;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+  }
+  .language-select:focus {
+    border-color: #38bdf8;
+  }
+
+  .save-status-indicator {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .save-status-indicator .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  /* Monaco Editor Area */
+  .monaco-container {
+    flex: 1;
+    min-height: 350px;
+    width: 100%;
+  }
+
+  /* Editor Action Buttons Bar */
+  .editor-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    border-bottom: 1px solid #334155;
+  }
+
+  .button-group-left, .button-group-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .btn-coding {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .btn-coding:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+  .btn-coding:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-run {
+    background: #334155;
+    color: #f1f5f9;
+    border: 1px solid #475569;
+  }
+  .btn-run:hover {
+    background: #475569;
+  }
+
+  .btn-submit-code {
+    background: #16a34a;
+    color: #ffffff;
+  }
+  .btn-submit-code:hover {
+    background: #15803d;
+  }
+
+  .btn-nav-question {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 0.45rem 0.85rem;
+  }
+  .btn-nav-question:hover:not(:disabled) {
+    background: #334155;
+    color: #ffffff;
+  }
+  .btn-nav-question:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-finish-test {
+    background: #2563eb;
+    color: #ffffff;
+  }
+  .btn-finish-test:hover {
+    background: #1d4ed8;
+  }
+
+  /* Test Case Results Console */
+  .console-panel {
+    background: #090d16;
+    height: 240px;
+    overflow-y: auto;
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+  }
+
+  .console-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+
+  .console-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .test-case-summary-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+  }
+  .badge-pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+  .badge-fail { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+  .badge-neutral { background: #334155; color: #94a3b8; }
+
+  /* Test Case Tabs */
+  .tc-tabs-bar {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.4rem;
+  }
+
+  .tc-tab-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    padding: 0.25rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+  }
+  .tc-tab-btn:hover:not(.active) {
+    background: #273549;
+    color: #f1f5f9;
+  }
+  .tc-tab-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+  .tc-tab-btn.tab-passed::after {
+    content: " ✓";
+    color: #4ade80;
+  }
+  .tc-tab-btn.tab-failed::after {
+    content: " ✕";
+    color: #f87171;
+  }
+
+  .tc-detail-card {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .tc-detail-card.active {
+    display: flex;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+
+  .tc-io-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .tc-io-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .tc-io-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+
+  .tc-io-content {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    min-height: 32px;
+  }
+
+  .stdout-box {
+    background: #030712;
+    border: 1px solid #1f2937;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #93c5fd;
+    white-space: pre-wrap;
+  }
+
+  .stderr-box {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #fca5a5;
+    white-space: pre-wrap;
+  }
+
+  /* Modal */
+  .coding-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .coding-modal-overlay.active {
+    display: flex;
+  }
+  .coding-modal-box {
+    background: #1e293b;
+    border: 1px solid #475569;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    padding: 1.5rem 1.75rem;
+    color: #f8fafc;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding: 0; margin: 0; width: 100vw; height: 100vh; overflow: hidden;">
+  <div class="coding-workspace">
+    <!-- Top Header Bar -->
+    <header class="coding-header">
+      <div class="coding-brand">
+        <span class="coding-badge">CODING ASSESSMENT</span>
+        <span class="coding-assessment-title" title="{{ assessment.title }}">{{ assessment.title }}</span>
+      </div>
+
+      <!-- Problem Selector Pills -->
+      <div class="problem-tabs-selector" id="problemTabsSelector">
+        {% for p in problems_data %}
+          <button type="button" class="problem-nav-pill {% if forloop.first %}active{% endif %} {% if p.is_submitted %}problem-completed{% endif %}" data-problem-idx="{{ forloop.counter0 }}" id="problemPill-{{ forloop.counter0 }}">
+            Problem {{ forloop.counter }}
+          </button>
+        {% endfor %}
+      </div>
+
+      <div class="coding-nav-cluster">
+        <!-- Security & Violation Indicator -->
+        <div class="security-indicator-box" id="securityIndicatorBox" style="display: flex; align-items: center; gap: 0.4rem; background: #0f172a; border: 1px solid #334155; padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #10b981;">
+          <span id="securityShieldIcon">🛡️</span>
+          <span>Assessment Secure</span>
+          <span style="color: #64748b;">&bull;</span>
+          <span id="headerWarningBadge" style="color: #94a3b8;">Warnings: <strong id="headerWarningCount">{{ assessment.violation_count|default:0 }}</strong>/{{ assessment.max_violations|default:3 }}</span>
+        </div>
+
+        <!-- Question Indicator (e.g. Question 1 / 2) -->
+        <span class="question-indicator-badge" id="questionIndicator">
+          Question <strong id="currentQNum">1</strong> / <strong>{{ total_coding_questions }}</strong>
+        </span>
+
+        <!-- Server-Authoritative Timer -->
+        <div class="coding-timer-box" id="timerBox" title="Server-Authoritative Countdown">
+          <span>⏱️</span>
+          <span id="timeRemainingDisplay">--:--</span>
+        </div>
+
+        <button type="button" class="btn-coding btn-finish-test" id="btnOpenFinishModal">
+          🏁 Finish &amp; Submit
+        </button>
+      </div>
+
+    </header>
+
+    <!-- Split View: Problem Description (Left) + Editor & Console (Right) -->
+    <main class="coding-split-view">
+      <!-- Left Pane: Problem Description -->
+      <section class="problem-pane" id="problemPane">
+        <div class="problem-header">
+
+          <div class="problem-title-row">
+            <h2 class="problem-title" id="problemTitle">Loading problem...</h2>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <span class="difficulty-badge" id="problemCategory" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4);">ARRAYS</span>
+              <span class="difficulty-badge diff-medium" id="problemDifficulty">MEDIUM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Problem Statement -->
+        <div>
+          <div class="problem-section-title">Problem Statement</div>
+          <div class="problem-statement-text" id="problemDescription"></div>
+        </div>
+
+        <!-- Input / Output Format -->
+        <div>
+          <div class="problem-section-title">Input Format</div>
+          <div class="format-box" id="problemInputFormat"></div>
+        </div>
+
+        <div>
+          <div class="problem-section-title">Output Format</div>
+          <div class="format-box" id="problemOutputFormat"></div>
+        </div>
+
+        <!-- Constraints -->
+        <div id="constraintsSection">
+          <div class="problem-section-title">Constraints</div>
+          <div class="format-box" id="problemConstraints" style="font-family: monospace; font-size: 0.85rem;"></div>
+        </div>
+
+        <!-- Examples -->
+        <div>
+          <div class="problem-section-title">Sample Examples</div>
+          <div class="example-card">
+            <div class="example-label">Sample Input</div>
+            <div class="code-block" id="problemSampleInput"></div>
+            <div class="example-label">Sample Output</div>
+            <div class="code-block" id="problemSampleOutput"></div>
+            <div id="explanationContainer" style="display: none;">
+              <div class="example-label">Explanation</div>
+              <div style="font-size: 0.85rem; color: #cbd5e1;" id="problemExplanation"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Pane: Editor & Execution Console -->
+      <section class="editor-pane">
+        <!-- Editor Toolbar -->
+        <div class="editor-toolbar">
+          <div class="language-selector-group">
+            <label class="language-label" for="languageSelect">Language:</label>
+            <select id="languageSelect" class="language-select">
+              <option value="python">Python 3</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="javascript">JavaScript</option>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button type="button" class="btn-coding btn-nav-question" id="btnResetCode" title="Reset code to blank template" style="padding: 0.25rem 0.6rem; font-size: 0.8rem;">
+              ↺ Reset
+            </button>
+            <div class="save-status-indicator">
+              <span class="dot" id="saveDot"></span>
+              <span id="saveStatusText">Last saved: Ready</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submission Feedback Banner -->
+        <div id="submissionAlertBanner" style="display: none; padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 600; text-align: center;"></div>
+
+        <!-- Monaco Editor Container -->
+        <div id="monacoEditorContainer" class="monaco-container"></div>
+
+        <!-- Action Buttons Bar -->
+        <div class="editor-actions-bar">
+          <div class="button-group-left">
+            <button type="button" class="btn-coding btn-nav-question" id="btnPrevProblem" disabled>
+              &larr; Prev Problem
+            </button>
+            <button type="button" class="btn-coding btn-nav-question" id="btnNextProblem">
+              Next Problem &rarr;
+            </button>
+          </div>
+
+          <div class="button-group-right">
+            <button type="button" class="btn-coding btn-run" id="btnRunCode">
+              ▶ Run Code
+            </button>
+            <button type="button" class="btn-coding btn-submit-code" id="btnSubmitProblem">
+              🚀 Submit Code
+            </button>
+          </div>
+        </div>
+
+
+        <!-- Test Case Results Console -->
+        <div class="console-panel" id="consolePanel">
+          <div class="console-header">
+            <span class="console-title">Test Case Results</span>
+            <span class="test-case-summary-badge badge-neutral" id="summaryBadge">Passed: 0 / 0</span>
+          </div>
+
+          <!-- Tab Bar for Test Cases -->
+          <div class="tc-tabs-bar" id="tcTabsBar">
+            <button class="tc-tab-btn active" data-tc="1">Test Case 1</button>
+          </div>
+
+          <!-- Dynamic Test Case Details Content -->
+          <div id="tcDetailsContainer">
+            <div class="tc-detail-card active" id="tcCard-1">
+              <div class="tc-io-grid">
+                <div class="tc-io-item">
+                  <span class="tc-io-title">Input</span>
+                  <div class="tc-io-content" id="tcInput-1">Click 'Run Code' or 'Submit Code' to evaluate.</div>
+                </div>
+                <div class="tc-io-item">
+                  <span class="tc-io-title">Expected Output</span>
+                  <div class="tc-io-content" id="tcExpected-1">-</div>
+                </div>
+              </div>
+              <div class="tc-io-item" style="margin-top: 0.5rem;">
+                <span class="tc-io-title">Actual Output</span>
+                <div class="tc-io-content" id="tcActual-1">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- Final Submit Confirmation Modal -->
+<div class="coding-modal-overlay" id="finalSubmitModal">
+  <div class="coding-modal-box">
+    <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; color: #f8fafc;">
+      🏁 Finish &amp; Submit Assessment
+    </h3>
+    <p style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 1.25rem;">
+      Are you sure you want to finish your assessment? All your aptitude answers and coding submissions will be graded immediately.
+    </p>
+
+    <div style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.85rem;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+        <span style="color: #94a3b8;">Coding Problems:</span>
+        <strong>{{ total_coding_questions }} Problems</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #94a3b8;">Current Status:</span>
+        <span style="color: #4ade80; font-weight: 600;">Code Auto-Saved</span>
+      </div>
+    </div>
+
+    <p style="color: #f87171; font-size: 0.8rem; font-weight: 600; margin-bottom: 1.25rem;">
+      ⚠️ Warning: You cannot return to the test after submitting.
+    </p>
+
+    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+      <button type="button" class="btn-coding btn-run" id="btnCancelFinish">Cancel &amp; Continue</button>
+      <form action="{% url 'assessments:test_submit' assessment.token %}" method="post" id="finalSubmitForm" style="display: inline;">
+        {% csrf_token %}
+        <input type="hidden" name="final_submit" value="1">
+        <button type="submit" class="btn-coding btn-submit-code" id="btnConfirmFinish">
+          Yes, Submit Assessment
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Proctoring Fullscreen & Violation Modal -->
+<div class="coding-modal-overlay" id="proctoringModal" style="z-index: 9999; backdrop-filter: blur(8px);">
+  <div class="coding-modal-box" style="border: 2px solid #ef4444; text-align: center; max-width: 480px;">
+    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
+    <h3 style="font-size: 1.35rem; font-weight: 800; color: #f87171; margin-bottom: 0.5rem;" id="proctoringModalTitle">
+      Proctoring Violation Warning
+    </h3>
+    <p style="font-size: 0.95rem; color: #e2e8f0; line-height: 1.5; margin-bottom: 1rem;" id="proctoringModalDesc">
+      Fullscreen exited. Please return to fullscreen to continue the assessment.
+    </p>
+
+    <div style="background: #0f172a; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.25rem;">
+      <div style="font-size: 1.1rem; font-weight: 800; color: #facc15;" id="proctoringWarningCountText">
+        Warning <span id="proctoringCountNum">1</span> of 3
+      </div>
+      <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+        Notice: A 3rd violation will result in immediate automatic submission.
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: center; gap: 0.75rem;" id="proctoringModalActions">
+      <button type="button" class="btn-coding btn-finish-test" id="btnProctoringReenterFullscreen" style="padding: 0.6rem 1.5rem; font-size: 0.95rem; font-weight: 700; width: 100%;">
+        ⛶ Return to Fullscreen
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<!-- Load Monaco Editor via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+
+<script>
+(function() {
+  const problemsData = {{ problems_data_json|safe }};
+  const totalProblems = problemsData.length;
+  let currentProblemIndex = 0;
+  let monacoEditor = null;
+  let saveDebounceTimer = null;
+
+  const csrfToken = '{{ csrf_token }}';
+  const saveUrl = "{% url 'assessments:test_save_code' assessment.token %}";
+  const runUrl = "{% url 'assessments:test_run_code' assessment.token %}";
+  const submitProblemUrl = "{% url 'assessments:test_submit_code_problem' assessment.token %}";
+  const finalSubmitForm = document.getElementById('finalSubmitForm');
+
+  // 1. Monaco Editor Initialization
+  require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+  
+  require(['vs/editor/editor.main'], function() {
+    monaco.editor.defineTheme('darkCodingTheme', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#0b1120',
+        'editor.lineHighlightBackground': '#1e293b55',
+        'editorGutter.background': '#0b1120',
+      }
+    });
+
+    const initialProb = problemsData[currentProblemIndex];
+    const initialLang = mapLanguageToMonaco(initialProb.current_language);
+
+    monacoEditor = monaco.editor.create(document.getElementById('monacoEditorContainer'), {
+      value: initialProb.saved_code || "",
+      language: initialLang,
+      theme: 'darkCodingTheme',
+      automaticLayout: true,
+      fontSize: 14,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      tabSize: 4,
+      insertSpaces: true,
+    });
+
+    // Debounced Auto-Save on Keystroke
+    monacoEditor.onDidChangeModelContent(function() {
+      clearTimeout(saveDebounceTimer);
+      const dot = document.getElementById('saveDot');
+      dot.style.background = '#eab308';
+      document.getElementById('saveStatusText').textContent = "Saving...";
+      saveDebounceTimer = setTimeout(triggerAutoSave, 1200);
+    });
+
+    renderProblemUI(currentProblemIndex);
+  });
+
+  function mapLanguageToMonaco(lang) {
+    const l = (lang || '').toLowerCase();
+    if (l === 'python' || l === 'py') return 'python';
+    if (l === 'java') return 'java';
+    if (l === 'cpp' || l === 'c++') return 'cpp';
+    if (l === 'javascript' || l === 'js') return 'javascript';
+    return 'python';
+  }
+
+  // 2. Render Problem UI Elements
+  function renderProblemUI(idx) {
+    const prob = problemsData[idx];
+    document.getElementById('currentQNum').textContent = idx + 1;
+    document.getElementById('problemTitle').textContent = `${idx + 1}. ${prob.title}`;
+    
+    const catBadge = document.getElementById('problemCategory');
+    if (catBadge) {
+      catBadge.textContent = (prob.category || 'DSA').toUpperCase();
+    }
+
+    const diffBadge = document.getElementById('problemDifficulty');
+    diffBadge.textContent = prob.difficulty;
+    diffBadge.className = 'difficulty-badge';
+    if (prob.difficulty === 'Easy') diffBadge.classList.add('diff-easy');
+    else if (prob.difficulty === 'Hard') diffBadge.classList.add('diff-hard');
+    else diffBadge.classList.add('diff-medium');
+
+    document.getElementById('problemDescription').textContent = prob.description;
+    document.getElementById('problemInputFormat').textContent = prob.input_format;
+    document.getElementById('problemOutputFormat').textContent = prob.output_format;
+    
+    if (prob.constraints) {
+      document.getElementById('constraintsSection').style.display = 'block';
+      document.getElementById('problemConstraints').textContent = prob.constraints;
+    } else {
+      document.getElementById('constraintsSection').style.display = 'none';
+    }
+
+    document.getElementById('problemSampleInput').textContent = prob.sample_input;
+    document.getElementById('problemSampleOutput').textContent = prob.sample_output;
+
+    if (prob.explanation) {
+      document.getElementById('explanationContainer').style.display = 'block';
+      document.getElementById('problemExplanation').textContent = prob.explanation;
+    } else {
+      document.getElementById('explanationContainer').style.display = 'none';
+    }
+
+    // Hide previous submission banner on switch
+    const banner = document.getElementById('submissionAlertBanner');
+    if (banner) banner.style.display = 'none';
+
+    // Set Language Selector
+    const langSelect = document.getElementById('languageSelect');
+    langSelect.value = prob.current_language || 'python';
+
+    // Set Editor Code (blank / scaffold ONLY, no solutions)
+    if (monacoEditor) {
+      const targetLang = mapLanguageToMonaco(prob.current_language || 'python');
+      const monacoModel = monacoEditor.getModel();
+      monaco.editor.setModelLanguage(monacoModel, targetLang);
+      const defaultScaffold = (prob.starter_code && prob.starter_code[prob.current_language]) ? prob.starter_code[prob.current_language] : "";
+      monacoEditor.setValue(prob.saved_code !== undefined && prob.saved_code !== null ? prob.saved_code : defaultScaffold);
+    }
+
+    // Update Problem Pills in Header
+    document.querySelectorAll('.problem-nav-pill').forEach((pill, pIdx) => {
+      if (pIdx === idx) {
+        pill.classList.add('active');
+      } else {
+        pill.classList.remove('active');
+      }
+      if (problemsData[pIdx] && problemsData[pIdx].is_submitted) {
+        pill.classList.add('problem-completed');
+      } else {
+        pill.classList.remove('problem-completed');
+      }
+    });
+
+    // Navigation buttons state
+    document.getElementById('btnPrevProblem').disabled = (idx === 0);
+    document.getElementById('btnNextProblem').disabled = (idx === totalProblems - 1);
+
+    // Save timestamp
+    if (prob.last_saved_at) {
+      document.getElementById('saveStatusText').textContent = `Last saved: ${prob.last_saved_at}`;
+      document.getElementById('saveDot').style.background = '#22c55e';
+    } else {
+      document.getElementById('saveStatusText').textContent = `Last saved: Ready`;
+      document.getElementById('saveDot').style.background = '#22c55e';
+    }
+
+    // Update Console summary
+    const summaryBadge = document.getElementById('summaryBadge');
+    if (prob.passed_test_cases > 0 || prob.score > 0) {
+      summaryBadge.textContent = `Passed: ${prob.passed_test_cases} / ${prob.total_test_cases}`;
+      summaryBadge.className = 'test-case-summary-badge badge-pass';
+    } else {
+      summaryBadge.textContent = `Passed: 0 / ${prob.total_test_cases}`;
+      summaryBadge.className = 'test-case-summary-badge badge-neutral';
+    }
+
+    // Render default sample test case tabs
+    renderTestCaseTabs(prob.sample_test_cases);
+  }
+
+
+  function renderTestCaseTabs(testCases) {
+    const tabsBar = document.getElementById('tcTabsBar');
+    const detailsContainer = document.getElementById('tcDetailsContainer');
+    tabsBar.innerHTML = '';
+    detailsContainer.innerHTML = '';
+
+    if (!testCases || testCases.length === 0) {
+      tabsBar.innerHTML = '<button class="tc-tab-btn active">Test Case 1</button>';
+      detailsContainer.innerHTML = '<div class="tc-detail-card active"><p style="color: #64748b;">No test cases available.</p></div>';
+      return;
+    }
+
+    testCases.forEach((tc, i) => {
+      const tab = document.createElement('button');
+      tab.className = `tc-tab-btn ${i === 0 ? 'active' : ''}`;
+      tab.textContent = `Test Case ${tc.order || i + 1}`;
+      tab.setAttribute('data-tc', i + 1);
+      tab.addEventListener('click', () => switchTestCaseTab(i + 1));
+      tabsBar.appendChild(tab);
+
+      const card = document.createElement('div');
+      card.className = `tc-detail-card ${i === 0 ? 'active' : ''}`;
+      card.id = `tcCard-${i + 1}`;
+      card.innerHTML = `
+        <div class="tc-io-grid">
+          <div class="tc-io-item">
+            <span class="tc-io-title">Input</span>
+            <div class="tc-io-content">${escapeHtml(tc.input_data || '')}</div>
+          </div>
+          <div class="tc-io-item">
+            <span class="tc-io-title">Expected Output</span>
+            <div class="tc-io-content">${escapeHtml(tc.expected_output || '')}</div>
+          </div>
+        </div>
+        <div class="tc-io-item" style="margin-top: 0.5rem;">
+          <span class="tc-io-title">Actual Output</span>
+          <div class="tc-io-content" id="tcActual-${i + 1}">-</div>
+        </div>
+      `;
+      detailsContainer.appendChild(card);
+    });
+  }
+
+  function switchTestCaseTab(num) {
+    document.querySelectorAll('.tc-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tc-detail-card').forEach(c => c.classList.remove('active'));
+
+    const activeBtn = document.querySelector(`.tc-tab-btn[data-tc="${num}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    const activeCard = document.getElementById(`tcCard-${num}`);
+    if (activeCard) activeCard.classList.add('active');
+  }
+
+  function escapeHtml(str) {
+    return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // 3. Auto-Save Logic
+  function triggerAutoSave() {
+    if (!monacoEditor) return;
+    const prob = problemsData[currentProblemIndex];
+    const currentCode = monacoEditor.getValue();
+    const currentLang = document.getElementById('languageSelect').value;
+
+    prob.saved_code = currentCode;
+    prob.current_language = currentLang;
+
+    fetch(saveUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        question_id: prob.id,
+        language: currentLang,
+        source_code: currentCode,
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        prob.last_saved_at = data.last_saved;
+        document.getElementById('saveStatusText').textContent = `Last saved: ${data.last_saved}`;
+        document.getElementById('saveDot').style.background = '#22c55e';
+      }
+    })
+    .catch(err => {
+      console.warn('Auto-save notice:', err);
+    });
+  }
+
+  // 4. Language Selection Switching
+  document.getElementById('languageSelect').addEventListener('change', function(e) {
+    const newLang = e.target.value;
+    const prob = problemsData[currentProblemIndex];
+    
+    // If editor has default/blank code, switch to boilerplate scaffold for that language
+    if (!prob.saved_code || prob.saved_code.trim() === '' || prob.saved_code === prob.starter_code[prob.current_language]) {
+      const template = (prob.starter_code && prob.starter_code[newLang]) ? prob.starter_code[newLang] : '';
+      monacoEditor.setValue(template);
+      prob.saved_code = template;
+    }
+    prob.current_language = newLang;
+    const monacoLang = mapLanguageToMonaco(newLang);
+    monaco.editor.setModelLanguage(monacoEditor.getModel(), monacoLang);
+
+    triggerAutoSave();
+  });
+
+  // Reset Code button
+  const btnReset = document.getElementById('btnResetCode');
+  if (btnReset) {
+    btnReset.addEventListener('click', function() {
+      if (confirm('Reset your code for this problem to a blank template?')) {
+        const prob = problemsData[currentProblemIndex];
+        const currentLang = document.getElementById('languageSelect').value;
+        const scaffold = (prob.starter_code && prob.starter_code[currentLang]) ? prob.starter_code[currentLang] : '';
+        monacoEditor.setValue(scaffold);
+        prob.saved_code = scaffold;
+        triggerAutoSave();
+      }
+    });
+  }
+
+  // 5. Problem Navigation & Pill Tabs
+  document.querySelectorAll('.problem-nav-pill').forEach(pill => {
+    pill.addEventListener('click', function() {
+      const targetIdx = parseInt(this.getAttribute('data-problem-idx'), 10);
+      if (!isNaN(targetIdx) && targetIdx !== currentProblemIndex) {
+        triggerAutoSave();
+        currentProblemIndex = targetIdx;
+        renderProblemUI(currentProblemIndex);
+      }
+    });
+  });
+
+  document.getElementById('btnPrevProblem').addEventListener('click', () => {
+    if (currentProblemIndex > 0) {
+      triggerAutoSave();
+      currentProblemIndex--;
+      renderProblemUI(currentProblemIndex);
+    }
+  });
+
+  document.getElementById('btnNextProblem').addEventListener('click', () => {
+    if (currentProblemIndex < totalProblems - 1) {
+      triggerAutoSave();
+      currentProblemIndex++;
+      renderProblemUI(currentProblemIndex);
+    }
+  });
+
+
+  // 6. Run Code (Sample Test Cases)
+  document.getElementById('btnRunCode').addEventListener('click', () => {
+    const prob = problemsData[currentProblemIndex];
+    const code = monacoEditor.getValue();
+    const lang = document.getElementById('languageSelect').value;
+    const btn = document.getElementById('btnRunCode');
+
+    btn.disabled = true;
+    btn.textContent = "⏳ Running...";
+
+    fetch(runUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        question_id: prob.id,
+        language: lang,
+        source_code: code,
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = "▶ Run Code";
+      handleExecutionResults(data, prob);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = "▶ Run Code";
+      alert("Error executing code: " + err);
+    });
+  });
+
+  // 7. Submit Problem (All Test Cases)
+  document.getElementById('btnSubmitProblem').addEventListener('click', () => {
+    const prob = problemsData[currentProblemIndex];
+    const code = monacoEditor.getValue();
+    const lang = document.getElementById('languageSelect').value;
+    const btn = document.getElementById('btnSubmitProblem');
+    const banner = document.getElementById('submissionAlertBanner');
+
+    btn.disabled = true;
+    btn.textContent = "⏳ Evaluating...";
+
+    fetch(submitProblemUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        question_id: prob.id,
+        language: lang,
+        source_code: code,
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = "🚀 Submit Code";
+      prob.passed_test_cases = data.passed_test_cases;
+      prob.total_test_cases = data.total_test_cases;
+      prob.score = data.problem_score || data.score_percentage;
+      prob.is_submitted = data.is_submitted || data.all_passed;
+
+      // Show Submission Status Banner
+      if (banner) {
+        banner.style.display = 'block';
+        const currentPill = document.getElementById(`problemPill-${currentProblemIndex}`);
+        if (data.all_passed) {
+          banner.style.background = 'rgba(34, 197, 94, 0.2)';
+          banner.style.color = '#4ade80';
+          banner.style.border = '1px solid rgba(34, 197, 94, 0.4)';
+          banner.textContent = `✓ ${data.message || 'All test cases passed! Question completed.'}`;
+          if (currentPill) currentPill.classList.add('problem-completed');
+        } else {
+          banner.style.background = 'rgba(239, 68, 68, 0.2)';
+          banner.style.color = '#f87171';
+          banner.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+          banner.textContent = `⚠️ ${data.message || 'Submission failed — please fix your code and try again.'}`;
+          if (currentPill) currentPill.classList.remove('problem-completed');
+        }
+      }
+
+
+      handleExecutionResults(data, prob);
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = "🚀 Submit Code";
+      alert("Error submitting solution: " + err);
+    });
+  });
+
+
+  function handleExecutionResults(data, prob) {
+    const summaryBadge = document.getElementById('summaryBadge');
+    summaryBadge.textContent = `Passed: ${data.passed_test_cases} / ${data.total_test_cases}`;
+    if (data.passed_test_cases === data.total_test_cases && data.total_test_cases > 0) {
+      summaryBadge.className = 'test-case-summary-badge badge-pass';
+    } else {
+      summaryBadge.className = 'test-case-summary-badge badge-fail';
+    }
+
+    if (data.last_saved) {
+      document.getElementById('saveStatusText').textContent = `Last saved: ${data.last_saved}`;
+      document.getElementById('saveDot').style.background = '#22c55e';
+    }
+
+    // Render tab results
+    const tabsBar = document.getElementById('tcTabsBar');
+    const detailsContainer = document.getElementById('tcDetailsContainer');
+    tabsBar.innerHTML = '';
+    detailsContainer.innerHTML = '';
+
+    if (data.has_syntax_error) {
+      tabsBar.innerHTML = '<button class="tc-tab-btn active tab-failed">Syntax Error</button>';
+      detailsContainer.innerHTML = `
+        <div class="tc-detail-card active">
+          <div class="stderr-box">${escapeHtml(data.syntax_error_message || 'Syntax error detected.')}</div>
+        </div>
+      `;
+      return;
+    }
+
+    (data.results || []).forEach((r, idx) => {
+      const tabNum = idx + 1;
+      const isPass = r.passed;
+      const tab = document.createElement('button');
+      tab.className = `tc-tab-btn ${idx === 0 ? 'active' : ''} ${isPass ? 'tab-passed' : 'tab-failed'}`;
+      tab.textContent = r.is_sample ? `Test Case ${tabNum}` : `Hidden Test ${tabNum}`;
+      tab.setAttribute('data-tc', tabNum);
+      tab.addEventListener('click', () => switchTestCaseTab(tabNum));
+      tabsBar.appendChild(tab);
+
+      const card = document.createElement('div');
+      card.className = `tc-detail-card ${idx === 0 ? 'active' : ''}`;
+      card.id = `tcCard-${tabNum}`;
+
+      if (r.is_sample) {
+        card.innerHTML = `
+          <div class="tc-io-grid">
+            <div class="tc-io-item">
+              <span class="tc-io-title">Input</span>
+              <div class="tc-io-content">${escapeHtml(r.input_data || '')}</div>
+            </div>
+            <div class="tc-io-item">
+              <span class="tc-io-title">Expected Output</span>
+              <div class="tc-io-content">${escapeHtml(r.expected_output || '')}</div>
+            </div>
+          </div>
+          <div class="tc-io-item" style="margin-top: 0.5rem;">
+            <span class="tc-io-title">Actual Output (${r.status})</span>
+            <div class="tc-io-content" style="color: ${isPass ? '#4ade80' : '#f87171'}">${escapeHtml(r.actual_output || '-')}</div>
+          </div>
+          ${r.stdout ? `<div class="stdout-box" style="margin-top: 0.5rem;">${escapeHtml(r.stdout)}</div>` : ''}
+        `;
+      } else {
+        card.innerHTML = `
+          <div style="padding: 1rem; background: #0f172a; border-radius: 6px; border: 1px solid #1e293b;">
+            <div style="font-weight: 700; color: ${isPass ? '#4ade80' : '#f87171'}; font-size: 1rem; margin-bottom: 0.5rem;">
+              ${isPass ? '✓ Hidden Test Case Passed' : '✕ Hidden Test Case Failed'}
+            </div>
+            <p style="color: #94a3b8; font-size: 0.85rem;">
+              Execution Time: ${r.execution_time_ms}ms &bull; Hidden test case inputs and outputs are protected for scoring integrity.
+            </p>
+          </div>
+        `;
+      }
+      detailsContainer.appendChild(card);
+    });
+  }
+
+  // 8. Server-Authoritative Countdown Timer
+  let remainingSeconds = {{ remaining_seconds }};
+  const timeDisplay = document.getElementById('timeRemainingDisplay');
+  const timerBox = document.getElementById('timerBox');
+
+  function renderTimer() {
+    if (remainingSeconds <= 0) {
+      timeDisplay.textContent = "00:00";
+      timerBox.classList.add('warning');
+      finalSubmitForm.submit();
+      return;
+    }
+
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    if (remainingSeconds <= 120) {
+      timerBox.classList.add('warning');
+    }
+    remainingSeconds--;
+  }
+
+  renderTimer();
+  const timerInterval = setInterval(renderTimer, 1000);
+
+  // 9. Finish Assessment Modal
+  const finishModal = document.getElementById('finalSubmitModal');
+  document.getElementById('btnOpenFinishModal').addEventListener('click', () => {
+    triggerAutoSave();
+    finishModal.classList.add('active');
+  });
+
+  document.getElementById('btnCancelFinish').addEventListener('click', () => {
+    finishModal.classList.remove('active');
+  });
+
+  document.getElementById('btnConfirmFinish').addEventListener('click', () => {
+    clearInterval(timerInterval);
+  });
+
+  // 10. Proctoring, Fullscreen & Anti-Malpractice Controller
+  const violationUrl = "{% url 'assessments:test_violation' assessment.token %}";
+  let violationCount = {{ assessment.violation_count|default:0 }};
+  const maxViolations = {{ assessment.max_violations|default:3 }};
+  let isAutoSubmitting = false;
+  let isProctoringInitialized = false;
+  let lastViolationReportTime = 0;
+
+  const proctoringModal = document.getElementById('proctoringModal');
+  const proctoringTitle = document.getElementById('proctoringModalTitle');
+  const proctoringDesc = document.getElementById('proctoringModalDesc');
+  const proctoringCountNum = document.getElementById('proctoringCountNum');
+  const btnReenter = document.getElementById('btnProctoringReenterFullscreen');
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+  }
+
+  function requestFullscreenSafe() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      return elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) {
+      return elem.webkitRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      return elem.mozRequestFullScreen();
+    } else if (elem.msRequestFullscreen) {
+      return elem.msRequestFullscreen();
+    }
+    return Promise.reject("Fullscreen API not supported");
+  }
+
+  function reportViolation(violationType) {
+    if (isAutoSubmitting) return;
+
+    const now = Date.now();
+    if (now - lastViolationReportTime < 2500) {
+      // Debounce local spam while modal is open or restoring
+      return;
+    }
+    lastViolationReportTime = now;
+
+    fetch(violationUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      body: JSON.stringify({
+        violation_type: violationType,
+      }),
+    })
+    .then(res => res.json())
+    .then(data => {
+      violationCount = data.violation_count || 0;
+      updateSecurityHeader(violationCount);
+
+      if (data.status === 'terminated' || data.auto_submitted) {
+        isAutoSubmitting = true;
+        proctoringTitle.textContent = "Assessment Terminated";
+        proctoringDesc.textContent = "Maximum proctoring violations reached (3 of 3). Your assessment has been automatically finalized and submitted.";
+        proctoringCountNum.textContent = "3";
+        proctoringModal.classList.add('active');
+        const actionsBox = document.getElementById('proctoringModalActions');
+        if (actionsBox) actionsBox.style.display = 'none';
+
+        setTimeout(() => {
+          if (data.redirect_url) {
+            window.location.href = data.redirect_url;
+          } else {
+            document.getElementById('finalSubmitForm').submit();
+          }
+        }, 2000);
+      } else {
+        proctoringCountNum.textContent = String(violationCount);
+        proctoringDesc.textContent = "⚠️ Fullscreen exited. Please return to fullscreen to continue the assessment.";
+        proctoringModal.classList.add('active');
+      }
+    })
+    .catch(err => {
+      console.warn("Proctoring signal notice:", err);
+    });
+  }
+
+  function updateSecurityHeader(count) {
+    const countEl = document.getElementById('headerWarningCount');
+    const badgeEl = document.getElementById('headerWarningBadge');
+    if (countEl) countEl.textContent = String(count);
+    if (badgeEl) {
+      if (count === 1) {
+        badgeEl.style.color = '#facc15';
+      } else if (count === 2) {
+        badgeEl.style.color = '#fb923c';
+      } else if (count >= 3) {
+        badgeEl.style.color = '#f87171';
+      }
+    }
+  }
+
+
+  // Handle Fullscreen Exit
+  function handleFullscreenChange() {
+    if (!isFullscreen()) {
+      if (isProctoringInitialized && !isAutoSubmitting) {
+        reportViolation("FULLSCREEN_EXIT");
+      }
+    } else {
+      // Returned to fullscreen
+      if (!isAutoSubmitting) {
+        proctoringModal.classList.remove('active');
+      }
+      isProctoringInitialized = true;
+    }
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+  document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+  document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+  // Tab switch / visibility change detection
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden && isProctoringInitialized && !isAutoSubmitting) {
+      reportViolation("TAB_SWITCH");
+    }
+  });
+
+  // Re-enter Fullscreen Button Click
+  btnReenter.addEventListener('click', function() {
+    requestFullscreenSafe()
+      .then(() => {
+        proctoringModal.classList.remove('active');
+        isProctoringInitialized = true;
+      })
+      .catch(() => {
+        proctoringModal.classList.remove('active');
+        isProctoringInitialized = true;
+      });
+  });
+
+  // Prompt initial fullscreen entry on first interaction if not in fullscreen
+  window.addEventListener('load', function() {
+    setTimeout(() => {
+      if (!isFullscreen()) {
+        proctoringTitle.textContent = "Fullscreen Mode Required";
+        proctoringDesc.textContent = "To maintain assessment integrity, please enter full screen mode.";
+        proctoringCountNum.textContent = String(violationCount);
+        proctoringModal.classList.add('active');
+      } else {
+        isProctoringInitialized = true;
+      }
+    }, 400);
+  });
+
+  // 11. Disable Context Menu (Right-Click) to reduce copy/paste
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  });
+
+  // 12. Suspicious Shortcuts / DevTools Detection
+  document.addEventListener('keydown', function(e) {
+    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+    const isShift = e.shiftKey;
+    const key = e.key ? e.key.toUpperCase() : '';
+
+    // F12 (DevTools)
+    if (e.keyCode === 123 || key === 'F12') {
+      e.preventDefault();
+      e.stopPropagation();
+      reportViolation("DEVTOOLS_SHORTCUT");
+      return false;
+    }
+
+    // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (DevTools Inspect / Console)
+    if (isCtrlOrCmd && isShift && (key === 'I' || key === 'J' || key === 'C')) {
+      e.preventDefault();
+      e.stopPropagation();
+      reportViolation("DEVTOOLS_SHORTCUT");
+      return false;
+    }
+
+    // Ctrl+U (View Page Source)
+    if (isCtrlOrCmd && key === 'U') {
+      e.preventDefault();
+      e.stopPropagation();
+      reportViolation("DEVTOOLS_SHORTCUT");
+      return false;
+    }
+  }, true);
+})();
+</script>
+{% endblock %}
