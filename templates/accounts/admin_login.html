@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Portal Login — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div style="font-size: 1.1rem; font-weight: 800; color: #2563eb; margin-bottom: 0.25rem;">Interview Trainer</div>
+      <h1 class="auth-title" style="margin: 0.25rem 0;">Admin Portal</h1>
+      <p class="auth-subtitle" style="color: #ef4444; font-weight: 600; font-size: 0.85rem; margin-top: 0.35rem;">Authorized administrators only.</p>
+    </div>
+
+    {% if error %}
+      <div class="alert alert-error">
+        <span>{{ error }}</span>
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate id="adminLoginForm">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="username">Username or Email</label>
+        <input type="text" name="username" id="username" class="form-input" value="{{ username }}" placeholder="e.g. admin@platform.com" required autofocus autocomplete="username">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div class="password-input-group">
+          <input type="password" name="password" id="password" class="form-input" placeholder="Enter password" required autocomplete="current-password">
+          <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('password', this)" title="Show/Hide Password">Show</button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 0.75rem; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-color: #0f172a; font-weight: 700;">
+        Admin Login
+      </button>
+    </form>
+
+    <div class="auth-footer" style="border-top: 1px solid #f1f5f9; margin-top: 1.5rem; padding-top: 1rem; font-size: 0.82rem; color: #64748b;">
+      <div>Are you an employer? <a href="{% url 'accounts:employer_login' %}" style="color: #2563eb; font-weight: 600;">Employer Login</a></div>
+      <div style="margin-top: 0.4rem;">Are you a candidate? <a href="{% url 'accounts:candidate_login' %}" style="color: #2563eb; font-weight: 600;">Candidate Login</a></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = 'Hide';
+    } else {
+      input.type = 'password';
+      btn.textContent = 'Show';
+    }
+  }
+</script>
+{% endblock %}

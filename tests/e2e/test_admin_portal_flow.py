@@ -19,15 +19,24 @@ def test_admin_portal_full_flow(live_server, browser_context, test_setup_data):
 
     page: Page = browser_context.new_page()
 
-    # 2. Login as Admin via Employer/Admin Login form
-    page.goto(f"{live_server.url}/employer/login/")
+    # 1. Admin Login footer link exists on landing page and clicks to /admin-portal/login/
+    page.goto(f"{live_server.url}/")
+    footer_admin_link = page.locator('footer a:has-text("Admin Login")').first
+    expect(footer_admin_link).to_be_visible()
+    footer_admin_link.click()
+    page.wait_for_load_state("networkidle")
+    expect(page).to_have_url(f"{live_server.url}/admin-portal/login/")
+    expect(page.locator("h1")).to_contain_text("Admin Portal")
+    expect(page.locator("body")).to_contain_text("Authorized administrators only.")
+
+    # 2. Admin can login via Admin Login portal
     page.fill('input[name="username"]', "admin_e2e@platform.com")
     page.fill('input[name="password"]', "AdminSecurePassword123!")
-    page.click('button[type="submit"]')
+    page.click('button:has-text("Admin Login")')
     page.wait_for_load_state("networkidle")
 
-    # 3. Navigate to Admin Portal Dashboard
-    page.goto(f"{live_server.url}/admin-portal/")
+    # 4. Admin can access Admin Portal
+    expect(page).to_have_url(f"{live_server.url}/admin-portal/")
     expect(page.locator("h1")).to_contain_text("System Overview & Telemetry")
     expect(page.locator(".metric-card")).to_have_count(5)
 
@@ -100,10 +109,37 @@ def test_admin_portal_full_flow(live_server, browser_context, test_setup_data):
     expect(page.locator("h1")).to_contain_text("Admin Activity Audit Log")
     expect(page.locator("body")).to_contain_text("Created MCQ Question")
 
-    # 14. Responsive Layout Test (375px Mobile Viewport)
-    page.set_viewport_size({"width": 375, "height": 667})
+    # 14. Admin Logout & Post-Logout Access Revocation
+    page.click('button:has-text("Logout")')
+    page.wait_for_load_state("networkidle")
+    # Verify redirected to home/login and cannot access portal
     page.goto(f"{live_server.url}/admin-portal/")
-    expect(page.locator("#mobileNavToggle")).to_be_visible()
-    # Click mobile hamburger
-    page.click("#mobileNavToggle")
-    expect(page.locator("#navLinksWrapper")).to_have_class("nav-links-wrapper is-open")
+    expect(page).to_have_url(f"{live_server.url}/admin-portal/login/?next=/admin-portal/")
+
+    # 15. Responsive Layout Testing (320px to 1440px)
+    viewports = [
+        {"width": 320, "height": 568},
+        {"width": 375, "height": 667},
+        {"width": 390, "height": 844},
+        {"width": 400, "height": 800},
+        {"width": 412, "height": 915},
+        {"width": 430, "height": 932},
+        {"width": 768, "height": 1024},
+        {"width": 1024, "height": 768},
+        {"width": 1440, "height": 900},
+    ]
+
+    for vp in viewports:
+        page.set_viewport_size(vp)
+        # Test Public Footer
+        page.goto(f"{live_server.url}/")
+        expect(page.locator('footer a:has-text("Admin Login")').first).to_be_visible()
+
+        # Test Admin Login Page
+        page.goto(f"{live_server.url}/admin-portal/login/")
+        expect(page.locator("h1")).to_contain_text("Admin Portal")
+        expect(page.locator('button:has-text("Admin Login")')).to_be_visible()
+
+        # Verify no horizontal scrollbar
+        has_h_scroll = page.evaluate("() => document.documentElement.scrollWidth > window.innerWidth")
+        assert not has_h_scroll, f"Horizontal scroll detected at viewport {vp['width']}x{vp['height']}"

@@ -153,8 +153,52 @@ def employer_login(request):
     )
 
 
+def admin_login(request):
+    """Dedicated login endpoint for staff and superusers."""
+    if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect("dashboard:admin_dashboard")
+        elif hasattr(request.user, "employer_profile"):
+            return redirect("dashboard:employer_dashboard")
+        elif hasattr(request.user, "candidate_profile"):
+            return redirect("candidates:candidate_dashboard")
+        return redirect("home")
+
+    error = None
+    if request.method == "POST":
+        identifier = request.POST.get("username", "").strip()
+        password = request.POST.get("password", "")
+
+        user_obj = User.objects.filter(
+            Q(username__iexact=identifier) | Q(email__iexact=identifier)
+        ).first()
+
+        if user_obj:
+            user = authenticate(request, username=user_obj.username, password=password)
+        else:
+            user = None
+
+        if user is None:
+            error = "Invalid credentials. Please verify your administrator username/email and password."
+        elif not (user.is_staff or user.is_superuser):
+            error = "Access denied. Only platform administrators and staff can sign in here."
+        else:
+            login(request, user)
+            messages.success(request, f"Welcome back, Administrator {user.first_name or user.username}!")
+            next_url = request.GET.get("next")
+            if next_url:
+                return redirect(next_url)
+            return redirect("dashboard:admin_dashboard")
+
+    return render(
+        request,
+        "accounts/admin_login.html",
+        {"error": error, "username": request.POST.get("username", "")},
+    )
+
+
 def logout_view(request):
-    """Single logout endpoint shared by both roles."""
+    """Single logout endpoint shared by all roles."""
     logout(request)
     messages.info(request, "You have been logged out.")
     return redirect("home")

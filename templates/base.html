@@ -499,6 +499,7 @@
             <li><a href="{% url 'home' %}" style="color: #94a3b8; text-decoration: none;">Contact</a></li>
             <li><a href="{% url 'home' %}#security" style="color: #94a3b8; text-decoration: none;">Privacy</a></li>
             <li><a href="{% url 'home' %}#security" style="color: #94a3b8; text-decoration: none;">Terms</a></li>
+            <li><a href="{% url 'accounts:admin_login' %}" style="color: #94a3b8; text-decoration: none;">Admin Login</a></li>
           </ul>
         </div>
       </div>
@@ -506,12 +507,13 @@
       <!-- Bottom Divider & Copyright -->
       <div style="border-top: 1px solid #1e293b; padding-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: 0.82rem;">
         <div>
-          &copy; 2026 Interview Trainer Platform. All rights reserved.
+          &copy; 2026 Interview Trainer &middot; AI-powered assessment and hiring platform
         </div>
-        <div style="display: flex; gap: 0.75rem 1.25rem; flex-wrap: wrap;">
+        <div style="display: flex; gap: 0.75rem 1.25rem; flex-wrap: wrap; align-items: center;">
           <span style="color: #64748b;">Multi-Tenant Isolated</span>
           <span style="color: #64748b;">Zero Secret Exposure</span>
           <span style="color: #64748b;">Server-Authoritative Timing</span>
+          <a href="{% url 'accounts:admin_login' %}" class="footer-admin-link" style="color: #64748b; text-decoration: none;">Admin Login</a>
         </div>
       </div>
     </div>

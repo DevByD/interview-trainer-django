@@ -13,4 +13,6 @@ urlpatterns = [
     path("employer/register/", views.employer_register, name="employer_register"),
     path("employer/login/", views.employer_login, name="employer_login"),
     path("employer/logout/", views.logout_view, name="employer_logout"),
+    # Admin auth
+    path("admin-portal/login/", views.admin_login, name="admin_login"),
 ]

@@ -46,7 +46,7 @@ def admin_required(view_func):
     @wraps(view_func)
     def _wrapped(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path(), login_url="accounts:employer_login")
+            return redirect_to_login(request.get_full_path(), login_url="accounts:admin_login")
         if not (request.user.is_staff or request.user.is_superuser):
             from django.core.exceptions import PermissionDenied
             raise PermissionDenied("You do not have administrative permission to access this area.")

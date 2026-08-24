@@ -162,9 +162,125 @@ class AdminPortalTestSuite(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_unauthenticated_user_redirected_from_admin_portal(self):
-        """Anonymous user is redirected to login."""
+        """Anonymous user is redirected to admin login."""
         response = self.client.get(reverse("dashboard:admin_dashboard"))
         self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("accounts:admin_login"), response.url)
+
+    def test_admin_portal_footer_link_exists(self):
+        """Admin Login footer link points directly to accounts:admin_login, not admin_dashboard."""
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("accounts:admin_login"))
+        self.assertContains(response, "Admin Login")
+        self.assertNotContains(response, f'href="{reverse("dashboard:admin_dashboard")}"')
+
+    def test_admin_can_login_via_admin_login_page(self):
+        """Admin can log in through the dedicated Admin Login portal."""
+        # 1. GET admin login page
+        res_get = self.client.get(reverse("accounts:admin_login"))
+        self.assertEqual(res_get.status_code, 200)
+        self.assertContains(res_get, "Admin Portal")
+        self.assertContains(res_get, "Authorized administrators only.")
+
+        # 2. POST valid admin credentials
+        res_post = self.client.post(
+            reverse("accounts:admin_login"),
+            {"username": "admin@platform.com", "password": "adminpassword123"},
+        )
+        self.assertEqual(res_post.status_code, 302)
+        self.assertRedirects(res_post, reverse("dashboard:admin_dashboard"))
+
+        # 3. Access Admin Portal
+        res_dash = self.client.get(reverse("dashboard:admin_dashboard"))
+        self.assertEqual(res_dash.status_code, 200)
+        self.assertContains(res_dash, "System Overview & Telemetry")
+
+    def test_non_admin_cannot_login_via_admin_login_page(self):
+        """Non-admin candidates and employers cannot log in through the Admin Login page."""
+        res_cand = self.client.post(
+            reverse("accounts:admin_login"),
+            {"username": "candidate1@mail.com", "password": "candidatepassword123"},
+        )
+        self.assertEqual(res_cand.status_code, 200)
+        self.assertContains(res_cand, "Access denied")
+
+    def test_invalid_admin_login_fails_safely(self):
+        """Invalid passwords or non-existent usernames fail with a clean error message."""
+        # Non-existent user
+        res_nonexistent = self.client.post(
+            reverse("accounts:admin_login"),
+            {"username": "nonexistent@admin.com", "password": "WrongPassword!"},
+        )
+        self.assertEqual(res_nonexistent.status_code, 200)
+        self.assertContains(res_nonexistent, "Invalid credentials")
+
+        # Wrong password for existing admin
+        res_wrong_pw = self.client.post(
+            reverse("accounts:admin_login"),
+            {"username": "admin@platform.com", "password": "WrongPassword!"},
+        )
+        self.assertEqual(res_wrong_pw.status_code, 200)
+        self.assertContains(res_wrong_pw, "Invalid credentials")
+
+    def test_admin_logout_and_portal_access_revoked(self):
+        """Admin logout terminates session and blocks further access to the Admin Portal."""
+        # 1. Log in admin
+        self.client.post(
+            reverse("accounts:admin_login"),
+            {"username": "admin@platform.com", "password": "adminpassword123"},
+        )
+        # Verify authenticated access
+        res_auth = self.client.get(reverse("dashboard:admin_dashboard"))
+        self.assertEqual(res_auth.status_code, 200)
+
+        # 2. Log out
+        res_logout = self.client.post(reverse("accounts:candidate_logout"))
+        self.assertEqual(res_logout.status_code, 302)
+
+        # 3. Verify access is revoked and redirected to admin login
+        res_after = self.client.get(reverse("dashboard:admin_dashboard"))
+        self.assertEqual(res_after.status_code, 302)
+        self.assertIn(reverse("accounts:admin_login"), res_after.url)
+
+    def test_candidate_login_and_registration_still_work(self):
+        """Candidate registration and login continue working without regression."""
+        # Register new candidate
+        reg_res = self.client.post(reverse("accounts:candidate_register"), {
+            "name": "New Candidate",
+            "email": "newcand@test.com",
+            "password1": "CandidatePass123!",
+            "password2": "CandidatePass123!",
+        })
+        self.assertEqual(reg_res.status_code, 302)
+
+        # Login candidate
+        login_res = self.client.post(reverse("accounts:candidate_login"), {
+            "username": "newcand@test.com",
+            "password": "CandidatePass123!",
+        })
+        self.assertEqual(login_res.status_code, 302)
+        self.assertRedirects(login_res, reverse("candidates:candidate_dashboard"))
+
+    def test_employer_login_and_registration_still_work(self):
+        """Employer registration and login continue working without regression."""
+        # Register new employer
+        reg_res = self.client.post(reverse("accounts:employer_register"), {
+            "name": "New Employer",
+            "email": "newemp@company.com",
+            "company": "New Corp Inc",
+            "password1": "EmployerPass123!",
+            "password2": "EmployerPass123!",
+        })
+        self.assertEqual(reg_res.status_code, 302)
+
+        # Login employer
+        login_res = self.client.post(reverse("accounts:employer_login"), {
+            "username": "newemp@company.com",
+            "password": "EmployerPass123!",
+        })
+        self.assertEqual(login_res.status_code, 302)
+        self.assertRedirects(login_res, reverse("dashboard:employer_dashboard"))
 
     # -------------------------------------------------------------------------
     # Test 4 & 5: Admin Platform-wide User Visibility
