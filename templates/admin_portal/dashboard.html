@@ -1,0 +1,108 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}Platform Overview{% endblock %}
+{% block admin_heading %}System Overview & Telemetry{% endblock %}
+{% block admin_subheading %}Global metrics across question banks, active campaigns, evaluations, and proctoring telemetry{% endblock %}
+
+{% block admin_content %}
+<!-- KPI Cards Grid -->
+<div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+  <div class="metric-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Question Bank</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0.35rem 0;">{{ total_questions }}</div>
+    <div style="font-size: 0.82rem; color: #475569;">{{ total_mcq_questions }} MCQs · {{ total_coding_questions }} Coding Problems</div>
+  </div>
+
+  <div class="metric-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Registered Candidates</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #2563eb; margin: 0.35rem 0;">{{ total_candidates }}</div>
+    <div style="font-size: 0.82rem; color: #475569;">{{ total_employers }} Employer Organizations</div>
+  </div>
+
+  <div class="metric-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Assigned Tests</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0.35rem 0;">{{ total_assessments }}</div>
+    <div style="font-size: 0.82rem; color: #16a34a; font-weight: 600;">{{ completed_assessments }} Completed ({{ active_assessments }} Active)</div>
+  </div>
+
+  <div class="metric-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Platform Average Score</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #7c3aed; margin: 0.35rem 0;">{{ avg_overall_score }}%</div>
+    <div style="font-size: 0.82rem; color: #475569;">Across all completed scorecards</div>
+  </div>
+
+  <div class="metric-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Proctoring Flagged</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #dc2626; margin: 0.35rem 0;">{{ total_violations }}</div>
+    <div style="font-size: 0.82rem; color: #dc2626;">{{ auto_submitted_malpractice }} Auto-submitted for malpractice</div>
+  </div>
+</div>
+
+<!-- Two-Column Recent Activity Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+  <!-- Recent Campaigns -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+      <h2 style="font-size: 1.15rem; font-weight: 800; margin: 0; color: #0f172a;">🎯 Recent Campaigns</h2>
+      <a href="{% url 'dashboard:admin_campaigns' %}" style="font-size: 0.85rem; font-weight: 700; color: #2563eb; text-decoration: none;">View All →</a>
+    </div>
+
+    {% if recent_campaigns %}
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for camp in recent_campaigns %}
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; border: 1px solid #f1f5f9; border-radius: 8px; background: #f8fafc;">
+            <div>
+              <a href="{% url 'dashboard:admin_campaign_detail' camp.id %}" style="font-weight: 700; color: #0f172a; text-decoration: none; font-size: 0.95rem;">
+                {{ camp.title }}
+              </a>
+              <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">
+                Employer: <strong>{{ camp.employer.employer_profile.company|default:camp.employer.username }}</strong> · {{ camp.total_assigned }} candidates
+              </div>
+            </div>
+            <span style="font-size: 0.78rem; font-weight: 700; background: #e2e8f0; color: #334155; padding: 0.25rem 0.6rem; border-radius: 6px;">
+              {{ camp.created_at|date:"M d, Y" }}
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color: #64748b; font-size: 0.9rem;">No assessment campaigns recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Recent Completed Results -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+      <h2 style="font-size: 1.15rem; font-weight: 800; margin: 0; color: #0f172a;">📈 Recent Candidate Results</h2>
+      <a href="{% url 'dashboard:admin_analytics' %}" style="font-size: 0.85rem; font-weight: 700; color: #2563eb; text-decoration: none;">Full Analytics →</a>
+    </div>
+
+    {% if recent_results %}
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% for res in recent_results %}
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; border: 1px solid #f1f5f9; border-radius: 8px; background: #f8fafc;">
+            <div>
+              <div style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+                {{ res.assessment.candidate.get_full_name|default:res.assessment.candidate.username }}
+              </div>
+              <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">
+                {{ res.assessment.title }} · Employer: {{ res.assessment.employer.username }}
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 1.1rem; font-weight: 800; color: {% if res.overall_score >= 60 %}#16a34a{% else %}#dc2626{% endif %};">
+                {{ res.overall_score }}%
+              </span>
+              <div style="font-size: 0.75rem; color: #64748b;">
+                {{ res.completed_at|date:"M d, h:i A" }}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color: #64748b; font-size: 0.9rem;">No completed assessment results yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

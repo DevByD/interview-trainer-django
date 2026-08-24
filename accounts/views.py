@@ -105,7 +105,9 @@ def employer_register(request):
 
 def employer_login(request):
     if request.user.is_authenticated:
-        if hasattr(request.user, "employer_profile"):
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect("dashboard:admin_dashboard")
+        elif hasattr(request.user, "employer_profile"):
             return redirect("dashboard:employer_dashboard")
         elif hasattr(request.user, "candidate_profile"):
             return redirect("candidates:candidate_dashboard")
@@ -127,6 +129,13 @@ def employer_login(request):
 
         if user is None:
             error = "Invalid credentials. Please verify your email/username and password."
+        elif user.is_staff or user.is_superuser:
+            login(request, user)
+            messages.success(request, f"Welcome back, Administrator {user.first_name or user.username}!")
+            next_url = request.GET.get("next")
+            if next_url:
+                return redirect(next_url)
+            return redirect("dashboard:admin_dashboard")
         elif not hasattr(user, "employer_profile"):
             error = "This account is not registered as an employer. Please use candidate login."
         else:

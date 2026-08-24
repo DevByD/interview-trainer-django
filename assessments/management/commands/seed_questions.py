@@ -35,6 +35,10 @@ class Command(BaseCommand):
                     "option_d": q_data["option_d"],
                     "correct_answer": q_data["correct_answer"],
                     "difficulty": q_data["difficulty"],
+                    "source_type": Question.SourceTypes.CURATED,
+                    "is_reviewed": True,
+                    "is_approved": True,
+                    "is_active": True,
                 },
             )
             if created:

@@ -1,0 +1,98 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}AI Systems & Decision Support Management{% endblock %}
+{% block admin_heading %}AI Governance & Synthesis Audit{% endblock %}
+{% block admin_subheading %}Oversight of AI-generated questions, model provenance, and AI candidate shortlisting recommendations{% endblock %}
+
+{% block admin_content %}
+<!-- Governance Alert Box -->
+<div class="alert alert-info" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 1.25rem; margin-bottom: 2rem; color: #1e40af;">
+  <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+    <span style="font-size: 1.5rem; line-height: 1;">🤖</span>
+    <div>
+      <strong style="font-size: 0.95rem; color: #1e3a8a;">AI Decision Support & Governance Policy</strong>
+      <p style="margin: 0.35rem 0 0 0; font-size: 0.85rem; color: #1e40af; line-height: 1.45;">
+        All AI generated question sets and candidate shortlisting outputs are advisory decision-support tools.
+        The platform ensures full transparency: model providers are logged, seed generators provide algorithmic fallback, and human recruiters retain authoritative final selection decisions.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- AI Telemetry Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">AI Generated MCQs</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #7c3aed; margin: 0.35rem 0;">{{ total_ai_mcq }}</div>
+    <div style="font-size: 0.8rem; color: #64748b;">{{ approved_ai_mcq }} approved for assessments</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">AI Generated Coding</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #7c3aed; margin: 0.35rem 0;">{{ total_ai_coding }}</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Synthesized algorithmic problems</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">AI Shortlisted Candidates</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #2563eb; margin: 0.35rem 0;">{{ total_shortlisted }}</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Automated heuristic recommendations</div>
+  </div>
+</div>
+
+<!-- Tabs: AI Questions vs AI Shortlisting Recommendations -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 1.25rem 0;">Recent AI-Generated Question Artifacts</h3>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+      <thead>
+        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
+          <th style="padding: 0.85rem 1rem;">Question / Problem</th>
+          <th style="padding: 0.85rem 1rem;">Domain</th>
+          <th style="padding: 0.85rem 1rem;">Difficulty</th>
+          <th style="padding: 0.85rem 1rem;">AI Provider / Model</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Reviewed</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Approved</th>
+          <th style="padding: 0.85rem 1rem;">Generated Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in ai_questions %}
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 0.85rem 1rem; font-weight: 700; color: #0f172a;">
+              {{ q.question_text|truncatechars:85 }}
+            </td>
+            <td style="padding: 0.85rem 1rem; color: #475569;">
+              {{ q.get_section_display }}
+            </td>
+            <td style="padding: 0.85rem 1rem;">
+              <span style="font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; {% if q.difficulty == 'EASY' %}background: #dcfce7; color: #15803d;{% elif q.difficulty == 'MEDIUM' %}background: #fef9c3; color: #a16207;{% else %}background: #fee2e2; color: #b91c1c;{% endif %}">
+                {{ q.get_difficulty_display }}
+              </span>
+            </td>
+            <td style="padding: 0.85rem 1rem; color: #6b21a8; font-weight: 600;">
+              {{ q.ai_provider|default:"Google Gemini (gemini-1.5-flash)" }}
+            </td>
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if q.is_reviewed %}<span style="color: #16a34a; font-weight: 800;">✓</span>{% else %}<span style="color: #94a3b8;">Pending</span>{% endif %}
+            </td>
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if q.is_approved %}<span style="color: #16a34a; font-weight: 800;">✓</span>{% else %}<span style="color: #dc2626; font-weight: 800;">✕</span>{% endif %}
+            </td>
+            <td style="padding: 0.85rem 1rem; color: #64748b; font-size: 0.82rem;">
+              {{ q.created_at|date:"M d, Y" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">
+              No AI-generated questions found in database.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

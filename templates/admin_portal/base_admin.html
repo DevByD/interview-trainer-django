@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{% block admin_title %}Admin Management Portal{% endblock %} — Interview Trainer{% endblock %}
+
+{% block content %}
+<div class="admin-portal-wrapper" style="padding-bottom: 3rem;">
+  <!-- Admin Header Bar -->
+  <div class="admin-top-banner" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+          <span style="background: #ef4444; color: #ffffff; font-size: 0.75rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 6px; letter-spacing: 0.5px; text-transform: uppercase;">Superuser Console</span>
+          <h1 style="font-size: 1.6rem; font-weight: 800; margin: 0; color: #ffffff;">{% block admin_heading %}Platform Administration{% endblock %}</h1>
+        </div>
+        <p style="margin: 0; color: #94a3b8; font-size: 0.9rem;">
+          {% block admin_subheading %}Full platform oversight: Question Bank CRUD, Assessments, Campaigns, Analytics & Proctoring Audit{% endblock %}
+        </p>
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <a href="{% url 'dashboard:admin_mcq_create' %}" class="btn btn-primary btn-sm" style="font-weight: 700;">
+          + New MCQ
+        </a>
+        <a href="{% url 'dashboard:admin_coding_create' %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700; background: rgba(37,99,235,0.1); border-color: #3b82f6; color: #93c5fd;">
+          + New Coding Problem
+        </a>
+        <a href="{% url 'admin:index' %}" class="btn btn-secondary btn-sm" style="font-weight: 600;" target="_blank">
+          Django Admin ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Admin Navigation Tabs -->
+    <div class="admin-nav-tabs" style="display: flex; gap: 0.4rem; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; overflow-x: auto; flex-wrap: wrap;">
+      <a href="{% url 'dashboard:admin_dashboard' %}" class="admin-tab-link {% if request.resolver_match.url_name == 'admin_dashboard' %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        📊 Overview
+      </a>
+      <a href="{% url 'dashboard:admin_questions' %}" class="admin-tab-link {% if 'questions' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        📚 Question Bank
+      </a>
+      <a href="{% url 'dashboard:admin_assessments' %}" class="admin-tab-link {% if 'assessment' in request.resolver_match.url_name and 'campaign' not in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        📝 Assessments
+      </a>
+      <a href="{% url 'dashboard:admin_campaigns' %}" class="admin-tab-link {% if 'campaign' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        🎯 Campaigns
+      </a>
+      <a href="{% url 'dashboard:admin_candidates_list' %}" class="admin-tab-link {% if 'candidate' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        🎓 Candidates
+      </a>
+      <a href="{% url 'dashboard:admin_employers_list' %}" class="admin-tab-link {% if 'employer' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        🏢 Employers
+      </a>
+      <a href="{% url 'dashboard:admin_analytics' %}" class="admin-tab-link {% if 'analytics' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        📈 Results & Analytics
+      </a>
+      <a href="{% url 'dashboard:admin_proctoring' %}" class="admin-tab-link {% if 'proctoring' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        🛡️ Proctoring
+      </a>
+      <a href="{% url 'dashboard:admin_ai_management' %}" class="admin-tab-link {% if 'ai' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        🤖 AI Governance
+      </a>
+      <a href="{% url 'dashboard:admin_reports' %}" class="admin-tab-link {% if 'report' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        📋 Reports
+      </a>
+      <a href="{% url 'dashboard:admin_activity_logs' %}" class="admin-tab-link {% if 'activity' in request.resolver_match.url_name %}is-active{% endif %}" style="padding: 0.45rem 0.85rem; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 700; color: #cbd5e1; transition: all 0.15s ease;">
+        📜 Audit Log
+      </a>
+    </div>
+  </div>
+
+  <!-- Admin Sub-Content -->
+  {% block admin_content %}{% endblock %}
+</div>
+
+<style>
+  .admin-tab-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff !important;
+  }
+  .admin-tab-link.is-active {
+    background: #2563eb;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.4);
+  }
+  .badge-curated {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+  .badge-ai {
+    background-color: #f3e8ff;
+    color: #6b21a8;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+  .badge-admin {
+    background-color: #fef3c7;
+    color: #92400e;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+  .badge-imported {
+    background-color: #ecfdf5;
+    color: #065f46;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+</style>
+{% endblock %}

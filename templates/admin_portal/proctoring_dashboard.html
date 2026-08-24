@@ -1,0 +1,199 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}Platform Proctoring Audit{% endblock %}
+{% block admin_heading %}Proctoring & Malpractice Telemetry{% endblock %}
+{% block admin_subheading %}Live platform-wide monitoring of tab switches, window blur events, webcam detections, and automated malpractice submissions{% endblock %}
+
+{% block admin_content %}
+<!-- Proctoring KPI Header -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Monitored Assessments</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0.35rem 0;">{{ total_monitored }}</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Active, completed & attended tests</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Flagged Candidates</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #dc2626; margin: 0.35rem 0;">{{ total_flagged }}</div>
+    <div style="font-size: 0.8rem; color: #dc2626;">Recorded 1 or more warnings</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Auto-Submitted Malpractice</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #b91c1c; margin: 0.35rem 0;">{{ total_auto_submitted }}</div>
+    <div style="font-size: 0.8rem; color: #b91c1c;">Exceeded 3/3 warning limit</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Clean Submissions</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #16a34a; margin: 0.35rem 0;">{{ clean_submissions }}</div>
+    <div style="font-size: 0.8rem; color: #16a34a;">Zero violations recorded</div>
+  </div>
+</div>
+
+<!-- Filters Bar -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <form method="get" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 220px;">
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Search candidate, email, title, violation type..." class="form-control" style="height: 38px;">
+    </div>
+
+    <div>
+      <select name="flagged" class="form-select form-select-sm" style="height: 38px;">
+        <option value="">All Candidates</option>
+        <option value="yes" {% if flagged_filter == 'yes' %}selected{% endif %}>Violations Recorded (> 0)</option>
+        <option value="no" {% if flagged_filter == 'no' %}selected{% endif %}>Clean Tests (0 Violations)</option>
+      </select>
+    </div>
+
+    <div>
+      <select name="auto_submitted" class="form-select form-select-sm" style="height: 38px;">
+        <option value="">All Submission Modes</option>
+        <option value="yes" {% if auto_sub_filter == 'yes' %}selected{% endif %}>Auto-Submitted for Malpractice Only</option>
+        <option value="no" {% if auto_sub_filter == 'no' %}selected{% endif %}>Standard Candidate Submissions</option>
+      </select>
+    </div>
+
+    <div>
+      <select name="warnings" class="form-select form-select-sm" style="height: 38px;">
+        <option value="">Any Warning Count</option>
+        <option value="1" {% if warning_count_filter == '1' %}selected{% endif %}>≥ 1 Warning</option>
+        <option value="2" {% if warning_count_filter == '2' %}selected{% endif %}>≥ 2 Warnings</option>
+        <option value="3" {% if warning_count_filter == '3' %}selected{% endif %}>3/3 Warnings (Maxed)</option>
+      </select>
+    </div>
+
+    <div>
+      <select name="employer" class="form-select form-select-sm" style="height: 38px;">
+        <option value="">All Employers</option>
+        {% for emp in employers %}
+          <option value="{{ emp.username }}" {% if employer_filter == emp.username %}selected{% endif %}>{{ emp.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700; height: 38px; padding: 0 1.25rem;">Filter</button>
+    <a href="{% url 'dashboard:admin_proctoring' %}" class="btn btn-outline-secondary btn-sm" style="height: 38px; display: inline-flex; align-items: center;">Reset</a>
+  </form>
+</div>
+
+<!-- Proctoring Telemetry Table -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #475569; font-size: 0.88rem;">
+    Telemetry Audit Stream ({{ page_obj.paginator.count }})
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+      <thead>
+        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
+          <th style="padding: 0.85rem 1rem;">Candidate</th>
+          <th style="padding: 0.85rem 1rem;">Assessment</th>
+          <th style="padding: 0.85rem 1rem;">Employer</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Violations Count</th>
+          <th style="padding: 0.85rem 1rem;">Last Violation Detail</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Auto-Submitted</th>
+          <th style="padding: 0.85rem 1rem;">Last Violation Time</th>
+          <th style="padding: 0.85rem 1rem; text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ass in page_obj %}
+          <tr style="border-bottom: 1px solid #f1f5f9; {% if ass.auto_submitted_for_malpractice %}background: #fff1f2;{% elif ass.violation_count > 0 %}background: #fffbeb;{% endif %}">
+            <!-- Candidate -->
+            <td style="padding: 0.85rem 1rem;">
+              <div style="font-weight: 700; color: #0f172a;">
+                {{ ass.candidate.get_full_name|default:ass.candidate.username }}
+              </div>
+              <div style="font-size: 0.76rem; color: #64748b;">{{ ass.candidate.email }}</div>
+            </td>
+
+            <!-- Assessment Title -->
+            <td style="padding: 0.85rem 1rem;">
+              <a href="{% url 'dashboard:admin_assessment_detail' ass.id %}" style="font-weight: 700; color: #2563eb; text-decoration: none;">
+                {{ ass.title }}
+              </a>
+            </td>
+
+            <!-- Employer -->
+            <td style="padding: 0.85rem 1rem;">
+              <div style="font-weight: 600; color: #334155;">{{ ass.employer.username }}</div>
+              <div style="font-size: 0.76rem; color: #64748b;">{{ ass.employer.employer_profile.company|default:"" }}</div>
+            </td>
+
+            <!-- Violation Count -->
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if ass.violation_count > 0 %}
+                <span style="font-size: 0.95rem; font-weight: 800; color: {% if ass.violation_count >= 3 %}#dc2626{% else %}#d97706{% endif %};">
+                  {{ ass.violation_count }}/3
+                </span>
+              {% else %}
+                <span style="color: #16a34a; font-weight: 700;">0/3</span>
+              {% endif %}
+            </td>
+
+            <!-- Last Violation Type -->
+            <td style="padding: 0.85rem 1rem;">
+              {% if ass.last_violation_type %}
+                <span style="font-weight: 600; color: #dc2626; font-size: 0.82rem;">
+                  ⚠️ {{ ass.last_violation_type }}
+                </span>
+              {% else %}
+                <span style="color: #64748b; font-size: 0.82rem;">None recorded</span>
+              {% endif %}
+            </td>
+
+            <!-- Auto Submitted -->
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if ass.auto_submitted_for_malpractice %}
+                <span style="font-size: 0.75rem; font-weight: 800; background: #fee2e2; color: #b91c1c; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                  YES
+                </span>
+                <div style="font-size: 0.72rem; color: #dc2626; margin-top: 0.2rem;">{{ ass.submission_reason|default:"Malpractice" }}</div>
+              {% else %}
+                <span style="color: #64748b; font-size: 0.82rem;">No</span>
+              {% endif %}
+            </td>
+
+            <!-- Timestamp -->
+            <td style="padding: 0.85rem 1rem; color: #64748b; font-size: 0.82rem;">
+              {{ ass.last_violation_at|date:"M d, Y h:i A"|default:"N/A" }}
+            </td>
+
+            <!-- Action -->
+            <td style="padding: 0.85rem 1rem; text-align: right;">
+              <a href="{% url 'dashboard:admin_assessment_detail' ass.id %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700; font-size: 0.78rem;">
+                Audit →
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" style="padding: 2.5rem; text-align: center; color: #64748b;">
+              No proctoring logs found matching filter criteria.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <span style="font-size: 0.88rem; color: #64748b;">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    <div style="display: flex; gap: 0.35rem;">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if flagged_filter %}&flagged={{ flagged_filter }}{% endif %}{% if auto_sub_filter %}&auto_submitted={{ auto_sub_filter }}{% endif %}{% if warning_count_filter %}&warnings={{ warning_count_filter }}{% endif %}" class="btn btn-outline-secondary btn-sm">← Previous</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if flagged_filter %}&flagged={{ flagged_filter }}{% endif %}{% if auto_sub_filter %}&auto_submitted={{ auto_sub_filter }}{% endif %}{% if warning_count_filter %}&warnings={{ warning_count_filter }}{% endif %}" class="btn btn-outline-secondary btn-sm">Next →</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

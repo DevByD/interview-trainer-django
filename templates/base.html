@@ -356,7 +356,13 @@
                 </li>
               {% else %}
                 <li><span class="nav-role-badge">ADMIN</span></li>
-                <li><a href="{% url 'admin:index' %}" class="nav-item">Admin</a></li>
+                <li><a href="{% url 'dashboard:admin_dashboard' %}" class="nav-item">Admin Portal</a></li>
+                <li><a href="{% url 'dashboard:admin_questions' %}" class="nav-item">Question Bank</a></li>
+                <li><a href="{% url 'dashboard:admin_assessments' %}" class="nav-item">Assessments</a></li>
+                <li><a href="{% url 'dashboard:admin_campaigns' %}" class="nav-item">Campaigns</a></li>
+                <li><a href="{% url 'dashboard:admin_analytics' %}" class="nav-item">Analytics</a></li>
+                <li><a href="{% url 'dashboard:admin_proctoring' %}" class="nav-item">Proctoring</a></li>
+                <li><a href="{% url 'admin:index' %}" class="nav-item" target="_blank">Django Admin ↗</a></li>
                 <li>
                   <form action="{% url 'accounts:candidate_logout' %}" method="post" class="nav-logout-form">
                     {% csrf_token %}

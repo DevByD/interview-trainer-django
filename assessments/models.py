@@ -27,6 +27,12 @@ class Question(models.Model):
         QUANTITATIVE = "QUANTITATIVE", "Quantitative Aptitude"
         TECHNICAL = "TECHNICAL", "Technical Aptitude"
 
+    class SourceTypes(models.TextChoices):
+        ADMIN_CREATED = "ADMIN_CREATED", "Admin Created"
+        CURATED = "CURATED", "Curated"
+        IMPORTED = "IMPORTED", "Imported"
+        AI_GENERATED = "AI_GENERATED", "AI Generated"
+
     class Difficulties(models.TextChoices):
         EASY = "EASY", "Easy"
         MEDIUM = "MEDIUM", "Medium"
@@ -37,6 +43,7 @@ class Question(models.Model):
         choices=Sections.choices,
         db_index=True,
     )
+    category = models.CharField(max_length=100, blank=True, default="", help_text="Topic or subcategory")
     question_text = models.TextField()
     option_a = models.CharField(max_length=255)
     option_b = models.CharField(max_length=255)
@@ -46,18 +53,30 @@ class Question(models.Model):
         max_length=1,
         choices=[("A", "Option A"), ("B", "Option B"), ("C", "Option C"), ("D", "Option D")],
     )
+    explanation = models.TextField(blank=True, default="", help_text="Explanation for the correct answer")
     difficulty = models.CharField(
         max_length=10,
         choices=Difficulties.choices,
         default=Difficulties.EASY,
         db_index=True,
     )
+    source_type = models.CharField(
+        max_length=20,
+        choices=SourceTypes.choices,
+        default=SourceTypes.CURATED,
+        db_index=True,
+    )
+    ai_provider = models.CharField(max_length=100, blank=True, default="", help_text="AI provider/model name if AI generated")
+    is_reviewed = models.BooleanField(default=True, help_text="Whether question has been reviewed")
+    is_approved = models.BooleanField(default=True, help_text="Whether question is approved for tests")
+    is_active = models.BooleanField(default=True, db_index=True, help_text="Active status for safe soft-deactivation")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["section", "id"]
         indexes = [
             models.Index(fields=["section", "difficulty"]),
+            models.Index(fields=["source_type", "is_active"]),
         ]
 
     def __str__(self) -> str:
@@ -71,6 +90,10 @@ class Question(models.Model):
             "C": self.option_c,
             "D": self.option_d,
         }
+
+    @property
+    def usage_count(self) -> int:
+        return self.assessment_questions.count()
 
 
 class AssessmentGroup(models.Model):
@@ -411,15 +434,56 @@ class CodingQuestion(models.Model):
         help_text="Dictionary of starter scaffold comments by language: {'python': '...', 'java': '...', 'cpp': '...', 'javascript': '...'}",
     )
     max_score = models.PositiveIntegerField(default=100)
+    time_limit_seconds = models.PositiveIntegerField(
+        default=5,
+        help_text="Execution timeout limit in seconds",
+    )
+    memory_limit_mb = models.PositiveIntegerField(
+        default=256,
+        help_text="Memory ceiling in megabytes",
+    )
+    source_type = models.CharField(
+        max_length=20,
+        choices=Question.SourceTypes.choices,
+        default=Question.SourceTypes.CURATED,
+        db_index=True,
+    )
+    ai_provider = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="AI provider/model name if AI generated",
+    )
+    is_reviewed = models.BooleanField(
+        default=True,
+        help_text="Whether challenge has been reviewed",
+    )
+    is_approved = models.BooleanField(
+        default=True,
+        help_text="Whether challenge is approved for tests",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Active status for safe soft-deactivation",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["id"]
+        indexes = [
+            models.Index(fields=["category", "difficulty"]),
+            models.Index(fields=["source_type", "is_active"]),
+        ]
 
     def __str__(self) -> str:
         return f"[{self.get_difficulty_display()}] {self.title}"
+
+    @property
+    def usage_count(self) -> int:
+        return self.assessment_assignments.count()
 
 
 class CodingTestCase(models.Model):

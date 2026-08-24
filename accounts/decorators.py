@@ -39,3 +39,16 @@ def candidate_required(view_func):
 def employer_required(view_func):
     """Allow only authenticated users that own an EmployerProfile."""
     return _role_required("employer_profile", "employer_login")(view_func)
+
+
+def admin_required(view_func):
+    """Allow only authenticated users who are staff or superusers."""
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path(), login_url="accounts:employer_login")
+        if not (request.user.is_staff or request.user.is_superuser):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have administrative permission to access this area.")
+        return view_func(request, *args, **kwargs)
+    return _wrapped

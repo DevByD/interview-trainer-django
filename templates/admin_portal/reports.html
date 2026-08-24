@@ -1,0 +1,89 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}Platform Reports & Exports{% endblock %}
+{% block admin_heading %}Platform Reports & Data Exports{% endblock %}
+{% block admin_subheading %}Generate and export platform datasets for candidates, employers, assessments, question banks, and proctoring telemetry{% endblock %}
+
+{% block admin_content %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+  <!-- Candidate Report -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">🎓</div>
+      <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem 0;">Candidate Roster Report</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0; line-height: 1.45;">
+        Export all registered candidates, profile completion statuses, education, total professional experience, and resume attachments.
+      </p>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <a href="{% url 'dashboard:admin_export_candidates_csv' %}" class="btn btn-primary btn-sm" style="font-weight: 700; width: 100%; text-align: center;">
+        📥 Download Candidate CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Employer Report -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">🏢</div>
+      <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem 0;">Employer Directory Report</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0; line-height: 1.45;">
+        Export all registered recruiter organizations, company profiles, total campaign counts, and assessment volumes.
+      </p>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <a href="{% url 'dashboard:admin_export_employers_csv' %}" class="btn btn-primary btn-sm" style="font-weight: 700; width: 100%; text-align: center;">
+        📥 Download Employer CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Assessment Report -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">📝</div>
+      <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem 0;">Assessment Master Report</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0; line-height: 1.45;">
+        Export all assigned assessments with employer names, candidate emails, schedule windows, statuses, and score results.
+      </p>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <a href="{% url 'dashboard:admin_export_assessments_csv' %}" class="btn btn-primary btn-sm" style="font-weight: 700; width: 100%; text-align: center;">
+        📥 Download Assessment CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Question Bank Report -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">📚</div>
+      <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem 0;">Question Bank Inventory Report</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0; line-height: 1.45;">
+        Export full question bank inventory including MCQ sections, coding problem statements, difficulty tiers, and provenance sources.
+      </p>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <a href="{% url 'dashboard:admin_export_questions_csv' %}" class="btn btn-primary btn-sm" style="font-weight: 700; width: 100%; text-align: center;">
+        📥 Download Question Bank CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Proctoring Telemetry Report -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">🛡️</div>
+      <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem 0;">Proctoring Telemetry Report</h3>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0; line-height: 1.45;">
+        Export candidate violation counts, tab switch events, fullscreen exit flags, and auto-submission malpractice audit logs.
+      </p>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <a href="{% url 'dashboard:admin_export_proctoring_csv' %}" class="btn btn-primary btn-sm" style="font-weight: 700; width: 100%; text-align: center;">
+        📥 Download Proctoring CSV
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

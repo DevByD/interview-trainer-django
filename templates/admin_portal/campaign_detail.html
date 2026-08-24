@@ -1,0 +1,147 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}Campaign: {{ campaign.title }}{% endblock %}
+{% block admin_heading %}Campaign Cohort Inspection #{{ campaign.id }}{% endblock %}
+{% block admin_subheading %}Cohort breakdown, individual candidate assessment statuses, scores, and shortlisting metrics{% endblock %}
+
+{% block admin_content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <a href="{% url 'dashboard:admin_campaigns' %}" class="btn btn-outline-secondary btn-sm">← Back to Campaigns</a>
+</div>
+
+<!-- Campaign Summary Cards -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+    <div>
+      <h2 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0 0 0.35rem 0;">{{ campaign.title }}</h2>
+      <p style="color: #64748b; font-size: 0.88rem; margin: 0;">{{ campaign.description|default:"No campaign description provided." }}</p>
+    </div>
+    <div style="text-align: right;">
+      <span style="font-size: 0.82rem; font-weight: 700; color: #334155; background: #f1f5f9; padding: 0.35rem 0.75rem; border-radius: 6px;">
+        Created: {{ campaign.created_at|date:"M d, Y h:i A" }}
+      </span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; border-top: 1px solid #f1f5f9; padding-top: 1rem; font-size: 0.88rem;">
+    <div>
+      <span style="color: #64748b; font-weight: 600;">Employer / Organization:</span><br>
+      <strong>{{ campaign.employer.username }}</strong> ({{ campaign.employer.employer_profile.company|default:"Independent" }})
+    </div>
+    <div>
+      <span style="color: #64748b; font-weight: 600;">Schedule Window (IST):</span><br>
+      <strong>{{ campaign.start_time|date:"M d, h:i A" }}</strong> to <strong>{{ campaign.expire_time|date:"M d, h:i A" }}</strong>
+    </div>
+    <div>
+      <span style="color: #64748b; font-weight: 600;">Test Configuration:</span><br>
+      <strong>{{ campaign.duration_minutes }} mins</strong> · {% if campaign.has_coding %}MCQ + Coding Sandbox{% else %}MCQ Only{% endif %}
+    </div>
+    <div>
+      <span style="color: #64748b; font-weight: 600;">Candidates Assigned:</span><br>
+      <strong style="color: #2563eb; font-size: 1.1rem;">{{ total_assigned }} candidates</strong>
+    </div>
+  </div>
+</div>
+
+<!-- Cohort Metrics Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; text-align: center;">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Completed</div>
+    <div style="font-size: 1.5rem; font-weight: 800; color: #16a34a;">{{ completed_count }}</div>
+  </div>
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; text-align: center;">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">In Progress</div>
+    <div style="font-size: 1.5rem; font-weight: 800; color: #2563eb;">{{ in_progress_count }}</div>
+  </div>
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; text-align: center;">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Not Started</div>
+    <div style="font-size: 1.5rem; font-weight: 800; color: #d97706;">{{ not_started_count }}</div>
+  </div>
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; text-align: center;">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Shortlisted</div>
+    <div style="font-size: 1.5rem; font-weight: 800; color: #7c3aed;">{{ shortlisted_count }}</div>
+  </div>
+</div>
+
+<!-- Candidate Assessment List Table -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #0f172a; font-size: 1rem;">
+    Assigned Candidate Cohort ({{ assessments.count }})
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+      <thead>
+        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
+          <th style="padding: 0.85rem 1rem;">Candidate</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Status</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Score</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Shortlisted?</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Violations</th>
+          <th style="padding: 0.85rem 1rem; text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ass in assessments %}
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 0.85rem 1rem;">
+              <div style="font-weight: 700; color: #0f172a;">
+                {{ ass.candidate.get_full_name|default:ass.candidate.username }}
+              </div>
+              <div style="font-size: 0.76rem; color: #64748b;">
+                {{ ass.candidate.email }} · Token: <code>{{ ass.token|truncatechars:12 }}</code>
+              </div>
+            </td>
+
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if ass.status == 'COMPLETED' %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #dcfce7; color: #16a34a; padding: 0.2rem 0.5rem; border-radius: 4px;">COMPLETED</span>
+              {% elif ass.status == 'ONGOING' %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #dbeafe; color: #2563eb; padding: 0.2rem 0.5rem; border-radius: 4px;">IN PROGRESS</span>
+              {% elif ass.status == 'EXPIRED' %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #fee2e2; color: #dc2626; padding: 0.2rem 0.5rem; border-radius: 4px;">EXPIRED</span>
+              {% else %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #fef3c7; color: #d97706; padding: 0.2rem 0.5rem; border-radius: 4px;">PENDING</span>
+              {% endif %}
+            </td>
+
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if ass.result %}
+                <span style="font-weight: 800; color: {% if ass.result.overall_score >= 60 %}#16a34a{% else %}#dc2626{% endif %};">
+                  {{ ass.result.overall_score }}%
+                </span>
+              {% else %}
+                <span style="color: #94a3b8;">—</span>
+              {% endif %}
+            </td>
+
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if ass.is_shortlisted %}
+                <span style="font-size: 0.75rem; font-weight: 800; background: #fef3c7; color: #d97706; padding: 0.2rem 0.6rem; border-radius: 4px;">
+                  ★ SHORTLISTED
+                </span>
+              {% else %}
+                <span style="color: #94a3b8; font-size: 0.82rem;">No</span>
+              {% endif %}
+            </td>
+
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if ass.violation_count > 0 %}
+                <span style="font-weight: 800; color: #dc2626;">{{ ass.violation_count }}/3</span>
+              {% else %}
+                <span style="color: #16a34a;">0</span>
+              {% endif %}
+            </td>
+
+            <td style="padding: 0.85rem 1rem; text-align: right;">
+              <a href="{% url 'dashboard:admin_assessment_detail' ass.id %}" class="btn btn-outline-primary btn-sm" style="font-weight: 700; font-size: 0.78rem;">
+                Inspect Assessment →
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

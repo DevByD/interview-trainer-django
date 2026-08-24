@@ -1,0 +1,101 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}All Registered Employers{% endblock %}
+{% block admin_heading %}Employer & Recruiter Management{% endblock %}
+{% block admin_subheading %}Platform-wide recruiter accounts, company profiles, and account status controls{% endblock %}
+
+{% block admin_content %}
+<!-- Search Bar -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <form method="get" style="display: flex; gap: 0.75rem; align-items: center;">
+    <div style="flex: 1;">
+      <input type="text" name="q" value="{{ search_query }}" placeholder="Search company name, username, email..." class="form-control" style="height: 38px;">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700; height: 38px; padding: 0 1.25rem;">Search</button>
+    <a href="{% url 'dashboard:admin_employers_list' %}" class="btn btn-outline-secondary btn-sm" style="height: 38px; display: inline-flex; align-items: center;">Reset</a>
+  </form>
+</div>
+
+<!-- Table -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #475569; font-size: 0.88rem;">
+    Registered Employer Accounts: {{ page_obj.paginator.count }}
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+      <thead>
+        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
+          <th style="padding: 0.85rem 1rem;">Employer / Company</th>
+          <th style="padding: 0.85rem 1rem;">Contact Email</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Campaigns Created</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Assessments Assigned</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Account Status</th>
+          <th style="padding: 0.85rem 1rem;">Registered</th>
+          <th style="padding: 0.85rem 1rem; text-align: right;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in page_obj %}
+          <tr style="border-bottom: 1px solid #f1f5f9; {% if not emp.user.is_active %}background: #fafafa; opacity: 0.65;{% endif %}">
+            <td style="padding: 0.85rem 1rem;">
+              <div style="font-weight: 700; color: #0f172a;">{{ emp.company|default:emp.user.username }}</div>
+              <div style="font-size: 0.76rem; color: #64748b;">Username: {{ emp.user.username }}</div>
+            </td>
+            <td style="padding: 0.85rem 1rem; color: #334155;">
+              {{ emp.user.email }}
+            </td>
+            <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 800; color: #2563eb;">
+              {{ emp.user.assessment_groups.count }}
+            </td>
+            <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 800; color: #0f172a;">
+              {{ emp.user.assessments_created.count }}
+            </td>
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if emp.user.is_active %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #dcfce7; color: #16a34a; padding: 0.2rem 0.5rem; border-radius: 4px;">ACTIVE</span>
+              {% else %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #fee2e2; color: #dc2626; padding: 0.2rem 0.5rem; border-radius: 4px;">SUSPENDED</span>
+              {% endif %}
+            </td>
+            <td style="padding: 0.85rem 1rem; color: #64748b; font-size: 0.82rem;">
+              {{ emp.created_at|date:"M d, Y" }}
+            </td>
+            <td style="padding: 0.85rem 1rem; text-align: right;">
+              <form method="post" action="{% url 'dashboard:admin_employer_toggle' emp.user.id %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm" style="font-size: 0.78rem;" onclick="return confirm('Toggle active status for this employer?');">
+                  {% if emp.user.is_active %}Suspend{% else %}Activate{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">
+              No employers found matching query.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <span style="font-size: 0.88rem; color: #64748b;">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    <div style="display: flex; gap: 0.35rem;">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-outline-secondary btn-sm">← Previous</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-outline-secondary btn-sm">Next →</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

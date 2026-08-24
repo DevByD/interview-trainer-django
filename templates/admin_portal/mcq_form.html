@@ -1,0 +1,122 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}{{ action }} MCQ Question{% endblock %}
+{% block admin_heading %}{{ action }} MCQ Question{% endblock %}
+{% block admin_subheading %}Define aptitude question prompt, options, correct answer, category, solution explanation, and provenance source{% endblock %}
+
+{% block admin_content %}
+<div style="max-width: 840px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+  <form method="post">
+    {% csrf_token %}
+
+    {% if form.errors %}
+      <div class="alert alert-danger" style="background: #fee2e2; color: #b91c1c; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+        <strong>Please correct the following errors:</strong>
+        <ul style="margin: 0.5rem 0 0 1.25rem;">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <!-- Subject & Category -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Subject / Section *</label>
+        {{ form.section }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Category / Topic</label>
+        {{ form.category }}
+      </div>
+    </div>
+
+    <!-- Difficulty & Correct Answer -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Difficulty *</label>
+        {{ form.difficulty }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Correct Answer *</label>
+        {{ form.correct_answer }}
+      </div>
+    </div>
+
+    <!-- Question Text -->
+    <div style="margin-bottom: 1.25rem;">
+      <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Question Text *</label>
+      {{ form.question_text }}
+    </div>
+
+    <!-- Options A & B -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Option A *</label>
+        {{ form.option_a }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Option B *</label>
+        {{ form.option_b }}
+      </div>
+    </div>
+
+    <!-- Options C & D -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Option C *</label>
+        {{ form.option_c }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Option D *</label>
+        {{ form.option_d }}
+      </div>
+    </div>
+
+    <!-- Explanation -->
+    <div style="margin-bottom: 1.5rem;">
+      <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Solution Explanation</label>
+      {{ form.explanation }}
+    </div>
+
+    <!-- Provenance & Governance Section -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem 0;">Provenance & Governance</h3>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1rem;">
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">Source Type *</label>
+          {{ form.source_type }}
+        </div>
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">AI Provider / Origin Info</label>
+          {{ form.ai_provider }}
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #334155; cursor: pointer; font-size: 0.88rem;">
+          {{ form.is_reviewed }} Mark as Reviewed
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #334155; cursor: pointer; font-size: 0.88rem;">
+          {{ form.is_approved }} Mark as Approved
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #334155; cursor: pointer; font-size: 0.88rem;">
+          {{ form.is_active }} Active (Available for Assessments)
+        </label>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display: flex; justify-content: flex-end; gap: 1rem; align-items: center;">
+      <a href="{% url 'dashboard:admin_questions' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+        Save MCQ Question
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

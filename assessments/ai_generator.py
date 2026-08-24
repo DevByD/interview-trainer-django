@@ -479,8 +479,10 @@ def save_aptitude_questions(questions_data: List[Dict[str, Any]]) -> List[Questi
             logger.info("Skipping duplicate aptitude question: %s", q_dict["question_text"][:40])
             continue
 
+        ai_prov = "Google Gemini (gemini-1.5-flash)" if get_gemini_api_key() else "Algorithmic Generator"
         q = Question.objects.create(
             section=q_dict["section"],
+            category=q_dict.get("category", ""),
             difficulty=q_dict["difficulty"],
             question_text=q_dict["question_text"],
             option_a=q_dict["option_a"],
@@ -488,6 +490,12 @@ def save_aptitude_questions(questions_data: List[Dict[str, Any]]) -> List[Questi
             option_c=q_dict["option_c"],
             option_d=q_dict["option_d"],
             correct_answer=q_dict["correct_answer"],
+            explanation=q_dict.get("explanation", ""),
+            source_type=Question.SourceTypes.AI_GENERATED,
+            ai_provider=ai_prov,
+            is_reviewed=False,
+            is_approved=True,
+            is_active=True,
         )
         saved.append(q)
     return saved
@@ -496,6 +504,7 @@ def save_aptitude_questions(questions_data: List[Dict[str, Any]]) -> List[Questi
 def save_coding_questions(coding_data: List[Dict[str, Any]]) -> List[CodingQuestion]:
     """Persist validated, non-duplicate coding challenges along with their test cases into the database."""
     saved = []
+    ai_prov = "Google Gemini (gemini-1.5-flash)" if get_gemini_api_key() else "Algorithmic Generator"
     for c_dict in coding_data:
         is_valid, _ = validate_coding_question(c_dict)
         if not is_valid:
@@ -524,6 +533,13 @@ def save_coding_questions(coding_data: List[Dict[str, Any]]) -> List[CodingQuest
             sample_output=c_dict["sample_output"],
             explanation=c_dict.get("explanation", ""),
             starter_code=c_dict.get("starter_code", {}),
+            time_limit_seconds=c_dict.get("time_limit_seconds", 5),
+            memory_limit_mb=c_dict.get("memory_limit_mb", 256),
+            source_type=Question.SourceTypes.AI_GENERATED,
+            ai_provider=ai_prov,
+            is_reviewed=False,
+            is_approved=True,
+            is_active=True,
         )
 
         test_cases = c_dict.get("test_cases", [])

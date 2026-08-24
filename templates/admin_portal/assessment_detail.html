@@ -1,0 +1,157 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}Assessment #{{ assessment.id }} — {{ assessment.title }}{% endblock %}
+{% block admin_heading %}Assessment Inspection #{{ assessment.id }}{% endblock %}
+{% block admin_subheading %}Deep-dive candidate assessment audit: questions assigned, responses, execution tests, proctoring timeline, and evaluation scorecard{% endblock %}
+
+{% block admin_content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <a href="{% url 'dashboard:admin_assessments' %}" class="btn btn-outline-secondary btn-sm">← Back to Assessments</a>
+  {% if result %}
+    <a href="{% url 'results:employer_result' result.id %}" class="btn btn-primary btn-sm" target="_blank">View Employer Result Scorecard ↗</a>
+  {% endif %}
+</div>
+
+<!-- Overview Cards -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+  <!-- Meta Card -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <h2 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem 0;">{{ assessment.title }}</h2>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.88rem;">
+      <div>
+        <span style="color: #64748b; font-weight: 600;">Employer / Organization:</span><br>
+        <strong>{{ assessment.employer.username }}</strong> ({{ assessment.employer.employer_profile.company|default:"Independent" }})
+      </div>
+      <div>
+        <span style="color: #64748b; font-weight: 600;">Candidate:</span><br>
+        <strong>{{ assessment.candidate.get_full_name|default:assessment.candidate.username }}</strong> ({{ assessment.candidate.email }})
+      </div>
+      <div>
+        <span style="color: #64748b; font-weight: 600;">Scheduled Window (IST):</span><br>
+        <strong>{{ assessment.start_time|date:"M d, Y h:i A" }}</strong> to <strong>{{ assessment.expire_time|date:"M d, Y h:i A" }}</strong>
+      </div>
+      <div>
+        <span style="color: #64748b; font-weight: 600;">Duration & Mode:</span><br>
+        <strong>{{ assessment.duration_minutes }} minutes</strong> · {% if assessment.has_coding %}MCQ + Coding Sandbox{% else %}MCQ Aptitude Only{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Status & Scorecard -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: center;">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Assessment Status</div>
+    <div style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0.4rem 0;">
+      {{ assessment.get_status_display }} ({{ assessment.get_candidate_status_display }})
+    </div>
+
+    {% if result %}
+      <div style="margin-top: 1rem; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
+        <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Final Score</div>
+        <div style="font-size: 2.2rem; font-weight: 900; color: {% if result.overall_score >= 60 %}#16a34a{% else %}#dc2626{% endif %};">
+          {{ result.overall_score }}%
+        </div>
+        <div style="font-size: 0.8rem; color: #64748b;">
+          Aptitude: {{ result.aptitude_score }}% · Coding: {{ result.coding_score }}%
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Proctoring Box -->
+    <div style="margin-top: 1rem; background: {% if assessment.violation_count > 0 %}#fee2e2{% else %}#f0fdf4{% endif %}; border-radius: 8px; padding: 0.75rem;">
+      <div style="font-size: 0.8rem; font-weight: 700; color: {% if assessment.violation_count > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+        Proctoring Violations: {{ assessment.violation_count }}/3
+      </div>
+      {% if assessment.auto_submitted_for_malpractice %}
+        <div style="font-size: 0.75rem; font-weight: 800; color: #b91c1c; margin-top: 0.2rem;">
+          AUTO-SUBMITTED ({{ assessment.submission_reason|default:"Malpractice" }})
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- MCQ Questions & Responses Audit -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 1.25rem 0;">Aptitude Questions & Candidate Responses</h3>
+
+  {% if mcq_details %}
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+      {% for item in mcq_details %}
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; background: {% if item.is_correct %}#f0fdf4{% elif item.answer %}#fef2f2{% else %}#f8fafc{% endif %};">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <span style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">
+              Q{{ item.order }}. {{ item.question.question_text }}
+            </span>
+            <span style="font-size: 0.75rem; font-weight: 800; padding: 0.2rem 0.5rem; border-radius: 4px; {% if item.is_correct %}background: #dcfce7; color: #15803d;{% elif item.answer %}background: #fee2e2; color: #b91c1c;{% else %}background: #e2e8f0; color: #475569;{% endif %}">
+              {% if item.is_correct %}CORRECT (+1){% elif item.answer %}INCORRECT (0){% else %}UNANSWERED{% endif %}
+            </span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem; margin-bottom: 0.5rem;">
+            <div style="padding: 0.35rem 0.6rem; border-radius: 4px; background: #ffffff; border: 1px solid #cbd5e1; {% if item.question.correct_answer == 'A' %}border-color: #16a34a; font-weight: 700;{% endif %}">
+              A) {{ item.question.option_a }} {% if item.question.correct_answer == 'A' %}✓{% endif %}
+            </div>
+            <div style="padding: 0.35rem 0.6rem; border-radius: 4px; background: #ffffff; border: 1px solid #cbd5e1; {% if item.question.correct_answer == 'B' %}border-color: #16a34a; font-weight: 700;{% endif %}">
+              B) {{ item.question.option_b }} {% if item.question.correct_answer == 'B' %}✓{% endif %}
+            </div>
+            <div style="padding: 0.35rem 0.6rem; border-radius: 4px; background: #ffffff; border: 1px solid #cbd5e1; {% if item.question.correct_answer == 'C' %}border-color: #16a34a; font-weight: 700;{% endif %}">
+              C) {{ item.question.option_c }} {% if item.question.correct_answer == 'C' %}✓{% endif %}
+            </div>
+            <div style="padding: 0.35rem 0.6rem; border-radius: 4px; background: #ffffff; border: 1px solid #cbd5e1; {% if item.question.correct_answer == 'D' %}border-color: #16a34a; font-weight: 700;{% endif %}">
+              D) {{ item.question.option_d }} {% if item.question.correct_answer == 'D' %}✓{% endif %}
+            </div>
+          </div>
+
+          <div style="font-size: 0.8rem; color: #475569;">
+            Candidate Selected: <strong>Option {{ item.selected_answer }}</strong> · Correct Answer: <strong>Option {{ item.question.correct_answer }}</strong>
+            {% if item.question.explanation %}
+              <div style="margin-top: 0.35rem; color: #334155; font-style: italic;">
+                Explanation: {{ item.question.explanation }}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p style="color: #64748b; font-size: 0.9rem;">No MCQ questions assigned to this assessment.</p>
+  {% endif %}
+</div>
+
+<!-- Coding Submissions Audit -->
+{% if assessment.has_coding %}
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <h3 style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 1.25rem 0;">Coding Challenge Submissions</h3>
+
+    {% if coding_submissions %}
+      <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        {% for csub in coding_submissions %}
+          <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; background: #f8fafc;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h4 style="font-size: 1rem; font-weight: 800; margin: 0; color: #0f172a;">
+                {{ csub.question.title }} ({{ csub.language|upper }})
+              </h4>
+              <span style="font-size: 0.85rem; font-weight: 800; color: {% if csub.passed_test_cases == csub.total_test_cases %}#16a34a{% else %}#ea580c{% endif %};">
+                Test Cases: {{ csub.passed_test_cases }}/{{ csub.total_test_cases }} passed (Score: {{ csub.score }}%)
+              </span>
+            </div>
+
+            <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 0.35rem;">Submitted Source Code:</div>
+            <pre style="background: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; max-height: 250px;">{{ csub.source_code|default:"// No code submitted" }}</pre>
+
+            {% if csub.execution_output %}
+              <div style="margin-top: 0.75rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 0.35rem;">Execution Logs:</div>
+                <pre style="background: #1e293b; color: #94a3b8; padding: 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; overflow-x: auto;">{{ csub.execution_output }}</pre>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color: #64748b; font-size: 0.9rem;">No coding submissions recorded for this assessment.</p>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

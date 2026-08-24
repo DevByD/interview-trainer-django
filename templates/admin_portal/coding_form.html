@@ -1,0 +1,256 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}{{ action }} Coding Challenge{% endblock %}
+{% block admin_heading %}{{ action }} Coding Challenge{% endblock %}
+{% block admin_subheading %}Define algorithmic problem, I/O formats, constraints, multi-language starter scaffolding, test cases, and time/memory limits{% endblock %}
+
+{% block admin_content %}
+<div style="max-width: 960px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+  <form method="post">
+    {% csrf_token %}
+
+    {% if form.errors %}
+      <div class="alert alert-danger" style="background: #fee2e2; color: #b91c1c; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+        <strong>Please correct the following errors:</strong>
+        <ul style="margin: 0.5rem 0 0 1.25rem;">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <!-- Title, Slug, Category, Difficulty -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Challenge Title *</label>
+        {{ form.title }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Category *</label>
+        {{ form.category }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Difficulty *</label>
+        {{ form.difficulty }}
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div style="margin-bottom: 1.25rem;">
+      <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Problem Statement *</label>
+      {{ form.description }}
+    </div>
+
+    <!-- I/O Formats & Constraints -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Input Format *</label>
+        {{ form.input_format }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Output Format *</label>
+        {{ form.output_format }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Constraints</label>
+        {{ form.constraints }}
+      </div>
+    </div>
+
+    <!-- Sample I/O & Explanation -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Sample Input *</label>
+        {{ form.sample_input }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Sample Output *</label>
+        {{ form.sample_output }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Sample Explanation</label>
+        {{ form.explanation }}
+      </div>
+    </div>
+
+    <!-- Limits & Score -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem;">
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Time Limit (sec)</label>
+        {{ form.time_limit_seconds }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Memory Limit (MB)</label>
+        {{ form.memory_limit_mb }}
+      </div>
+      <div>
+        <label style="font-weight: 700; color: #334155; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">Max Score (pts)</label>
+        {{ form.max_score }}
+      </div>
+    </div>
+
+    <!-- Starter Code Scaffolding Tabs -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem 0;">Starter Code Scaffolding</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">Python Starter</label>
+          {{ form.starter_code_py }}
+        </div>
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">Java Starter</label>
+          {{ form.starter_code_java }}
+        </div>
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">C++ Starter</label>
+          {{ form.starter_code_cpp }}
+        </div>
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">JavaScript Starter</label>
+          {{ form.starter_code_js }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Cases Manager -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0;">Evaluation Test Cases</h3>
+          <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: #64748b;">Supply visible sample test cases and hidden test cases for automated sandbox evaluation.</p>
+        </div>
+        <button type="button" id="addTestCaseBtn" class="btn btn-outline-primary btn-sm" style="font-weight: 700;">
+          + Add Test Case
+        </button>
+      </div>
+
+      <div id="testCasesContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% if test_cases %}
+          {% for tc in test_cases %}
+            <div class="test-case-row" style="display: grid; grid-template-columns: 2fr 2fr auto auto; gap: 0.75rem; align-items: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.75rem;">
+              <div>
+                <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Input</label>
+                <textarea name="tc_input[]" class="form-control font-monospace" rows="2" style="font-size: 0.82rem;">{{ tc.input_data }}</textarea>
+              </div>
+              <div>
+                <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Expected Output</label>
+                <textarea name="tc_output[]" class="form-control font-monospace" rows="2" style="font-size: 0.82rem;">{{ tc.expected_output }}</textarea>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: center;">
+                <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Sample?</label>
+                <input type="checkbox" name="tc_is_sample[]" value="{{ forloop.counter0 }}" {% if tc.is_sample %}checked{% endif %} style="margin-top: 0.4rem;">
+              </div>
+              <div>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-tc-btn" style="margin-top: 1rem;">✕</button>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="test-case-row" style="display: grid; grid-template-columns: 2fr 2fr auto auto; gap: 0.75rem; align-items: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.75rem;">
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Input</label>
+              <textarea name="tc_input[]" class="form-control font-monospace" rows="2" placeholder="4\n2 7 11 15\n9" style="font-size: 0.82rem;"></textarea>
+            </div>
+            <div>
+              <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Expected Output</label>
+              <textarea name="tc_output[]" class="form-control font-monospace" rows="2" placeholder="0 1" style="font-size: 0.82rem;"></textarea>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Sample?</label>
+              <input type="checkbox" name="tc_is_sample[]" value="0" checked style="margin-top: 0.4rem;">
+            </div>
+            <div>
+              <button type="button" class="btn btn-outline-danger btn-sm remove-tc-btn" style="margin-top: 1rem;">✕</button>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Provenance & Governance Section -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0 0 1rem 0;">Provenance & Governance</h3>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1rem;">
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">Source Type *</label>
+          {{ form.source_type }}
+        </div>
+        <div>
+          <label style="font-weight: 700; color: #475569; font-size: 0.82rem; margin-bottom: 0.35rem; display: block;">AI Provider / Origin Info</label>
+          {{ form.ai_provider }}
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #334155; cursor: pointer; font-size: 0.88rem;">
+          {{ form.is_reviewed }} Mark as Reviewed
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #334155; cursor: pointer; font-size: 0.88rem;">
+          {{ form.is_approved }} Mark as Approved
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #334155; cursor: pointer; font-size: 0.88rem;">
+          {{ form.is_active }} Active (Available for Assessments)
+        </label>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display: flex; justify-content: flex-end; gap: 1rem; align-items: center;">
+      <a href="{% url 'dashboard:admin_questions' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+        Save Coding Challenge
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('testCasesContainer');
+    const addBtn = document.getElementById('addTestCaseBtn');
+
+    if (addBtn && container) {
+      addBtn.addEventListener('click', () => {
+        const rows = container.querySelectorAll('.test-case-row');
+        const idx = rows.length;
+        const newRow = document.createElement('div');
+        newRow.className = 'test-case-row';
+        newRow.style = 'display: grid; grid-template-columns: 2fr 2fr auto auto; gap: 0.75rem; align-items: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.75rem;';
+        newRow.innerHTML = `
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Input</label>
+            <textarea name="tc_input[]" class="form-control font-monospace" rows="2" style="font-size: 0.82rem;"></textarea>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Expected Output</label>
+            <textarea name="tc_output[]" class="form-control font-monospace" rows="2" style="font-size: 0.82rem;"></textarea>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <label style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Sample?</label>
+            <input type="checkbox" name="tc_is_sample[]" value="${idx}" style="margin-top: 0.4rem;">
+          </div>
+          <div>
+            <button type="button" class="btn btn-outline-danger btn-sm remove-tc-btn" style="margin-top: 1rem;">✕</button>
+          </div>
+        `;
+        container.appendChild(newRow);
+      });
+
+      container.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-tc-btn')) {
+          const rows = container.querySelectorAll('.test-case-row');
+          if (rows.length > 1) {
+            e.target.closest('.test-case-row').remove();
+          } else {
+            alert('A coding problem must have at least one test case.');
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

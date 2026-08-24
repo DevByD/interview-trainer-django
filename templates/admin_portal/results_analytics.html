@@ -1,0 +1,197 @@
+{% extends "admin_portal/base_admin.html" %}
+
+{% block admin_title %}Platform Results & Analytics{% endblock %}
+{% block admin_heading %}Results & Evaluation Analytics{% endblock %}
+{% block admin_subheading %}Platform-wide candidate performance, pass rates, score distributions, and exportable evaluations{% endblock %}
+
+{% block admin_content %}
+<!-- Analytics Summary Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Average Score</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #2563eb; margin: 0.35rem 0;">{{ avg_overall }}%</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Highest: {{ highest_score }}% · Lowest: {{ lowest_score }}%</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Pass Rate (≥ 60%)</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #16a34a; margin: 0.35rem 0;">{{ pass_rate }}%</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Based on {{ total_completed }} completed tests</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Aptitude Average</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #7c3aed; margin: 0.35rem 0;">{{ avg_aptitude }}%</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Logical, Quant & Tech MCQs</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Coding Average</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #ea580c; margin: 0.35rem 0;">{{ avg_coding }}%</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Algorithm test case scoring</div>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;">Completion Rate</div>
+    <div style="font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0.35rem 0;">{{ completion_rate }}%</div>
+    <div style="font-size: 0.8rem; color: #64748b;">Total assigned vs completed</div>
+  </div>
+</div>
+
+<!-- Filter Bar with Export Button -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <form method="get" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; flex: 1;">
+      <div style="flex: 1; min-width: 220px;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search candidate, email, test title..." class="form-control" style="height: 38px;">
+      </div>
+
+      <div>
+        <select name="employer" class="form-select form-select-sm" style="height: 38px;">
+          <option value="">All Employers</option>
+          {% for emp in employers %}
+            <option value="{{ emp.username }}" {% if employer_filter == emp.username %}selected{% endif %}>{{ emp.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <select name="status" class="form-select form-select-sm" style="height: 38px;">
+          <option value="">All Outcomes</option>
+          <option value="passed" {% if status_filter == 'passed' %}selected{% endif %}>Passed (≥ 60%)</option>
+          <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed (< 60%)</option>
+          <option value="malpractice" {% if status_filter == 'malpractice' %}selected{% endif %}>Auto-Submitted Malpractice</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700; height: 38px; padding: 0 1.25rem;">Filter</button>
+      <a href="{% url 'dashboard:admin_analytics' %}" class="btn btn-outline-secondary btn-sm" style="height: 38px; display: inline-flex; align-items: center;">Reset</a>
+    </form>
+
+    <a href="{% url 'dashboard:admin_results_csv_export' %}" class="btn btn-outline-success btn-sm" style="font-weight: 700; height: 38px; display: inline-flex; align-items: center; gap: 0.4rem;">
+      📥 Export All Results (CSV)
+    </a>
+  </div>
+</div>
+
+<!-- Results Table -->
+<div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #475569; font-size: 0.88rem;">
+    Completed Candidate Scorecards ({{ page_obj.paginator.count }})
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+      <thead>
+        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 0.78rem; text-transform: uppercase;">
+          <th style="padding: 0.85rem 1rem;">Candidate</th>
+          <th style="padding: 0.85rem 1rem;">Employer</th>
+          <th style="padding: 0.85rem 1rem;">Assessment</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Aptitude %</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Coding %</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Overall Score</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Outcome</th>
+          <th style="padding: 0.85rem 1rem; text-align: center;">Violations</th>
+          <th style="padding: 0.85rem 1rem;">Completed At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for res in page_obj %}
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <!-- Candidate -->
+            <td style="padding: 0.85rem 1rem;">
+              <div style="font-weight: 700; color: #0f172a;">
+                {{ res.assessment.candidate.get_full_name|default:res.assessment.candidate.username }}
+              </div>
+              <div style="font-size: 0.76rem; color: #64748b;">{{ res.assessment.candidate.email }}</div>
+            </td>
+
+            <!-- Employer -->
+            <td style="padding: 0.85rem 1rem;">
+              <div style="font-weight: 600; color: #334155;">{{ res.assessment.employer.username }}</div>
+              <div style="font-size: 0.76rem; color: #64748b;">{{ res.assessment.employer.employer_profile.company|default:"" }}</div>
+            </td>
+
+            <!-- Assessment -->
+            <td style="padding: 0.85rem 1rem;">
+              <a href="{% url 'dashboard:admin_assessment_detail' res.assessment.id %}" style="font-weight: 700; color: #2563eb; text-decoration: none;">
+                {{ res.assessment.title }}
+              </a>
+            </td>
+
+            <!-- Aptitude -->
+            <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 700; color: #334155;">
+              {{ res.aptitude_score }}%
+            </td>
+
+            <!-- Coding -->
+            <td style="padding: 0.85rem 1rem; text-align: center; font-weight: 700; color: #334155;">
+              {% if res.has_coding or res.assessment.has_coding %}
+                {{ res.coding_score }}%
+              {% else %}
+                <span style="color: #94a3b8;">N/A</span>
+              {% endif %}
+            </td>
+
+            <!-- Overall Score -->
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              <span style="font-size: 1.1rem; font-weight: 900; color: {% if res.overall_score >= 60 %}#16a34a{% else %}#dc2626{% endif %};">
+                {{ res.overall_score }}%
+              </span>
+            </td>
+
+            <!-- Outcome Badge -->
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if res.overall_score >= 60 %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #dcfce7; color: #16a34a; padding: 0.2rem 0.5rem; border-radius: 4px;">PASS</span>
+              {% else %}
+                <span style="font-size: 0.75rem; font-weight: 700; background: #fee2e2; color: #dc2626; padding: 0.2rem 0.5rem; border-radius: 4px;">FAIL</span>
+              {% endif %}
+            </td>
+
+            <!-- Violations -->
+            <td style="padding: 0.85rem 1rem; text-align: center;">
+              {% if res.violation_count > 0 %}
+                <span style="font-weight: 800; color: #dc2626;">{{ res.violation_count }}/3</span>
+                {% if res.auto_submitted_for_malpractice %}
+                  <div style="font-size: 0.7rem; color: #dc2626; font-weight: 700;">MALPRACTICE</div>
+                {% endif %}
+              {% else %}
+                <span style="color: #16a34a;">0</span>
+              {% endif %}
+            </td>
+
+            <!-- Completed At -->
+            <td style="padding: 0.85rem 1rem; color: #64748b; font-size: 0.82rem;">
+              {{ res.completed_at|date:"M d, Y h:i A" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="9" style="padding: 2.5rem; text-align: center; color: #64748b;">
+              No evaluation scorecards found matching criteria.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <span style="font-size: 0.88rem; color: #64748b;">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    <div style="display: flex; gap: 0.35rem;">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if employer_filter %}&employer={{ employer_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-outline-secondary btn-sm">← Previous</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if employer_filter %}&employer={{ employer_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-outline-secondary btn-sm">Next →</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
