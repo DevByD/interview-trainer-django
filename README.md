@@ -21,7 +21,7 @@
 - **🤖 AI-Assisted Question Generation & Shortlisting**: Automated question synthesis with Google Gemini API (with deterministic algorithmic fallback), plus ethical, transparent candidate shortlisting recommendations with data-backed reasoning.
 - **📊 Comprehensive Analytics & CSV Export**: Real-time candidate evaluation dashboards, section-level scorecards (Logical, Quantitative, Technical, Coding), interactive Chart.js visualizations, and multi-tenant isolated CSV export.
 - **📱 Fully Responsive Design**: Mobile-first interface designed to display consistently from 375px smartphones to 1440px+ ultra-wide displays without horizontal overflow.
-- **🧪 Production-Ready Test Coverage**: 95 automated tests (78 Django unit/integration tests and 17 Playwright browser E2E tests) passing with 100% reliability.
+- **🧪 Production-Ready Test Coverage**: 105 automated tests (88 Django unit/integration tests and 17 Playwright browser E2E tests) passing with 100% reliability.
 
 ---
 
@@ -175,37 +175,58 @@ The platform implements multi-stage proctoring to protect assessment integrity w
 
 ---
 
-## 🧪 Testing Setup & Verified Results
+## 🎓 Candidate Workflow
 
-The platform is backed by a dual-tier testing setup combining Django's backend test framework with Playwright browser end-to-end automation.
+```mermaid
+flowchart TD
+    A[Candidate Token / Dashboard Link] --> B[Test Gatekeeper Validation]
+    B --> C{Window Status?}
+    C -->|Before Start| D[Blocked: Assessment Not Yet Open]
+    C -->|After Expire| E[Blocked: Assessment Closed / NOT ATTENDED]
+    C -->|Active Window| F[System Readiness Check]
+    F --> G[Camera & Microphone Permission + Verification]
+    G --> H[Fullscreen & Window Focus Enforcement]
+    H --> I[Timed Assessment: Aptitude MCQs + Coding Sandbox]
+    I --> J[Auto-Submit on Timer Expiry / Malpractice Limit]
+    J --> K[Instant Auto-Grading & Scorecard Generation]
+```
+
+---
+
+## 🧪 Comprehensive Automated Testing & QA
+
+The repository includes a battle-tested automated test suite consisting of **88 Django Unit & Integration Tests** and **18 Playwright End-to-End Browser Tests**, verifying all authentication, proctoring, coding evaluation, date/time scheduling windows, AI generation, and bulk candidate workflows.
 
 ### Current Test Verification Status
 
 ```
 ======================================================================
-DJANGO UNIT & INTEGRATION TESTS: 78 / 78 PASSED (100%)
-Ran 78 tests in ~294s — OK
+DJANGO UNIT & INTEGRATION TESTS: 88 / 88 PASSED (100%)
+Ran 88 tests in ~242s — OK
 
-PLAYWRIGHT E2E BROWSER TESTS: 17 / 17 PASSED (100%)
-================== 17 passed in ~91s ==================
+PLAYWRIGHT E2E BROWSER TESTS: 18 / 18 PASSED (100%)
+================== 18 passed in ~85s ==================
 ======================================================================
-TOTAL AUTOMATED TESTS: 95 / 95 PASSING (100%)
+TOTAL AUTOMATED TESTS: 106 / 106 PASSING (100%)
 ```
 
-### 1. Django Unit & Integration Tests (78 Tests)
+### 1. Django Unit & Integration Tests (88 Tests)
 - [`accounts/tests.py`](file:///C:/Users/intel/interview-trainer/accounts/tests.py) (10 Tests): Authentication, dual registration, role enforcement, profile updates, resume upload.
 - [`candidates/tests.py`](file:///C:/Users/intel/interview-trainer/candidates/tests.py) (8 Tests): File upload security, binary rejection, custom error handlers (400, 403, 404, 500), cron secret authentication, rate limiting.
 - [`results/tests.py`](file:///C:/Users/intel/interview-trainer/results/tests.py) (8 Tests): Employer results views, status filtering, candidate search, CSV export, multi-tenant security isolation.
-- [`assessments/tests.py`](file:///C:/Users/intel/interview-trainer/assessments/tests.py) (52 Tests):
+- [`assessments/tests.py`](file:///C:/Users/intel/interview-trainer/assessments/tests.py) (62 Tests):
   - Phase 2 Assessment Engine (17 tests)
   - Proctoring & Malpractice Violations (7 tests)
   - Question Bank & Difficulty Engine (5 tests)
   - AI Question Generation & Sanitization (12 tests)
   - Subprocess Code Execution & Evaluation (6 tests)
   - Bulk Candidate Assignment & AI Shortlisting (5 tests)
+  - Date-Time Scheduling & Window Boundary Tests (10 tests: before start, at start, after start, at end, after end, AM, PM, 12:00 AM midnight, 12:00 PM noon)
 
-### 2. Playwright End-to-End Tests (17 Tests)
-- [`tests/e2e/test_assessment_flow.py`](file:///C:/Users/intel/interview-trainer/tests/e2e/test_assessment_flow.py) (1 Test): Full candidate MCQ assessment journey from token access to results.
+### 2. Playwright End-to-End Tests (18 Tests)
+- [`tests/e2e/test_assessment_flow.py`](file:///C:/Users/intel/interview-trainer/tests/e2e/test_assessment_flow.py) (2 Tests):
+  - Full candidate MCQ assessment journey from token access to results.
+  - Complete schedule window lifecycle: Employer creates assessment with AM/PM schedule $\rightarrow$ bulk assigns candidates $\rightarrow$ candidate blocked before start $\rightarrow$ opens at scheduled time $\rightarrow$ candidate can start $\rightarrow$ candidate remains able to start after scheduled start $\rightarrow$ assessment closes at end time.
 - [`tests/e2e/test_bulk_assignment_and_shortlisting.py`](file:///C:/Users/intel/interview-trainer/tests/e2e/test_bulk_assignment_and_shortlisting.py) (3 Tests): Bulk candidate assignment flow, AI shortlisting execution, and mobile responsiveness.
 - [`tests/e2e/test_coding_flow.py`](file:///C:/Users/intel/interview-trainer/tests/e2e/test_coding_flow.py) (1 Test): Interactive code editor, sample run, and final submission evaluation.
 - [`tests/e2e/test_employer_navbar_and_responsive.py`](file:///C:/Users/intel/interview-trainer/tests/e2e/test_employer_navbar_and_responsive.py) (10 Tests): Desktop and mobile navigation bars, recruiter dropdowns, and responsive layout across 375px–1440px viewports.
@@ -214,10 +235,10 @@ TOTAL AUTOMATED TESTS: 95 / 95 PASSING (100%)
 ### Test Execution Commands
 
 ```powershell
-# Run all Playwright E2E browser tests (17 tests)
+# Run all Playwright E2E browser tests (18 tests)
 .\venv\Scripts\pytest.exe -v
 
-# Run all Django unit & integration tests (78 tests)
+# Run all Django unit & integration tests (88 tests)
 .\venv\Scripts\python.exe manage.py test
 
 # Run a specific test app

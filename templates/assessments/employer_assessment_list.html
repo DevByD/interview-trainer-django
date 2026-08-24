@@ -65,8 +65,8 @@
                     </a>
                   {% endif %}
                 </td>
-                <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
-                <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.start_time|date:"M d, Y h:i A" }}</td>
+                <td>{{ item.expire_time|date:"M d, Y h:i A" }}</td>
                 <td>{{ item.duration_minutes }} min{{ item.duration_minutes|pluralize }}</td>
                 <td>
                   {% if item.status == "PENDING" %}

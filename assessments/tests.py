@@ -1,7 +1,8 @@
 import json
 import secrets
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
@@ -411,7 +412,7 @@ class Phase2AssessmentEngineTests(TestCase):
         self.client.login(username="cand1@test.com", password="Password123!")
         res_gate = self.client.get(reverse("assessments:test_entry", kwargs={"token": past_pending.token}))
         self.assertEqual(res_gate.status_code, 200)
-        self.assertContains(res_gate, "Assessment Expired (MISSED TEST)")
+        self.assertContains(res_gate, "Assessment Closed")
 
     # =========================================================================
     # STEP 11 TESTS — QUESTION BANK & ASSESSMENT ENGINE
@@ -649,7 +650,7 @@ class Phase2AssessmentEngineTests(TestCase):
         )
         expired_res = self.client.get(reverse("assessments:test_entry", kwargs={"token": expired_assessment.token}))
         self.assertEqual(expired_res.status_code, 200)
-        self.assertContains(expired_res, "Assessment Expired")
+        self.assertContains(expired_res, "Assessment Closed")
         expired_assessment.refresh_from_db()
         self.assertEqual(expired_assessment.status, Assessment.Status.EXPIRED)
 
@@ -1963,3 +1964,395 @@ class BulkCandidateAssignmentAndShortlistingTests(TestCase):
         self.assertEqual(res3.status_code, 302)
         a2.refresh_from_db()
         self.assertFalse(a2.is_shortlisted)
+
+
+class AssessmentDateTimeAndScheduleWindowTests(TestCase):
+    """Tests for assessment scheduling, date-time boundary enforcement, AM/PM, midnight and noon handling."""
+
+    def setUp(self):
+        self.client = Client()
+        self.base_time = timezone.now()
+
+        # Employer
+        self.emp_user = User.objects.create_user(
+            username="schedule_emp@tech.com",
+            email="schedule_emp@tech.com",
+            password="Password123!",
+            first_name="Schedule",
+            last_name="Employer",
+        )
+        self.emp_profile = EmployerProfile.objects.create(user=self.emp_user, company="TimeTech")
+
+        # Candidate
+        self.cand_user = User.objects.create_user(
+            username="schedule_cand@candidate.com",
+            email="schedule_cand@candidate.com",
+            password="Password123!",
+            first_name="Timmy",
+            last_name="Tester",
+        )
+        self.cand_profile = CandidateProfile.objects.create(
+            user=self.cand_user,
+            phone="9876543210",
+            education="B.Tech Computer Science",
+            skills="Python, Algorithms",
+            experience=2,
+        )
+
+        # Question
+        self.question = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="What is the default port for HTTP?",
+            option_a="80",
+            option_b="443",
+            option_c="8080",
+            option_d="22",
+            correct_answer="A",
+            difficulty=Question.Difficulties.EASY,
+        )
+
+    def test_01_access_before_start_time(self):
+        """Before start: candidate is blocked by not_started gate and cannot start early."""
+        fixed_now = timezone.now()
+        start_time = fixed_now + timedelta(hours=2)
+        expire_time = fixed_now + timedelta(hours=5)
+
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Future Assessment",
+            start_time=start_time,
+            expire_time=expire_time,
+            duration_minutes=30,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.question, order=1)
+
+        self.client.login(username="schedule_cand@candidate.com", password="Password123!")
+
+        # 1. Entry gate check
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_entry = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+            self.assertEqual(res_entry.status_code, 200)
+            self.assertContains(res_entry, "Assessment Not Yet Open")
+            self.assertEqual(res_entry.context.get("gate_type"), "not_started")
+
+        # 2. Attempt to start early via POST
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_start = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+            self.assertEqual(res_start.status_code, 302)
+            assessment.refresh_from_db()
+            self.assertEqual(assessment.status, Assessment.Status.PENDING)
+
+    def test_02_access_and_start_exactly_at_start_time(self):
+        """Exactly at start: candidate can access instructions and successfully start the assessment."""
+        fixed_now = timezone.now()
+        start_time = fixed_now
+        expire_time = fixed_now + timedelta(hours=2)
+
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Start On The Dot Assessment",
+            start_time=start_time,
+            expire_time=expire_time,
+            duration_minutes=30,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.question, order=1)
+
+        self.client.login(username="schedule_cand@candidate.com", password="Password123!")
+
+        # 1. Entry gate allows instructions exactly at start_time
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_entry = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+            self.assertEqual(res_entry.status_code, 200)
+            self.assertContains(res_entry, "Start On The Dot Assessment")
+            self.assertContains(res_entry, "START ASSESSMENT")
+
+        # 2. Candidate starts exactly at start_time
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_start = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+            self.assertEqual(res_start.status_code, 302)
+            assessment.refresh_from_db()
+            self.assertEqual(assessment.status, Assessment.Status.ONGOING)
+
+    def test_03_access_and_start_after_start_time(self):
+        """After start: candidate within active window can view instructions and start."""
+        fixed_now = timezone.now()
+        start_time = fixed_now - timedelta(minutes=30)
+        expire_time = fixed_now + timedelta(hours=2)
+
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Active Window Assessment",
+            start_time=start_time,
+            expire_time=expire_time,
+            duration_minutes=30,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.question, order=1)
+
+        self.client.login(username="schedule_cand@candidate.com", password="Password123!")
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_entry = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+            self.assertEqual(res_entry.status_code, 200)
+            self.assertContains(res_entry, "START ASSESSMENT")
+
+            res_start = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+            self.assertEqual(res_start.status_code, 302)
+            assessment.refresh_from_db()
+            self.assertEqual(assessment.status, Assessment.Status.ONGOING)
+
+    def test_04_access_and_start_exactly_at_end_time(self):
+        """Exactly at end: candidate accessing at the exact boundary of expire_time is not marked past due."""
+        fixed_now = timezone.now()
+        start_time = fixed_now - timedelta(hours=1)
+        expire_time = fixed_now
+
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Boundary End Assessment",
+            start_time=start_time,
+            expire_time=expire_time,
+            duration_minutes=30,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.question, order=1)
+
+        self.client.login(username="schedule_cand@candidate.com", password="Password123!")
+
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_entry = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+            self.assertEqual(res_entry.status_code, 200)
+            # Exactly at expire_time (now <= expire_time), it has not exceeded expiry
+            self.assertNotEqual(res_entry.context.get("gate_type"), "expired")
+
+    def test_05_access_and_start_after_end_time(self):
+        """After end: candidate accessing after expire_time is marked EXPIRED and NOT_ATTENDED."""
+        fixed_now = timezone.now()
+        start_time = fixed_now - timedelta(hours=3)
+        expire_time = fixed_now - timedelta(seconds=1)
+
+        assessment = Assessment.objects.create(
+            employer=self.emp_user,
+            candidate=self.cand_user,
+            title="Past Due Assessment",
+            start_time=start_time,
+            expire_time=expire_time,
+            duration_minutes=30,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment, question=self.question, order=1)
+
+        self.client.login(username="schedule_cand@candidate.com", password="Password123!")
+
+        # 1. Access test_entry after expire_time
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_entry = self.client.get(reverse("assessments:test_entry", kwargs={"token": assessment.token}))
+            self.assertEqual(res_entry.status_code, 200)
+            self.assertEqual(res_entry.context.get("gate_type"), "expired")
+            self.assertContains(res_entry, "Assessment Closed")
+
+            assessment.refresh_from_db()
+            self.assertEqual(assessment.status, Assessment.Status.EXPIRED)
+            self.assertEqual(assessment.candidate_status, Assessment.CandidateStatus.NOT_ATTENDED)
+
+        # 2. Attempt to start after expire_time
+        with patch("django.utils.timezone.now", return_value=fixed_now):
+            res_start = self.client.post(reverse("assessments:test_start", kwargs={"token": assessment.token}))
+            self.assertEqual(res_start.status_code, 302)
+
+    def test_06_form_scheduling_am_times(self):
+        """AM times: verify AssessmentCreateForm correctly parses and validates morning time schedules."""
+        from assessments.forms import AssessmentCreateForm
+
+        tomorrow = timezone.localdate() + timedelta(days=1)
+        form_data = {
+            "candidate": self.cand_user.id,
+            "title": "Morning Assessment (AM)",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(9, 0),       # 9:00 AM
+            "expire_date": tomorrow,
+            "expire_time": time(11, 30),     # 11:30 AM
+            "duration_minutes": 60,
+        }
+        form = AssessmentCreateForm(data=form_data)
+        self.assertTrue(form.is_valid(), form.errors)
+
+        cleaned = form.cleaned_data
+        start_dt = cleaned["start_datetime"]
+        expire_dt = cleaned["expire_datetime"]
+
+        self.assertEqual(start_dt.hour, 9)
+        self.assertEqual(start_dt.minute, 0)
+        self.assertEqual(expire_dt.hour, 11)
+        self.assertEqual(expire_dt.minute, 30)
+        self.assertGreater(expire_dt, start_dt)
+
+    def test_07_form_scheduling_pm_times(self):
+        """PM times: verify AssessmentCreateForm correctly parses afternoon/evening times and AM-to-PM spans."""
+        from assessments.forms import AssessmentCreateForm
+
+        tomorrow = timezone.localdate() + timedelta(days=1)
+
+        # Case A: PM to PM on the same day
+        form_data_pm = {
+            "candidate": self.cand_user.id,
+            "title": "Afternoon Assessment (PM to PM)",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(14, 0),      # 2:00 PM
+            "expire_date": tomorrow,
+            "expire_time": time(17, 45),     # 5:45 PM
+            "duration_minutes": 45,
+        }
+        form_pm = AssessmentCreateForm(data=form_data_pm)
+        self.assertTrue(form_pm.is_valid(), form_pm.errors)
+        self.assertEqual(form_pm.cleaned_data["start_datetime"].hour, 14)
+        self.assertEqual(form_pm.cleaned_data["expire_datetime"].hour, 17)
+        self.assertEqual(form_pm.cleaned_data["expire_datetime"].minute, 45)
+
+        # Case B: AM to PM on the same day
+        form_data_ampm = {
+            "candidate": self.cand_user.id,
+            "title": "Full Day Assessment (AM to PM)",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(10, 0),      # 10:00 AM
+            "expire_date": tomorrow,
+            "expire_time": time(16, 0),      # 4:00 PM
+            "duration_minutes": 90,
+        }
+        form_ampm = AssessmentCreateForm(data=form_data_ampm)
+        self.assertTrue(form_ampm.is_valid(), form_ampm.errors)
+        self.assertGreater(form_ampm.cleaned_data["expire_datetime"], form_ampm.cleaned_data["start_datetime"])
+
+    def test_08_form_scheduling_12_00_am_midnight(self):
+        """12:00 AM (Midnight): verify handling of 00:00:00 as start and cross-midnight expiry."""
+        from assessments.forms import AssessmentCreateForm
+
+        day1 = timezone.localdate() + timedelta(days=2)
+        day2 = day1 + timedelta(days=1)
+
+        # Case A: Starting at 12:00 AM (00:00) on day1, expiring at 04:00 AM on day1
+        form_data_midnight_start = {
+            "candidate": self.cand_user.id,
+            "title": "Midnight Start Assessment",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": day1,
+            "start_time": time(0, 0),       # 12:00 AM
+            "expire_date": day1,
+            "expire_time": time(4, 0),       # 4:00 AM
+            "duration_minutes": 60,
+        }
+        form_a = AssessmentCreateForm(data=form_data_midnight_start)
+        self.assertTrue(form_a.is_valid(), form_a.errors)
+        self.assertEqual(form_a.cleaned_data["start_datetime"].hour, 0)
+        self.assertEqual(form_a.cleaned_data["start_datetime"].minute, 0)
+
+        # Case B: Starting at 11:00 PM (23:00) on day1, expiring at 12:00 AM midnight (00:00) on day2
+        form_data_cross_midnight = {
+            "candidate": self.cand_user.id,
+            "title": "Cross Midnight Assessment",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": day1,
+            "start_time": time(23, 0),      # 11:00 PM
+            "expire_date": day2,
+            "expire_time": time(0, 0),       # 12:00 AM (midnight next day)
+            "duration_minutes": 45,
+        }
+        form_b = AssessmentCreateForm(data=form_data_cross_midnight)
+        self.assertTrue(form_b.is_valid(), form_b.errors)
+        self.assertEqual(
+            form_b.cleaned_data["expire_datetime"] - form_b.cleaned_data["start_datetime"],
+            timedelta(hours=1),
+        )
+
+    def test_09_form_scheduling_12_00_pm_noon(self):
+        """12:00 PM (Noon): verify handling of 12:00:00 as start and as expiry."""
+        from assessments.forms import AssessmentCreateForm
+
+        tomorrow = timezone.localdate() + timedelta(days=1)
+
+        # Case A: Morning start expiring at 12:00 PM (Noon)
+        form_data_noon_expiry = {
+            "candidate": self.cand_user.id,
+            "title": "Morning to Noon Assessment",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(10, 0),      # 10:00 AM
+            "expire_date": tomorrow,
+            "expire_time": time(12, 0),      # 12:00 PM (Noon)
+            "duration_minutes": 60,
+        }
+        form_a = AssessmentCreateForm(data=form_data_noon_expiry)
+        self.assertTrue(form_a.is_valid(), form_a.errors)
+        self.assertEqual(form_a.cleaned_data["expire_datetime"].hour, 12)
+        self.assertEqual(form_a.cleaned_data["expire_datetime"].minute, 0)
+        self.assertEqual(
+            form_a.cleaned_data["expire_datetime"] - form_a.cleaned_data["start_datetime"],
+            timedelta(hours=2),
+        )
+
+        # Case B: Starting at 12:00 PM (Noon) expiring in the afternoon
+        form_data_noon_start = {
+            "candidate": self.cand_user.id,
+            "title": "Noon to Afternoon Assessment",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(12, 0),      # 12:00 PM (Noon)
+            "expire_date": tomorrow,
+            "expire_time": time(15, 30),     # 3:30 PM
+            "duration_minutes": 60,
+        }
+        form_b = AssessmentCreateForm(data=form_data_noon_start)
+        self.assertTrue(form_b.is_valid(), form_b.errors)
+        self.assertEqual(form_b.cleaned_data["start_datetime"].hour, 12)
+        self.assertEqual(form_b.cleaned_data["start_datetime"].minute, 0)
+        self.assertGreater(form_b.cleaned_data["expire_datetime"], form_b.cleaned_data["start_datetime"])
+
+    def test_10_form_rejects_inverted_or_equal_start_and_expire_times(self):
+        """Verify AssessmentCreateForm rejects expiry time on or before start time."""
+        from assessments.forms import AssessmentCreateForm
+
+        tomorrow = timezone.localdate() + timedelta(days=1)
+
+        # 1. Expiry before start on same date
+        form_data_inverted = {
+            "candidate": self.cand_user.id,
+            "title": "Inverted Time Assessment",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(15, 0),      # 3:00 PM
+            "expire_date": tomorrow,
+            "expire_time": time(11, 0),      # 11:00 AM (before start!)
+            "duration_minutes": 60,
+        }
+        form_inv = AssessmentCreateForm(data=form_data_inverted)
+        self.assertFalse(form_inv.is_valid())
+        self.assertIn("expire_date", form_inv.errors)
+        self.assertIn("Expiry date & time must be strictly after the start date & time.", form_inv.errors["expire_date"][0])
+
+        # 2. Expiry equal to start (zero window)
+        form_data_equal = {
+            "candidate": self.cand_user.id,
+            "title": "Zero Window Assessment",
+            "sections": ["TECHNICAL"],
+            "technical_count": 1,
+            "start_date": tomorrow,
+            "start_time": time(12, 0),      # 12:00 PM
+            "expire_date": tomorrow,
+            "expire_time": time(12, 0),      # 12:00 PM
+            "duration_minutes": 60,
+        }
+        form_eq = AssessmentCreateForm(data=form_data_equal)
+        self.assertFalse(form_eq.is_valid())
+        self.assertIn("expire_date", form_eq.errors)

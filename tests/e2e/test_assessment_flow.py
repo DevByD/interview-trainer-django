@@ -142,3 +142,156 @@ def test_full_mcq_assessment_lifecycle(live_server, browser_context, test_setup_
     page.goto(f"{live_server.url}/employer/assessments/")
     expect(page.locator("body")).to_contain_text(assessment.title)
     expect(page.locator("body")).to_contain_text("Completed")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_e2e_schedule_window_and_candidate_access_lifecycle(live_server, browser_context, test_setup_data):
+    """Verify schedule window lifecycle:
+    1. Employer creates assessment with AM/PM schedule and assigns candidates.
+    2. Candidate opens before start -> blocked by 'Assessment Not Yet Open' gate.
+    3. Scheduled time reached -> candidate can access instructions and start.
+    4. Candidate remains able to start after scheduled start.
+    5. Assessment closes at end time -> candidate is blocked with 'Assessment Closed'.
+    """
+    from datetime import timedelta
+    from django.contrib.auth.models import User
+    from django.utils import timezone
+    from accounts.models import CandidateProfile
+    from assessments.models import AssessmentGroup
+
+    employer_user = test_setup_data["employer_user"]
+    candidate_user = test_setup_data["candidate_user"]
+    candidate_user_2 = User.objects.create_user(
+        username="candidate2_e2e@test.com",
+        email="candidate2_e2e@test.com",
+        password="TestPassword123!",
+        first_name="Priya",
+        last_name="Sharma",
+    )
+    CandidateProfile.objects.create(user=candidate_user_2, profile_completed=True)
+
+    page = browser_context.new_page()
+
+    # Step 1: Employer Login & Bulk Create Assessment with AM/PM schedule
+    page.goto(f"{live_server.url}/employer/login/")
+    page.fill('input[name="username"]', employer_user.username)
+    page.fill('input[name="password"]', "TestPassword123!")
+    page.click('button[type="submit"]')
+    page.wait_for_url(f"{live_server.url}/employer/dashboard/")
+
+    # Navigate to Create Assessment page
+    page.goto(f"{live_server.url}/employer/assessments/create/")
+    expect(page.locator("h1")).to_contain_text("Create & Assign Assessment")
+
+    # Set title and question count
+    page.fill('input[name="title"]', "Schedule Window E2E Assessment")
+
+    # Select both candidate checkboxes
+    page.locator(f'input[name="candidates"][value="{candidate_user.id}"]').check()
+    page.locator(f'input[name="candidates"][value="{candidate_user_2.id}"]').check()
+
+    # Set schedule for future (Tomorrow 09:30 AM to 11:30 AM)
+    tomorrow = timezone.localdate() + timedelta(days=1)
+    tomorrow_str = tomorrow.isoformat()
+    page.fill('input[name="start_date"]', tomorrow_str)
+    page.fill('input[name="start_time"]', "09:30")
+    page.fill('input[name="expire_date"]', tomorrow_str)
+    page.fill('input[name="expire_time"]', "11:30")
+
+    page.locator('input[name="logical_count"]').fill("1")
+    page.locator('input[name="quant_count"]').fill("1")
+    page.locator('input[name="technical_count"]').fill("1")
+
+    # Submit form
+    page.click("#btnSubmitAssessment")
+
+    # Employer lands on Campaign detail dashboard
+    page.wait_for_url(re.compile(r"/employer/campaign/\d+/"))
+    expect(page.locator("h1")).to_contain_text("Schedule Window E2E Assessment")
+
+    # Retrieve created assessments from DB
+    group = AssessmentGroup.objects.filter(employer=employer_user, title="Schedule Window E2E Assessment").first()
+    assert group is not None
+    assert group.assessments.count() == 2
+
+    assessment_cand1 = group.assessments.filter(candidate=candidate_user).first()
+    assessment_cand2 = group.assessments.filter(candidate=candidate_user_2).first()
+    assert assessment_cand1 is not None
+    assert assessment_cand2 is not None
+
+    # Step 2: Employer Logs Out -> Candidate 1 Logs In
+    browser_context.clear_cookies()
+    page.goto(f"{live_server.url}/candidate/login/")
+    page.fill('input[name="username"]', candidate_user.username)
+    page.fill('input[name="password"]', "TestPassword123!")
+    page.click('button[type="submit"]')
+    page.wait_for_url(f"{live_server.url}/candidate/dashboard/")
+
+    # Candidate opens test URL BEFORE start time (scheduled for tomorrow)
+    test_url_1 = f"{live_server.url}/test/{assessment_cand1.token}/"
+    page.goto(test_url_1)
+
+    # Verify candidate is blocked by "Assessment Not Yet Open"
+    expect(page.locator("h1.gate-title")).to_have_text("Assessment Not Yet Open")
+    expect(page.locator(".gate-desc")).to_contain_text("Scheduled to open:")
+    expect(page.locator(".gate-desc")).to_contain_text("IST")
+    expect(page.locator("#btnStartAssessment")).to_have_count(0)
+
+    # Step 3: Scheduled time reached (simulate time opening)
+    now = timezone.now()
+    assessment_cand1.start_time = now - timedelta(minutes=5)
+    assessment_cand1.expire_time = now + timedelta(hours=2)
+    assessment_cand1.save(update_fields=["start_time", "expire_time"])
+
+    # Reload page at scheduled time
+    page.goto(test_url_1)
+
+    # Instructions & system readiness page is now accessible
+    expect(page.locator("h1")).to_contain_text(assessment_cand1.title)
+    expect(page.locator(".system-check-card")).to_be_visible()
+
+    # Step 4: Candidate remains able to start after scheduled start
+    start_btn = page.locator("#btnStartAssessment")
+    expect(start_btn).to_be_disabled()
+
+    # Perform camera & mic verification
+    page.locator("#btnTestMedia").click()
+    expect(page.locator("#badgeCamera")).to_have_text("Ready", timeout=8000)
+    expect(page.locator("#badgeMic")).to_have_text("Ready", timeout=8000)
+
+    # Set fullscreen override and verify start button enables
+    page.evaluate("() => { window.__fullscreenOverride = true; if (typeof updateCheckStatusUI === 'function') { updateCheckStatusUI(); } }")
+    expect(start_btn).to_be_enabled(timeout=5000)
+
+    # Candidate starts assessment
+    start_btn.click()
+    expect(page.locator(".test-header-bar")).to_be_visible(timeout=8000)
+    expect(page.locator("#timerDisplay")).to_be_visible()
+    expect(page.locator("#question-pane-1")).to_be_visible()
+
+    # Step 5: Assessment closes at end time (simulate expiration for candidate 2 who hasn't started)
+    assessment_cand2.start_time = now - timedelta(hours=3)
+    assessment_cand2.expire_time = now - timedelta(minutes=1)
+    assessment_cand2.save(update_fields=["start_time", "expire_time"])
+
+    # Candidate 2 logs in
+    browser_context.clear_cookies()
+    page.goto(f"{live_server.url}/candidate/login/")
+    page.fill('input[name="username"]', candidate_user_2.username)
+    page.fill('input[name="password"]', "TestPassword123!")
+    page.click('button[type="submit"]')
+    page.wait_for_url(f"{live_server.url}/candidate/dashboard/")
+
+    # Candidate 2 visits test URL past expiry
+    test_url_2 = f"{live_server.url}/test/{assessment_cand2.token}/"
+    page.goto(test_url_2)
+
+    # Verify candidate 2 sees "Assessment Closed"
+    expect(page.locator("h1.gate-title")).to_have_text("Assessment Closed")
+    expect(page.locator(".gate-desc")).to_contain_text("Scheduled end:")
+    expect(page.locator(".gate-desc")).to_contain_text("IST")
+
+    assessment_cand2.refresh_from_db()
+    assert assessment_cand2.status == Assessment.Status.EXPIRED
+    assert assessment_cand2.candidate_status == Assessment.CandidateStatus.NOT_ATTENDED
+

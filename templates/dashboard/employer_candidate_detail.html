@@ -95,8 +95,8 @@
             {% for item in assigned_assessments %}
               <tr>
                 <td><strong>{{ item.title }}</strong></td>
-                <td>{{ item.start_time|date:"M d, Y H:i" }}</td>
-                <td>{{ item.expire_time|date:"M d, Y H:i" }}</td>
+                <td>{{ item.start_time|date:"M d, Y h:i A" }}</td>
+                <td>{{ item.expire_time|date:"M d, Y h:i A" }}</td>
                 <td>
                   {% if item.status == "PENDING" %}
                     <span class="badge badge-pending">Pending</span>

@@ -46,7 +46,7 @@
         {{ assessment.title }}
       </h1>
       <p style="color: #64748b; font-size: 0.95rem; margin: 0;">
-        Candidate: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; Completed on {{ result.completed_at|date:"F d, Y at H:i" }}
+        Candidate: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> &bull; Completed on {{ result.completed_at|date:"F d, Y \a\t h:i A" }}
       </p>
     </div>
 

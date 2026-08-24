@@ -30,9 +30,13 @@
   {% elif gate_type == "expired" %}
     <div class="gate-card" style="border-top: 4px solid var(--danger);">
       <div class="gate-icon">⏱️</div>
-      <h1 class="gate-title" style="color: var(--danger-dark);">Assessment Expired (MISSED TEST)</h1>
+      <h1 class="gate-title" style="color: var(--danger-dark);">Assessment Closed</h1>
       <p class="gate-desc">
-        The scheduled window for <strong>{{ assessment.title }}</strong> expired on <strong>{{ assessment.expire_time|date:"F d, Y at H:i" }}</strong>. Unattended assessments can no longer be accessed or started.
+        The scheduled window for <strong>{{ assessment.title }}</strong> has closed.<br>
+        <strong>Scheduled end:</strong><br>
+        <strong style="font-size: 1.15rem; color: var(--danger-dark);">{{ assessment.expire_time|date:"F d, Y \a\t h:i A" }} IST</strong>
+        <br><br>
+        Unattended assessments can no longer be accessed or started.
       </p>
       <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
         Return to Candidate Dashboard
@@ -44,11 +48,10 @@
       <div class="gate-icon">🔒</div>
       <h1 class="gate-title">Assessment Not Yet Open</h1>
       <p class="gate-desc">
-        <strong>{{ assessment.title }}</strong> is scheduled to open on:
-        <br>
-        <strong style="font-size: 1.15rem; color: var(--dark-bg);">{{ assessment.start_time|date:"F d, Y at H:i" }}</strong>
+        <strong>Scheduled to open:</strong><br>
+        <strong style="font-size: 1.15rem; color: var(--dark-bg);">{{ assessment.start_time|date:"F d, Y \a\t h:i A" }} IST</strong>
         <br><br>
-        Please return at the scheduled start time to begin your timed test.
+        Assessment is not yet available. Please return at the scheduled start time to begin your timed test.
       </p>
       <a href="{% url 'candidates:candidate_dashboard' %}" class="btn btn-secondary">
         Return to Candidate Dashboard

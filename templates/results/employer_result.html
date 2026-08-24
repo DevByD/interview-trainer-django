@@ -85,7 +85,7 @@
       </h2>
       <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">
         Candidate: <strong>{{ candidate.get_full_name|default:candidate.username }}</strong> ({{ candidate.email }})
-        &bull; Completed on {{ result.completed_at|date:"M d, Y at H:i"|default:"Pending" }}
+        &bull; Completed on {{ result.completed_at|date:"M d, Y \a\t h:i A"|default:"Pending" }}
       </p>
     </div>
 
@@ -104,12 +104,12 @@
     </div>
     <div class="metric-box">
       <div class="metric-box-title">Start Time</div>
-      <div class="metric-box-value" style="font-size: 1.05rem;">{{ assessment.start_time|date:"M d, H:i" }}</div>
+      <div class="metric-box-value" style="font-size: 1.05rem;">{{ assessment.start_time|date:"M d, h:i A" }}</div>
       <div class="metric-box-subtext">Session opened</div>
     </div>
     <div class="metric-box">
       <div class="metric-box-title">Completion Time</div>
-      <div class="metric-box-value" style="font-size: 1.05rem;">{{ result.completed_at|date:"M d, H:i"|default:"-" }}</div>
+      <div class="metric-box-value" style="font-size: 1.05rem;">{{ result.completed_at|date:"M d, h:i A"|default:"-" }}</div>
       <div class="metric-box-subtext">Submitted timestamp</div>
     </div>
     <div class="metric-box">

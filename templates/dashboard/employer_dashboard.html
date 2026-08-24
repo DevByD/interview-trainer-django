@@ -213,8 +213,8 @@
                   <span style="font-weight: 600; color: #1e293b;">{{ a.title }}</span>
                 </td>
                 <td style="padding: 0.85rem 0.5rem; font-size: 0.82rem; color: #64748b;">
-                  <div>Start: {{ a.start_time|date:"M d, Y H:i" }}</div>
-                  <div>Expiry: {{ a.expire_time|date:"M d, Y H:i" }}</div>
+                  <div>Start: {{ a.start_time|date:"M d, Y h:i A" }}</div>
+                  <div>Expiry: {{ a.expire_time|date:"M d, Y h:i A" }}</div>
                 </td>
                 <td style="padding: 0.85rem 0.5rem;">
                   {% if a.status == "PENDING" %}
