@@ -54,45 +54,37 @@ jobs:
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           SSH_OPTS="-i private_key -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes"
 
-          # 3. Pipe password strictly via standard input (stdin) into the remote Python process.
-          # The password is NEVER part of the SSH command string or shell arguments.
-          printf "%s\n" "$ADMIN_PASSWORD" | ssh ${SSH_OPTS} ${USER_NAME}@${HOSTNAME} '
-          set -e
-          cd /home/ubuntu/interview-trainer-django
-          source venv/bin/activate
+          # 3. Create standalone provisioning script (contains ZERO secrets)
+          cat << 'PYEOF' > /tmp/provision_admin.py
+          import os
+          import sys
+          import django
 
-          echo "=== 1. Verifying Production Database Target ==="
-          python -c "
-          import os, django
-          os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"config.settings\")
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
           django.setup()
+
           from django.conf import settings
-          cfg = settings.DATABASES.get(\"default\", {})
-          print(f\"[DATABASE INFO] Engine: {cfg.get('ENGINE', 'Unknown')}\")
-          print(f\"[DATABASE INFO] Target DB: {cfg.get('NAME', 'Unknown')}\")
-          print(f\"[DATABASE INFO] Host: {cfg.get('HOST') or 'local/socket'}\")
-          "
-
-          echo "=== 2. Running Django System Check ==="
-          python manage.py check
-
-          echo "=== 3. Provisioning Admin Superuser via Stdin Stream ==="
-          python -c "
-          import os, sys, django
-          os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"config.settings\")
-          django.setup()
           from django.contrib.auth.models import User
 
-          # Read secret directly from stdin descriptor without command-line exposure
-          password = sys.stdin.readline().rstrip(\x27\r\n\x27)
+          # Step A: Verify database target (non-sensitive inspection)
+          db_cfg = settings.DATABASES.get("default", {})
+          db_engine = db_cfg.get("ENGINE", "Unknown")
+          db_name = db_cfg.get("NAME", "Unknown")
+          db_host = db_cfg.get("HOST", "") or "local/socket"
+          print(f"[DATABASE INFO] Engine: {db_engine}")
+          print(f"[DATABASE INFO] Target DB: {db_name}")
+          print(f"[DATABASE INFO] Host: {db_host}")
+
+          # Step B: Read password securely from stdin stream
+          password = sys.stdin.readline().rstrip("\r\n")
           if not password:
-              print(\x27[ERROR] No password received over stdin stream.\x27)
+              print("[ERROR] No password received over stdin stream.")
               sys.exit(1)
 
-          target_username = \x27Admin\x27
-          target_email = \x27admin23@gmail.com\x27
+          target_username = "Admin"
+          target_email = "admin23@gmail.com"
 
-          # Look up existing account by case-insensitive username or email
+          # Step C: Look up existing user (case-insensitive) or create new superuser
           user = (
               User.objects.filter(username__iexact=target_username).first()
               or User.objects.filter(email__iexact=target_email).first()
@@ -106,39 +98,51 @@ jobs:
               user.is_active = True
               user.set_password(password)
               user.save()
-              print(f\x27[SUCCESS] Updated existing user {user.username} ({user.email}) as active Superuser.\x27)
+              print(f"[SUCCESS] Updated existing user '{user.username}' ({user.email}) as active Superuser.")
           else:
               user = User.objects.create_superuser(target_username, target_email, password)
-              print(f\x27[SUCCESS] Created new Superuser {user.username} ({user.email}).\x27)
+              print(f"[SUCCESS] Created new Superuser '{user.username}' ({user.email}).")
 
           del password
-          "
 
-          echo "=== 4. Verifying Provisioned Admin Account State ==="
-          python -c "
-          import os, sys, django
-          os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"config.settings\")
-          django.setup()
-          from django.contrib.auth.models import User
-
-          user = User.objects.filter(username__iexact=\x27Admin\x27).first()
+          # Step D: Verify provisioned user state without exposing credentials
+          user = User.objects.filter(username__iexact=target_username).first()
           if user:
-              print(f\x27[VERIFIED] Username: {user.username}\x27)
-              print(f\x27[VERIFIED] Email: {user.email}\x27)
-              print(f\x27[VERIFIED] is_active: {user.is_active}\x27)
-              print(f\x27[VERIFIED] is_staff: {user.is_staff}\x27)
-              print(f\x27[VERIFIED] is_superuser: {user.is_superuser}\x27)
-              print(f\x27[VERIFIED] Has usable password: {user.has_usable_password()}\x27)
+              print(f"[VERIFIED] Username: {user.username}")
+              print(f"[VERIFIED] Email: {user.email}")
+              print(f"[VERIFIED] is_active: {user.is_active}")
+              print(f"[VERIFIED] is_staff: {user.is_staff}")
+              print(f"[VERIFIED] is_superuser: {user.is_superuser}")
+              print(f"[VERIFIED] Has usable password: {user.has_usable_password()}")
           else:
-              print(\x27[ERROR] Admin user was not found after provisioning!\x27)
-              exit(1)
-          "
+              print("[ERROR] Admin user was not found after provisioning!")
+              sys.exit(1)
+          PYEOF
 
-          echo "=== 5. Restarting PM2 Production Process (runinterview) ==="
+          # 4. Copy provisioning script to remote server
+          scp ${SSH_OPTS} /tmp/provision_admin.py ${USER_NAME}@${HOSTNAME}:/tmp/provision_admin.py
+          rm -f /tmp/provision_admin.py
+
+          # 5. Pipe password strictly via standard input (stdin) into the remote Python process
+          printf "%s\n" "$ADMIN_PASSWORD" | ssh ${SSH_OPTS} ${USER_NAME}@${HOSTNAME} '
+          set -e
+          cd /home/ubuntu/interview-trainer-django
+          source venv/bin/activate
+
+          echo "=== 1. Running Django System Check ==="
+          python manage.py check
+
+          echo "=== 2. Provisioning Production Admin Superuser via Stdin Stream ==="
+          python /tmp/provision_admin.py
+
+          echo "=== 3. Restarting PM2 Production Process (runinterview) ==="
           pm2 restart runinterview
 
-          echo "=== 6. Production Admin Provisioning Completed Successfully! ==="
+          echo "=== 4. Cleaning Up Remote Temporary Script ==="
+          rm -f /tmp/provision_admin.py
+
+          echo "=== 5. Production Admin Provisioning Completed Successfully! ==="
           '
 
-          # 4. Clean up local private key file
+          # 6. Clean up local private key file
           rm -f private_key
