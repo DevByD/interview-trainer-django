@@ -57,10 +57,12 @@ else:
         if fallback not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(fallback)
 
-# CSRF trusted origins for HTTPS reverse proxies / Vercel
+# CSRF trusted origins for HTTPS reverse proxies / Vercel / Production
 CSRF_TRUSTED_ORIGINS = [
     "https://*.vercel.app",
     "https://*.now.sh",
+    "https://interview.humandb.co",
+    "https://manya.apolloaitech.co",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
 ]
@@ -155,8 +157,8 @@ def _get_database_config(debug_mode: bool) -> dict:
             },
         }
 
-    # 3. Production serverless on Vercel
-    if not debug_mode:
+    # 3. Production serverless on Vercel (read-only root filesystem)
+    if not debug_mode and os.getenv("VERCEL"):
         return {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": "/tmp/db.sqlite3",
@@ -165,7 +167,7 @@ def _get_database_config(debug_mode: bool) -> dict:
             },
         }
 
-    # 4. Local development default (zero local server requirement)
+    # 4. Local development & persistent server default
     return {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
