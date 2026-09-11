@@ -15,6 +15,7 @@ urlpatterns = [
     path("", include("dashboard.urls")),
     path("", include("assessments.urls")),
     path("", include("results.urls")),
+    path("api/integration/", include("integration.urls")),
 ]
 
 if settings.DEBUG:

@@ -17,6 +17,13 @@ class CandidateProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="candidate_profile",
     )
+    human_db_user_id = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+        help_text="HumanDB recruitment candidate UUID mapping.",
+    )
     phone = models.CharField(max_length=15, blank=True)
     education = models.CharField(max_length=200, blank=True)
     skills = models.TextField(blank=True, help_text="Comma separated list of skills.")
@@ -24,6 +31,13 @@ class CandidateProfile(models.Model):
         default=0,
         help_text="Total years of professional experience.",
     )
+    headline = models.CharField(max_length=255, blank=True, default="")
+    summary = models.TextField(blank=True, default="")
+    location = models.CharField(max_length=255, blank=True, default="")
+    resume_url = models.URLField(max_length=500, blank=True, default="")
+    linkedin_url = models.URLField(max_length=500, blank=True, default="")
+    github_url = models.URLField(max_length=500, blank=True, default="")
+    portfolio_url = models.URLField(max_length=500, blank=True, default="")
     resume = models.FileField(upload_to="resumes/", blank=True, null=True)
     profile_completed = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)

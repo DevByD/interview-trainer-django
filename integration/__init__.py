@@ -1,0 +1,1 @@
+"""HumanDB Recruitment Integration App."""

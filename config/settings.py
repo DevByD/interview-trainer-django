@@ -88,12 +88,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Third-party apps
+    "rest_framework",
     # Project apps
     "accounts.apps.AccountsConfig",
     "candidates.apps.CandidatesConfig",
     "dashboard.apps.DashboardConfig",
     "assessments.apps.AssessmentsConfig",
     "results.apps.ResultsConfig",
+    "integration.apps.IntegrationConfig",
 ]
 
 MIDDLEWARE = [
@@ -287,4 +290,26 @@ if not DEBUG:
 # ---------------------------------------------------------------------------
 CRON_SECRET_KEY = os.getenv("CRON_SECRET_KEY", "dev-cron-secret-key-12345")
 SITE_DOMAIN = os.getenv("SITE_DOMAIN", "localhost:8000")
+
+# ---------------------------------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------------------------------
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.FormParser",
+        "rest_framework.parsers.MultiPartParser",
+    ],
+}
+
+# ---------------------------------------------------------------------------
+# HumanDB Recruitment / ATS Integration
+# ---------------------------------------------------------------------------
+HUMANDB_INTEGRATION_API_KEY = os.getenv("HUMANDB_INTEGRATION_API_KEY", "")
+HUMANDB_CALLBACK_URL = os.getenv("HUMANDB_CALLBACK_URL", "")
+HUMANDB_CALLBACK_SECRET = os.getenv("HUMANDB_CALLBACK_SECRET", "")
 

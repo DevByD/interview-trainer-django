@@ -9,6 +9,7 @@ from .models import CandidateProfile, EmployerProfile
 class CandidateProfileAdmin(admin.ModelAdmin):
     list_display = (
         "user",
+        "human_db_user_id",
         "phone",
         "education",
         "experience",
@@ -16,7 +17,7 @@ class CandidateProfileAdmin(admin.ModelAdmin):
         "email_verified",
         "created_at",
     )
-    search_fields = ("user__username", "user__email", "phone", "education", "skills")
+    search_fields = ("user__username", "user__email", "human_db_user_id", "phone", "education", "skills")
     list_filter = ("profile_completed", "email_verified", "experience")
     ordering = ("-created_at",)
     readonly_fields = ("created_at", "updated_at")
