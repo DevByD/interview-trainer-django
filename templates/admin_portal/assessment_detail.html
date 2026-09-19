@@ -35,6 +35,18 @@
         <span style="color: #64748b; font-weight: 600;">Duration & Mode:</span><br>
         <strong>{{ assessment.duration_minutes }} minutes</strong> · {% if assessment.has_coding %}MCQ + Coding Sandbox{% else %}MCQ Aptitude Only{% endif %}
       </div>
+      <div>
+        <span style="color: #64748b; font-weight: 600;">Question Source:</span><br>
+        {% if assessment.question_source == "DOCUMENT" and assessment.source_document %}
+          <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700;">
+            📄 Document ({{ assessment.source_document.original_filename }})
+          </span>
+        {% else %}
+          <span class="badge" style="background: #f1f5f9; color: #475569; font-weight: 700;">
+            🏛️ Question Bank
+          </span>
+        {% endif %}
+      </div>
     </div>
   </div>
 

@@ -1,6 +1,7 @@
 """Views for employer assessment management and candidate test taking."""
 
 import json
+import random
 from datetime import timedelta
 from decimal import Decimal
 
@@ -14,21 +15,26 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
-
-
 
 from accounts.decorators import candidate_required, employer_required
 from accounts.models import CandidateProfile
 from assessments.ai_shortlist_service import analyze_assessment_with_ai, analyze_campaign_assessments
 from assessments.code_executor import get_code_executor
 from assessments.coding_bank import ensure_coding_bank_seeded
+from assessments.document_parser import (
+    parse_questions_from_text,
+    process_uploaded_document,
+    validate_document_file,
+)
 from assessments.email_service import send_assessment_invitation
 from assessments.forms import AssessmentCreateForm
 from assessments.models import (
     Answer,
     Assessment,
     AssessmentCodingQuestion,
+    AssessmentDocument,
     AssessmentGroup,
     AssessmentQuestion,
     CodingQuestion,
@@ -44,6 +50,59 @@ from assessments.services import expire_past_due_assessments, grade_and_complete
 # ---------------------------------------------------------------------------
 # Employer Assessment & Campaign Views
 # ---------------------------------------------------------------------------
+
+@employer_required
+@require_POST
+def employer_document_upload_parse(request):
+    """AJAX endpoint for uploading and parsing question documents (.pdf, .docx, .txt)."""
+    doc_file = request.FILES.get("document_file")
+    if not doc_file:
+        return JsonResponse({"success": False, "error": "No file was selected for upload."}, status=400)
+
+    is_valid, err_msg, ext, file_size = validate_document_file(doc_file)
+    if not is_valid:
+        return JsonResponse({"success": False, "status": "error", "error": err_msg}, status=400)
+
+    doc_instance = AssessmentDocument.objects.create(
+        employer=request.user,
+        file=doc_file,
+        original_filename=doc_file.name,
+        file_type=ext,
+        file_size=file_size,
+        status=AssessmentDocument.Status.PENDING,
+    )
+
+    success, parse_err, parsed_questions = process_uploaded_document(doc_instance)
+    if not success:
+        return JsonResponse(
+            {
+                "success": False,
+                "status": "error",
+                "error": parse_err,
+                "document_id": doc_instance.id,
+                "filename": doc_instance.original_filename,
+                "file_type": ext.upper(),
+                "file_size": file_size,
+                "file_size_display": doc_instance.file_size_display,
+            },
+            status=400,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "status": "success",
+            "document_id": doc_instance.id,
+            "filename": doc_instance.original_filename,
+            "file_type": ext.upper(),
+            "file_size": file_size,
+            "file_size_display": doc_instance.file_size_display,
+            "total_found": len(parsed_questions),
+            "question_count": len(parsed_questions),
+            "questions": parsed_questions,
+        }
+    )
+
 
 @employer_required
 def employer_assessment_create(request):
@@ -67,7 +126,9 @@ def employer_assessment_create(request):
 
     form = AssessmentCreateForm(
         request.POST or None,
+        request.FILES or None,
         initial_candidate=initial_user,
+        employer=request.user,
     )
 
     candidate_profiles_qs = CandidateProfile.objects.select_related("user").all().order_by("-created_at")
@@ -99,31 +160,108 @@ def employer_assessment_create(request):
         start_datetime = form.cleaned_data["start_datetime"]
         expire_datetime = form.cleaned_data["expire_datetime"]
         duration_minutes = form.cleaned_data["duration_minutes"]
-        sections = form.cleaned_data["sections"]
-        logical_count = form.cleaned_data.get("logical_count") or 0
-        quant_count = form.cleaned_data.get("quant_count") or 0
-        technical_count = form.cleaned_data.get("technical_count") or 0
+        question_source = form.cleaned_data.get("question_source", "BANK")
         include_coding = form.cleaned_data.get("include_coding", False)
-        coding_count = form.cleaned_data.get("coding_count") or 0
 
-        # Pre-select randomized questions for this assessment batch once
         selected_mcq_questions = []
-        if "LOGICAL" in sections and logical_count > 0:
-            selected_mcq_questions.extend(
-                list(Question.objects.filter(section=Question.Sections.LOGICAL).order_by("?")[:logical_count])
-            )
-        if "QUANTITATIVE" in sections and quant_count > 0:
-            selected_mcq_questions.extend(
-                list(Question.objects.filter(section=Question.Sections.QUANTITATIVE).order_by("?")[:quant_count])
-            )
-        if "TECHNICAL" in sections and technical_count > 0:
-            selected_mcq_questions.extend(
-                list(Question.objects.filter(section=Question.Sections.TECHNICAL).order_by("?")[:technical_count])
-            )
-
         selected_coding_questions = []
-        if include_coding and coding_count > 0:
-            selected_coding_questions = list(CodingQuestion.objects.order_by("?")[:coding_count])
+        doc_instance = None
+
+        if question_source == "DOCUMENT":
+            doc_instance = form.cleaned_data["assessment_document"]
+            verified_items = form.cleaned_data["verified_document_questions"]
+            requested_count = form.cleaned_data.get("document_question_count") or len(verified_items)
+
+            doc_mcqs = [q for q in verified_items if q.get("type") != "CODING"]
+            doc_codings = [q for q in verified_items if q.get("type") == "CODING"]
+
+            # Select requested_count ONLY from doc_mcqs
+            if requested_count < len(doc_mcqs):
+                chosen_mcqs = random.sample(doc_mcqs, requested_count)
+            else:
+                chosen_mcqs = list(doc_mcqs)
+
+            for idx, q_data in enumerate(chosen_mcqs, start=1):
+                q_sec = q_data.get("section") or Question.Sections.TECHNICAL
+                if q_sec not in dict(Question.Sections.choices):
+                    q_sec = Question.Sections.TECHNICAL
+
+                q_obj = Question.objects.create(
+                    section=q_sec,
+                    category=q_data.get("category", "Document Extracted")[:100],
+                    question_text=q_data["question_text"],
+                    option_a=q_data.get("option_a", "")[:255],
+                    option_b=q_data.get("option_b", "")[:255],
+                    option_c=q_data.get("option_c", "")[:255],
+                    option_d=q_data.get("option_d", "")[:255],
+                    correct_answer=q_data["correct_answer"].strip().upper(),
+                    explanation=q_data.get("explanation", ""),
+                    difficulty=q_data.get("difficulty", Question.Difficulties.MEDIUM),
+                    source_type=Question.SourceTypes.DOCUMENT,
+                    source_document=doc_instance,
+                    document_question_num=q_data.get("number", idx),
+                    is_reviewed=True,
+                    is_approved=True,
+                    is_active=True,
+                )
+                selected_mcq_questions.append(q_obj)
+
+            if doc_codings:
+                for c_idx, cq_data in enumerate(doc_codings, start=1):
+                    slug_base = slugify(cq_data.get("title", f"doc-{doc_instance.id}-coding-{c_idx}"))[:200]
+                    slug = slug_base or f"doc-{doc_instance.id}-code-{c_idx}"
+                    s_num = 1
+                    while CodingQuestion.objects.filter(slug=slug).exists():
+                        slug = f"{slug_base}-{s_num}"
+                        s_num += 1
+
+                    cq_obj = CodingQuestion.objects.create(
+                        title=cq_data.get("title", f"Coding Challenge {c_idx}")[:255],
+                        slug=slug,
+                        category=CodingQuestion.Categories.ARRAYS,
+                        description=cq_data.get("description", cq_data.get("question_text", "")),
+                        input_format=cq_data.get("input_format", "Standard Input"),
+                        output_format=cq_data.get("output_format", "Standard Output"),
+                        sample_input=cq_data.get("sample_input", ""),
+                        sample_output=cq_data.get("sample_output", ""),
+                        source_type=Question.SourceTypes.DOCUMENT,
+                        source_document=doc_instance,
+                        is_reviewed=True,
+                        is_approved=True,
+                        is_active=True,
+                    )
+                    selected_coding_questions.append(cq_obj)
+
+            if doc_instance:
+                doc_instance.status = AssessmentDocument.Status.PROCESSED
+                doc_instance.extracted_count = len(verified_items)
+                doc_instance.save(update_fields=["status", "extracted_count", "updated_at"])
+
+        else:
+            # BANK question selection (existing behavior)
+            sections = form.cleaned_data.get("sections") or []
+            logical_count = form.cleaned_data.get("logical_count") or 0
+            quant_count = form.cleaned_data.get("quant_count") or 0
+            technical_count = form.cleaned_data.get("technical_count") or 0
+            coding_count = form.cleaned_data.get("coding_count") or 0
+
+            if "LOGICAL" in sections and logical_count > 0:
+                selected_mcq_questions.extend(
+                    list(Question.objects.filter(section=Question.Sections.LOGICAL).order_by("?")[:logical_count])
+                )
+            if "QUANTITATIVE" in sections and quant_count > 0:
+                selected_mcq_questions.extend(
+                    list(Question.objects.filter(section=Question.Sections.QUANTITATIVE).order_by("?")[:quant_count])
+                )
+            if "TECHNICAL" in sections and technical_count > 0:
+                selected_mcq_questions.extend(
+                    list(Question.objects.filter(section=Question.Sections.TECHNICAL).order_by("?")[:technical_count])
+                )
+
+            if include_coding and coding_count > 0:
+                selected_coding_questions = list(CodingQuestion.objects.order_by("?")[:coding_count])
+
+        has_coding_final = bool(selected_coding_questions) if question_source == "DOCUMENT" else (bool(selected_coding_questions) or include_coding)
 
         # 1. Create AssessmentGroup (Campaign) ONCE
         group = AssessmentGroup.objects.create(
@@ -132,9 +270,11 @@ def employer_assessment_create(request):
             start_time=start_datetime,
             expire_time=expire_datetime,
             duration_minutes=duration_minutes,
-            has_coding=include_coding,
+            has_coding=has_coding_final,
             total_mcq_count=len(selected_mcq_questions),
             total_coding_count=len(selected_coding_questions),
+            question_source=question_source,
+            source_document=doc_instance,
         )
 
         created_assessments = []
@@ -158,7 +298,9 @@ def employer_assessment_create(request):
                 duration_minutes=duration_minutes,
                 status=Assessment.Status.PENDING,
                 candidate_status=Assessment.CandidateStatus.NOT_STARTED,
-                has_coding=include_coding,
+                has_coding=has_coding_final,
+                question_source=question_source,
+                source_document=doc_instance,
             )
             created_assessments.append(assessment)
 
@@ -205,7 +347,8 @@ def employer_assessment_create(request):
         # Flash outcome message
         cand_count = len(created_assessments)
         dup_count = len(skipped_duplicates)
-        msg = f"Assessment campaign '{title}' created successfully! Assigned to {cand_count} candidate(s)."
+        source_label = f"from document '{doc_instance.original_filename}'" if doc_instance else "from question bank"
+        msg = f"Assessment campaign '{title}' ({source_label}) created successfully! Assigned to {cand_count} candidate(s)."
         if emails_sent_count > 0:
             msg += f" {emails_sent_count} invitation email(s) dispatched."
         if dup_count > 0:

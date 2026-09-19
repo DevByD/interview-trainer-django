@@ -64,6 +64,11 @@
                       📁 Campaign #{{ item.group.id }}
                     </a>
                   {% endif %}
+                  {% if item.question_source == "DOCUMENT" and item.source_document %}
+                    <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-size: 0.72rem; margin-top: 0.2rem; display: inline-block; border: 1px solid #bfdbfe;" title="Source: {{ item.source_document.original_filename }}">
+                      📄 {{ item.source_document.original_filename|truncatechars:22 }}
+                    </span>
+                  {% endif %}
                 </td>
                 <td>{{ item.start_time|date:"M d, Y h:i A" }}</td>
                 <td>{{ item.expire_time|date:"M d, Y h:i A" }}</td>

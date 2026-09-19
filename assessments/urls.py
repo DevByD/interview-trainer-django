@@ -5,6 +5,7 @@ app_name = "assessments"
 
 urlpatterns = [
     path("employer/assessments/create/", views.employer_assessment_create, name="employer_assessment_create"),
+    path("employer/document/upload-parse/", views.employer_document_upload_parse, name="employer_document_upload_parse"),
     path("employer/assessments/", views.employer_assessment_list, name="employer_assessment_list"),
     path("employer/campaigns/", views.employer_campaign_list, name="employer_campaign_list"),
     path("employer/campaign/<int:group_id>/", views.employer_campaign_detail, name="employer_campaign_detail"),

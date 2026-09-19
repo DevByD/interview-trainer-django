@@ -3,6 +3,7 @@ from .models import (
     Answer,
     Assessment,
     AssessmentCodingQuestion,
+    AssessmentDocument,
     AssessmentGroup,
     AssessmentQuestion,
     CodingQuestion,
@@ -10,6 +11,24 @@ from .models import (
     CodingTestCase,
     Question,
 )
+
+
+@admin.register(AssessmentDocument)
+class AssessmentDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "original_filename",
+        "employer",
+        "file_type",
+        "file_size_display",
+        "status",
+        "extracted_count",
+        "created_at",
+    )
+    search_fields = ("original_filename", "employer__username", "employer__email")
+    list_filter = ("file_type", "status", "created_at")
+    ordering = ("-created_at",)
+    readonly_fields = ("file_size", "raw_text", "extracted_count", "created_at", "updated_at")
 
 
 class AssessmentInline(admin.TabularInline):
@@ -27,6 +46,8 @@ class AssessmentGroupAdmin(admin.ModelAdmin):
         "id",
         "title",
         "employer",
+        "question_source",
+        "source_document",
         "start_time",
         "expire_time",
         "duration_minutes",
@@ -34,7 +55,7 @@ class AssessmentGroupAdmin(admin.ModelAdmin):
         "created_at",
     )
     search_fields = ("title", "employer__username", "employer__email")
-    list_filter = ("has_coding", "created_at")
+    list_filter = ("question_source", "has_coding", "created_at")
     ordering = ("-created_at",)
     readonly_fields = ("created_at", "updated_at")
     inlines = [AssessmentInline]
@@ -74,6 +95,8 @@ class AssessmentAdmin(admin.ModelAdmin):
         "title",
         "employer",
         "candidate",
+        "question_source",
+        "source_document",
         "has_coding",
         "status",
         "candidate_status",
@@ -84,7 +107,7 @@ class AssessmentAdmin(admin.ModelAdmin):
         "duration_minutes",
     )
     search_fields = ("title", "token", "employer__username", "candidate__username")
-    list_filter = ("has_coding", "status", "candidate_status", "malpractice_status", "duration_minutes")
+    list_filter = ("question_source", "has_coding", "status", "candidate_status", "malpractice_status", "duration_minutes")
     ordering = ("-created_at",)
     readonly_fields = ("token", "violation_count", "last_violation_type", "last_violation_at", "auto_submitted_for_malpractice", "created_at", "updated_at")
 
@@ -102,6 +125,7 @@ class QuestionAdmin(admin.ModelAdmin):
         "difficulty",
         "correct_answer",
         "source_type",
+        "source_document",
         "is_active",
         "is_reviewed",
         "is_approved",

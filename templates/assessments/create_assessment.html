@@ -15,6 +15,90 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   }
 
+  /* Question Source & Document Mode Styling */
+  .source-toggle-card {
+    flex: 1;
+    min-width: 280px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.15rem 1.25rem;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+  .source-toggle-card:hover {
+    border-color: #93c5fd;
+    background: #f8fafc;
+  }
+  .source-toggle-card.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    box-shadow: 0 0 0 1px #2563eb;
+  }
+  .doc-upload-dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 2rem;
+    text-align: center;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .doc-upload-dropzone:hover, .doc-upload-dropzone.dragover {
+    border-color: #2563eb;
+    background: #f0f7ff;
+  }
+  .doc-file-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #e2e8f0;
+    color: #334155;
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .question-preview-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+  }
+  .question-preview-card.deselected {
+    opacity: 0.55;
+    background: #f8fafc;
+  }
+  .question-preview-card.missing-answer {
+    border-left: 4px solid #ef4444;
+  }
+  .option-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .option-field-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+  }
+  .option-label-badge {
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #1e293b;
+    min-width: 22px;
+  }
+
   .creation-section-header {
     display: flex;
     align-items: center;
@@ -195,7 +279,7 @@
     </div>
   </div>
 
-  <form method="post" novalidate id="assessmentForm">
+  <form method="post" enctype="multipart/form-data" novalidate id="assessmentForm">
     {% csrf_token %}
 
     <!-- Error summary -->
@@ -320,76 +404,257 @@
       </div>
     </div>
 
-    <!-- 3. Aptitude Sections -->
-    <div class="creation-section-card" style="border-top: 4px solid #7c3aed;">
-      <div class="creation-section-header">
-        <span class="creation-section-icon">🧠</span>
-        <h2 class="creation-section-title">Aptitude Sections</h2>
+    <!-- 3. Question Source Selection -->
+    <div class="creation-section-card" style="border-top: 4px solid #10b981;">
+      <div class="creation-section-header" style="justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span class="creation-section-icon">📂</span>
+          <h2 class="creation-section-title">Question Source</h2>
+        </div>
+        <span class="badge" style="background: #ecfdf5; color: #047857; font-weight: 700; font-size: 0.8rem; border: 1px solid #a7f3d0;">
+          Strict Source Isolation
+        </span>
       </div>
-      <label style="font-weight: 700; display: block; margin-bottom: 0.75rem; color: #1e293b;">
-        Select Sections &amp; Configure Question Distribution <span style="color: var(--danger);">*</span>
-      </label>
-      {% if form.sections.errors %}
-        <div style="color: var(--danger); font-size: 0.85rem; margin-bottom: 0.75rem;">
-          {{ form.sections.errors|striptags }}
+
+      <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1.25rem;">
+        Choose where to source the assessment questions from. You can draw questions from the existing question bank or upload a document (PDF, DOCX, TXT) to create an assessment exclusively containing questions from that document.
+      </p>
+
+      {% if form.question_source.errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1rem;">
+          {{ form.question_source.errors|striptags }}
         </div>
       {% endif %}
 
-      <div class="section-config-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
-        <!-- Logical Reasoning -->
-        <div class="section-card" id="cardLogical" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
-          <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" name="sections" value="LOGICAL" id="sec_logical" class="section-checkbox"
-                   {% if "LOGICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
-            <label for="sec_logical" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Logical Reasoning</label>
+      <!-- Source Options Cards -->
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+        <!-- Option 1: Existing Question Bank -->
+        <label class="source-toggle-card {% if not form.question_source.value or form.question_source.value == 'BANK' %}active{% endif %}" id="cardSourceBank">
+          <input type="radio" name="question_source" value="BANK" id="radioSourceBank"
+                 {% if not form.question_source.value or form.question_source.value == "BANK" %}checked{% endif %}
+                 style="margin-top: 0.25rem; width: 18px; height: 18px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.2rem;">🏛️</span>
+              <strong style="color: #0f172a; font-size: 1rem;">Select Existing Questions</strong>
+            </div>
+            <span style="font-size: 0.82rem; color: #64748b; display: block; margin-top: 0.25rem;">
+              Sample questions from Logical Reasoning, Quantitative Aptitude, and Technical Aptitude banks.
+            </span>
           </div>
-          <div class="form-group" style="margin-top: 0.75rem;">
-            <label for="{{ form.logical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
-            {{ form.logical_count }}
-            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ logical_bank_count }}</strong> questions</div>
-            {% if form.logical_count.errors %}
-              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.logical_count.errors|striptags }}
-              </div>
-            {% endif %}
+        </label>
+
+        <!-- Option 2: Upload Question Document -->
+        <label class="source-toggle-card {% if form.question_source.value == 'DOCUMENT' %}active{% endif %}" id="cardSourceDoc">
+          <input type="radio" name="question_source" value="DOCUMENT" id="radioSourceDoc"
+                 {% if form.question_source.value == "DOCUMENT" %}checked{% endif %}
+                 style="margin-top: 0.25rem; width: 18px; height: 18px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 1.2rem;">📄</span>
+              <strong style="color: #0f172a; font-size: 1rem;">Upload Question Document</strong>
+            </div>
+            <span style="font-size: 0.82rem; color: #64748b; display: block; margin-top: 0.25rem;">
+              Extract questions from PDF, DOCX, or TXT. Candidates will receive <strong>ONLY</strong> questions from the document.
+            </span>
+          </div>
+        </label>
+      </div>
+
+      <!-- Hidden inputs for document processing state -->
+      <input type="hidden" name="document_id" id="id_document_id" value="{{ form.document_id.value|default:'' }}">
+      <input type="hidden" name="document_questions_payload" id="id_document_questions_payload" value="{{ form.document_questions_payload.value|default:'' }}">
+
+      <!-- Document Upload Panel (Visible when DOCUMENT is selected) -->
+      <div id="documentUploadPanel" style="display: {% if form.question_source.value == 'DOCUMENT' %}block{% else %}none{% endif %}; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem;">
+
+        {% if form.document_file.errors %}
+          <div class="alert alert-danger" style="margin-bottom: 1rem;">
+            {{ form.document_file.errors|striptags }}
+          </div>
+        {% endif %}
+
+        <div style="margin-bottom: 1rem;">
+          <h3 style="font-size: 1rem; font-weight: 800; color: #0f172a; margin-bottom: 0.35rem;">
+            Upload Question Document
+          </h3>
+          <p style="font-size: 0.85rem; color: #64748b; margin: 0;">
+            Supported formats: <strong>PDF (.pdf)</strong>, <strong>Word (.docx)</strong>, and <strong>Plain Text (.txt)</strong>. Maximum file size: <strong>10MB</strong>.
+          </p>
+        </div>
+
+        <!-- Dropzone / File Picker -->
+        <div class="doc-upload-dropzone" id="docDropzone">
+          <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📁</div>
+          <p style="font-weight: 700; color: #1e293b; margin-bottom: 0.35rem;">
+            Click to choose file or drag and drop document here
+          </p>
+          <span style="font-size: 0.82rem; color: #64748b;">
+            PDF, DOCX, or TXT containing numbered questions and MCQ options
+          </span>
+          <div style="margin-top: 1rem;">
+            <input type="file" name="document_file" id="id_document_file" accept=".pdf,.docx,.txt" style="display: none;">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnBrowseFile" style="font-weight: 700;">
+              Browse File...
+            </button>
           </div>
         </div>
 
-        <!-- Quantitative Aptitude -->
-        <div class="section-card" id="cardQuant" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
-          <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" name="sections" value="QUANTITATIVE" id="sec_quant" class="section-checkbox"
-                   {% if "QUANTITATIVE" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
-            <label for="sec_quant" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Quantitative Aptitude</label>
-          </div>
-          <div class="form-group" style="margin-top: 0.75rem;">
-            <label for="{{ form.quant_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
-            {{ form.quant_count }}
-            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ quant_bank_count }}</strong> questions</div>
-            {% if form.quant_count.errors %}
-              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.quant_count.errors|striptags }}
+        <!-- Selected File Meta Info Box (hidden until file chosen) -->
+        <div id="fileInfoBox" style="display: none; margin-top: 1rem; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span style="font-size: 1.6rem;" id="fileIconDisplay">📄</span>
+              <div>
+                <strong id="fileNameDisplay" style="color: #0f172a; font-size: 0.95rem; display: block;">—</strong>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.2rem;">
+                  <span class="doc-file-meta-pill" id="fileTypeDisplay">TYPE: —</span>
+                  <span class="doc-file-meta-pill" id="fileSizeDisplay">SIZE: —</span>
+                </div>
               </div>
-            {% endif %}
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <button type="button" class="btn btn-primary btn-sm" id="btnExtractQuestions" style="font-weight: 700;">
+                ⚡ Extract Questions
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnResetFile" style="font-weight: 700;">
+                ✕ Change
+              </button>
+            </div>
           </div>
+          <div id="docExtractStatus" style="margin-top: 0.75rem; font-size: 0.85rem; display: none;"></div>
         </div>
 
-        <!-- Technical Aptitude -->
-        <div class="section-card" id="cardTech" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
-          <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
-            <input type="checkbox" name="sections" value="TECHNICAL" id="sec_tech" class="section-checkbox"
-                   {% if "TECHNICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
-            <label for="sec_tech" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Technical Aptitude</label>
+        <!-- Document Questions Distribution / Count Setting (shown after extraction) -->
+        <div id="docQuestionCountSection" style="display: none; margin-top: 1.5rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h4 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">
+                Questions per Candidate
+              </h4>
+              <span style="font-size: 0.82rem; color: #64748b;">
+                Candidates will receive only questions from this document. If set lower than total, questions will be sampled strictly from this document.
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <label for="{{ form.document_question_count.id_for_label }}" style="font-weight: 700; font-size: 0.85rem; color: #1e293b; margin: 0;">
+                Count:
+              </label>
+              {{ form.document_question_count }}
+              <span style="font-size: 0.85rem; color: #64748b;">
+                of <strong id="docTotalAvailableCount">0</strong> available
+              </span>
+            </div>
           </div>
-          <div class="form-group" style="margin-top: 0.75rem;">
-            <label for="{{ form.technical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
-            {{ form.technical_count }}
-            <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ tech_bank_count }}</strong> questions</div>
-            {% if form.technical_count.errors %}
-              <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
-                {{ form.technical_count.errors|striptags }}
-              </div>
-            {% endif %}
+          {% if form.document_question_count.errors %}
+            <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.5rem;">
+              {{ form.document_question_count.errors|striptags }}
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Extracted Questions Preview & Review Container -->
+        <div id="documentPreviewSection" style="display: none; margin-top: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <h4 style="font-size: 1.05rem; font-weight: 800; color: #0f172a; margin: 0;">
+                Preview &amp; Review Extracted Questions
+              </h4>
+              <span class="count-badge-highlight" id="docExtractedBadge">0 Found</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btnSelectAllDocQ" style="font-weight: 700;">
+                ☑ Select All
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btnDeselectAllDocQ" style="font-weight: 700;">
+                ☐ Deselect All
+              </button>
+            </div>
+          </div>
+
+          <div id="docMissingAnswersAlert" class="alert alert-warning" style="display: none; margin-bottom: 1rem; font-size: 0.85rem;">
+            ⚠️ <strong>Missing Answer Key Detected:</strong> Some questions do not have correct answers defined in the document. Please select the correct answer for each marked question before creating the assessment so the system can auto-grade candidate submissions accurately.
+          </div>
+
+          <!-- Question Cards List -->
+          <div id="docQuestionsListContainer"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 4. Aptitude Sections (for Bank mode) -->
+    <div id="aptitudeBankSection" style="display: {% if form.question_source.value == 'DOCUMENT' %}none{% else %}block{% endif %};">
+      <div class="creation-section-card" style="border-top: 4px solid #7c3aed;">
+        <div class="creation-section-header">
+          <span class="creation-section-icon">🧠</span>
+          <h2 class="creation-section-title">Aptitude Sections</h2>
+        </div>
+        <label style="font-weight: 700; display: block; margin-bottom: 0.75rem; color: #1e293b;">
+          Select Sections &amp; Configure Question Distribution <span style="color: var(--danger);">*</span>
+        </label>
+        {% if form.sections.errors %}
+          <div style="color: var(--danger); font-size: 0.85rem; margin-bottom: 0.75rem;">
+            {{ form.sections.errors|striptags }}
+          </div>
+        {% endif %}
+
+        <div class="section-config-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+          <!-- Logical Reasoning -->
+          <div class="section-card" id="cardLogical" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+            <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="sections" value="LOGICAL" id="sec_logical" class="section-checkbox"
+                     {% if "LOGICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+              <label for="sec_logical" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Logical Reasoning</label>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label for="{{ form.logical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+              {{ form.logical_count }}
+              <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ logical_bank_count }}</strong> questions</div>
+              {% if form.logical_count.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                  {{ form.logical_count.errors|striptags }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Quantitative Aptitude -->
+          <div class="section-card" id="cardQuant" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+            <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="sections" value="QUANTITATIVE" id="sec_quant" class="section-checkbox"
+                     {% if "QUANTITATIVE" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+              <label for="sec_quant" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Quantitative Aptitude</label>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label for="{{ form.quant_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+              {{ form.quant_count }}
+              <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ quant_bank_count }}</strong> questions</div>
+              {% if form.quant_count.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                  {{ form.quant_count.errors|striptags }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Technical Aptitude -->
+          <div class="section-card" id="cardTech" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+            <div class="section-header" style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="sections" value="TECHNICAL" id="sec_tech" class="section-checkbox"
+                     {% if "TECHNICAL" in form.sections.value %}checked{% endif %} style="width: 18px; height: 18px;">
+              <label for="sec_tech" class="section-title" style="cursor: pointer; font-weight: 700; color: #0f172a;">Technical Aptitude</label>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+              <label for="{{ form.technical_count.id_for_label }}" style="font-size: 0.85rem; font-weight: 600;">Question Count</label>
+              {{ form.technical_count }}
+              <div class="bank-count-hint" style="font-size: 0.78rem; color: #64748b; margin-top: 0.25rem;">Available in bank: <strong>{{ tech_bank_count }}</strong> questions</div>
+              {% if form.technical_count.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.3rem;">
+                  {{ form.technical_count.errors|striptags }}
+                </div>
+              {% endif %}
+            </div>
           </div>
         </div>
       </div>
@@ -647,8 +912,433 @@
       });
     }
 
+    // --- Question Source Toggling ---
+    const radioBank = document.getElementById('radioSourceBank');
+    const radioDoc = document.getElementById('radioSourceDoc');
+    const cardBank = document.getElementById('cardSourceBank');
+    const cardDoc = document.getElementById('cardSourceDoc');
+    const bankSection = document.getElementById('aptitudeBankSection');
+    const docPanel = document.getElementById('documentUploadPanel');
+
+    function updateQuestionSourceUI() {
+      if (radioDoc && radioDoc.checked) {
+        if (bankSection) bankSection.style.display = 'none';
+        if (docPanel) docPanel.style.display = 'block';
+        if (cardDoc) cardDoc.classList.add('active');
+        if (cardBank) cardBank.classList.remove('active');
+      } else {
+        if (bankSection) bankSection.style.display = 'block';
+        if (docPanel) docPanel.style.display = 'none';
+        if (cardBank) cardBank.classList.add('active');
+        if (cardDoc) cardDoc.classList.remove('active');
+      }
+    }
+
+    if (radioBank) radioBank.addEventListener('change', updateQuestionSourceUI);
+    if (radioDoc) radioDoc.addEventListener('change', updateQuestionSourceUI);
+    if (cardBank) cardBank.addEventListener('click', () => { radioBank.checked = true; updateQuestionSourceUI(); });
+    if (cardDoc) cardDoc.addEventListener('click', () => { radioDoc.checked = true; updateQuestionSourceUI(); });
+
+    // --- Document Upload & Processing ---
+    const docInput = document.getElementById('id_document_file');
+    const docDropzone = document.getElementById('docDropzone');
+    const btnBrowse = document.getElementById('btnBrowseFile');
+    const fileInfoBox = document.getElementById('fileInfoBox');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const fileTypeDisplay = document.getElementById('fileTypeDisplay');
+    const fileSizeDisplay = document.getElementById('fileSizeDisplay');
+    const fileIconDisplay = document.getElementById('fileIconDisplay');
+    const btnExtract = document.getElementById('btnExtractQuestions');
+    const btnReset = document.getElementById('btnResetFile');
+    const docStatus = document.getElementById('docExtractStatus');
+    const previewSection = document.getElementById('documentPreviewSection');
+    const countSection = document.getElementById('docQuestionCountSection');
+    const questionsContainer = document.getElementById('docQuestionsListContainer');
+    const docExtractedBadge = document.getElementById('docExtractedBadge');
+    const docTotalCount = document.getElementById('docTotalAvailableCount');
+    const docCountInput = document.getElementById('id_document_question_count');
+    const docIdInput = document.getElementById('id_document_id');
+    const docPayloadInput = document.getElementById('id_document_questions_payload');
+    const missingAlert = document.getElementById('docMissingAnswersAlert');
+
+    let extractedQuestions = [];
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function handleFileSelection(file) {
+      if (!file) return;
+      const ext = (file.name.split('.').pop() || '').toUpperCase();
+      fileNameDisplay.textContent = file.name;
+      fileTypeDisplay.textContent = 'TYPE: ' + ext;
+      fileSizeDisplay.textContent = 'SIZE: ' + formatFileSize(file.size);
+
+      if (ext === 'PDF') fileIconDisplay.textContent = '📕';
+      else if (ext === 'DOCX') fileIconDisplay.textContent = '📘';
+      else fileIconDisplay.textContent = '📄';
+
+      fileInfoBox.style.display = 'block';
+      docStatus.style.display = 'none';
+
+      // Auto trigger extraction
+      triggerExtraction();
+    }
+
+    if (btnBrowse && docInput) {
+      btnBrowse.addEventListener('click', (e) => { e.stopPropagation(); docInput.click(); });
+    }
+    if (docDropzone && docInput) {
+      docDropzone.addEventListener('click', () => { docInput.click(); });
+      docDropzone.addEventListener('dragover', (e) => { e.preventDefault(); docDropzone.classList.add('dragover'); });
+      docDropzone.addEventListener('dragleave', () => { docDropzone.classList.remove('dragover'); });
+      docDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        docDropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          docInput.files = e.dataTransfer.files;
+          handleFileSelection(e.dataTransfer.files[0]);
+        }
+      });
+    }
+    if (docInput) {
+      docInput.addEventListener('change', () => {
+        if (docInput.files && docInput.files.length > 0) {
+          handleFileSelection(docInput.files[0]);
+        }
+      });
+    }
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        if (docInput) docInput.value = '';
+        fileInfoBox.style.display = 'none';
+        previewSection.style.display = 'none';
+        countSection.style.display = 'none';
+        extractedQuestions = [];
+        serializePayload();
+      });
+    }
+
+    function triggerExtraction() {
+      if (!docInput || !docInput.files || docInput.files.length === 0) {
+        alert('Please choose a file first.');
+        return;
+      }
+      const file = docInput.files[0];
+      const formData = new FormData();
+      formData.append('document_file', file);
+
+      docStatus.style.display = 'block';
+      docStatus.innerHTML = '<div style="color: #2563eb; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;"><span style="font-size: 1.1rem;">⏳</span> Uploading and extracting questions from document...</div>';
+      btnExtract.disabled = true;
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+      fetch("{% url 'assessments:employer_document_upload_parse' %}", {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken
+        },
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        btnExtract.disabled = false;
+        if (data.success) {
+          docIdInput.value = data.document_id;
+          docStatus.innerHTML = `<span style="color: #16a34a; font-weight: 800;">✓ Document parsed successfully! Found ${data.total_found} questions.</span>`;
+          extractedQuestions = data.questions.map((q, idx) => {
+            q.is_selected = true;
+            q.index = idx;
+            return q;
+          });
+          renderQuestionsList();
+          previewSection.style.display = 'block';
+          countSection.style.display = 'block';
+          if (docTotalCount) docTotalCount.textContent = String(extractedQuestions.length);
+          if (docCountInput && (!docCountInput.value || docCountInput.value === '0')) {
+            docCountInput.value = extractedQuestions.length;
+          }
+          if (docExtractedBadge) {
+            docExtractedBadge.textContent = `${extractedQuestions.length} Found`;
+          }
+          serializePayload();
+          checkMissingAnswers();
+        } else {
+          docStatus.innerHTML = `<span style="color: #dc2626; font-weight: 700;">✕ ${data.error || 'Failed to parse document.'}</span>`;
+        }
+      })
+      .catch(err => {
+        btnExtract.disabled = false;
+        docStatus.innerHTML = `<span style="color: #dc2626; font-weight: 700;">✕ Upload error: ${err.message}</span>`;
+      });
+    }
+
+    if (btnExtract) {
+      btnExtract.addEventListener('click', triggerExtraction);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function renderQuestionsList() {
+      if (!questionsContainer) return;
+      questionsContainer.innerHTML = '';
+
+      extractedQuestions.forEach((q, i) => {
+        const isMissingAns = (!q.correct_answer || q.correct_answer === '') && q.type !== 'CODING';
+        const card = document.createElement('div');
+        card.className = 'question-preview-card' + (q.is_selected ? '' : ' deselected') + (isMissingAns ? ' missing-answer' : '');
+        card.id = `qCard_${i}`;
+
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <input type="checkbox" class="doc-q-checkbox" ${q.is_selected ? 'checked' : ''} data-idx="${i}" style="width: 18px; height: 18px; cursor: pointer;">
+              <strong style="color: #0f172a; font-size: 1rem;">Q${q.number || (i + 1)}.</strong>
+              <span class="badge ${q.type === 'CODING' ? 'badge-pending' : 'badge-ongoing'}" style="font-size: 0.75rem;">${q.type || 'MCQ'}</span>
+              ${isMissingAns ? '<span class="badge q-missing-badge" style="font-size: 0.75rem; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-weight: 800;">⚠️ Answer required</span>' : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <select class="form-input doc-q-section" data-idx="${i}" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
+                <option value="TECHNICAL" ${q.section === 'TECHNICAL' ? 'selected' : ''}>Technical</option>
+                <option value="LOGICAL" ${q.section === 'LOGICAL' ? 'selected' : ''}>Logical</option>
+                <option value="QUANTITATIVE" ${q.section === 'QUANTITATIVE' ? 'selected' : ''}>Quantitative</option>
+              </select>
+              <button type="button" class="btn btn-outline-danger btn-sm btn-remove-q" data-idx="${i}" style="padding: 0.2rem 0.6rem; font-size: 0.78rem; font-weight: 700;">
+                🗑 Remove
+              </button>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: block; margin-bottom: 0.2rem;">Question Statement:</label>
+            <textarea class="form-input doc-q-text" data-idx="${i}" rows="2" style="width: 100%; font-size: 0.9rem;">${escapeHtml(q.question_text)}</textarea>
+          </div>
+
+          ${q.type === 'CODING' ? `
+            <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; color: #334155;">
+              💻 <em>Coding Problem detected from document. Candidates will solve this in the integrated code executor.</em>
+            </div>
+          ` : `
+            <div>
+              <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: block; margin-bottom: 0.2rem;">Options (A - D):</label>
+              <div class="option-edit-grid">
+                <div class="option-field-row">
+                  <span class="option-label-badge">A.</span>
+                  <input type="text" class="form-input doc-q-opt" data-opt="a" data-idx="${i}" value="${escapeHtml(q.option_a || '')}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;">
+                </div>
+                <div class="option-field-row">
+                  <span class="option-label-badge">B.</span>
+                  <input type="text" class="form-input doc-q-opt" data-opt="b" data-idx="${i}" value="${escapeHtml(q.option_b || '')}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;">
+                </div>
+                <div class="option-field-row">
+                  <span class="option-label-badge">C.</span>
+                  <input type="text" class="form-input doc-q-opt" data-opt="c" data-idx="${i}" value="${escapeHtml(q.option_c || '')}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;">
+                </div>
+                <div class="option-field-row">
+                  <span class="option-label-badge">D.</span>
+                  <input type="text" class="form-input doc-q-opt" data-opt="d" data-idx="${i}" value="${escapeHtml(q.option_d || '')}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;">
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px dashed #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span style="font-weight: 800; font-size: 0.85rem; color: #0f172a;">Correct Answer: <span style="color: var(--danger);">*</span></span>
+                  <label style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; cursor: pointer; font-weight: 700;">
+                    <input type="radio" name="correct_ans_${i}" value="A" ${q.correct_answer === 'A' ? 'checked' : ''} class="doc-q-ans-radio" data-idx="${i}"> A
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; cursor: pointer; font-weight: 700;">
+                    <input type="radio" name="correct_ans_${i}" value="B" ${q.correct_answer === 'B' ? 'checked' : ''} class="doc-q-ans-radio" data-idx="${i}"> B
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; cursor: pointer; font-weight: 700;">
+                    <input type="radio" name="correct_ans_${i}" value="C" ${q.correct_answer === 'C' ? 'checked' : ''} class="doc-q-ans-radio" data-idx="${i}"> C
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; cursor: pointer; font-weight: 700;">
+                    <input type="radio" name="correct_ans_${i}" value="D" ${q.correct_answer === 'D' ? 'checked' : ''} class="doc-q-ans-radio" data-idx="${i}"> D
+                  </label>
+                </div>
+                <div style="flex: 1; min-width: 200px; max-width: 320px;">
+                  <input type="text" class="form-input doc-q-exp" data-idx="${i}" placeholder="Explanation (optional)" value="${escapeHtml(q.explanation || '')}" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                </div>
+              </div>
+            </div>
+          `}
+        `;
+
+        questionsContainer.appendChild(card);
+      });
+
+      attachQuestionCardListeners();
+    }
+
+    function attachQuestionCardListeners() {
+      // Checkbox toggles
+      document.querySelectorAll('.doc-q-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          extractedQuestions[idx].is_selected = this.checked;
+          const card = document.getElementById(`qCard_${idx}`);
+          if (card) {
+            if (this.checked) card.classList.remove('deselected');
+            else card.classList.add('deselected');
+          }
+          serializePayload();
+          updateCounts();
+        });
+      });
+
+      // Section changes
+      document.querySelectorAll('.doc-q-section').forEach(sel => {
+        sel.addEventListener('change', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          extractedQuestions[idx].section = this.value;
+          serializePayload();
+        });
+      });
+
+      // Question text changes
+      document.querySelectorAll('.doc-q-text').forEach(tx => {
+        tx.addEventListener('input', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          extractedQuestions[idx].question_text = this.value;
+          serializePayload();
+        });
+      });
+
+      // Option inputs
+      document.querySelectorAll('.doc-q-opt').forEach(optInp => {
+        optInp.addEventListener('input', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          const optLetter = this.getAttribute('data-opt');
+          extractedQuestions[idx][`option_${optLetter}`] = this.value;
+          serializePayload();
+        });
+      });
+
+      // Answer radio changes
+      document.querySelectorAll('.doc-q-ans-radio').forEach(radio => {
+        radio.addEventListener('change', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          extractedQuestions[idx].correct_answer = this.value;
+          extractedQuestions[idx].has_answer = true;
+          const card = document.getElementById(`qCard_${idx}`);
+          if (card) {
+            card.classList.remove('missing-answer');
+            const badge = card.querySelector('.q-missing-badge');
+            if (badge) badge.remove();
+          }
+          serializePayload();
+          checkMissingAnswers();
+        });
+      });
+
+      // Explanation inputs
+      document.querySelectorAll('.doc-q-exp').forEach(expInp => {
+        expInp.addEventListener('input', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          extractedQuestions[idx].explanation = this.value;
+          serializePayload();
+        });
+      });
+
+      // Remove button
+      document.querySelectorAll('.btn-remove-q').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const idx = parseInt(this.getAttribute('data-idx'));
+          extractedQuestions.splice(idx, 1);
+          renderQuestionsList();
+          serializePayload();
+          updateCounts();
+          checkMissingAnswers();
+        });
+      });
+    }
+
+    function updateCounts() {
+      const selected = extractedQuestions.filter(q => q.is_selected);
+      if (docTotalCount) docTotalCount.textContent = String(selected.length);
+      if (docExtractedBadge) docExtractedBadge.textContent = `${selected.length} Selected / ${extractedQuestions.length} Found`;
+      if (docCountInput && parseInt(docCountInput.value) > selected.length) {
+        docCountInput.value = selected.length;
+      }
+    }
+
+    function checkMissingAnswers() {
+      const hasMissing = extractedQuestions.some(q => q.is_selected && q.type !== 'CODING' && (!q.correct_answer || q.correct_answer === ''));
+      if (missingAlert) {
+        missingAlert.style.display = hasMissing ? 'block' : 'none';
+      }
+    }
+
+    function serializePayload() {
+      if (docPayloadInput) {
+        docPayloadInput.value = JSON.stringify(extractedQuestions);
+      }
+    }
+
+    // Select/Deselect All Document Questions
+    const btnSelectAllDocQ = document.getElementById('btnSelectAllDocQ');
+    const btnDeselectAllDocQ = document.getElementById('btnDeselectAllDocQ');
+    if (btnSelectAllDocQ) {
+      btnSelectAllDocQ.addEventListener('click', () => {
+        extractedQuestions.forEach(q => q.is_selected = true);
+        renderQuestionsList();
+        serializePayload();
+        updateCounts();
+      });
+    }
+    if (btnDeselectAllDocQ) {
+      btnDeselectAllDocQ.addEventListener('click', () => {
+        extractedQuestions.forEach(q => q.is_selected = false);
+        renderQuestionsList();
+        serializePayload();
+        updateCounts();
+      });
+    }
+
+    // Form submission validation
+    const form = document.getElementById('assessmentForm');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        if (radioDoc && radioDoc.checked) {
+          serializePayload();
+          const selected = extractedQuestions.filter(q => q.is_selected);
+          if (selected.length === 0 && (!docInput || !docInput.files.length)) {
+            e.preventDefault();
+            alert('Please upload a document and select at least one question.');
+            return false;
+          }
+          // Validate correct answers
+          for (let i = 0; i < selected.length; i++) {
+            const q = selected[i];
+            if (q.type !== 'CODING' && (!q.correct_answer || !['A', 'B', 'C', 'D'].includes(q.correct_answer.toUpperCase()))) {
+              e.preventDefault();
+              alert(`Question ${q.number || (i + 1)} requires a correct answer (Option A, B, C, or D). Please select an answer before proceeding.`);
+              const card = document.getElementById(`qCard_${q.index}`);
+              if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('missing-answer');
+              }
+              return false;
+            }
+          }
+        }
+      });
+    }
+
     // Initial count
     updateSelectedCount();
+    updateQuestionSourceUI();
   })();
 </script>
 {% endblock %}

@@ -19,6 +19,54 @@ from django.db import models
 from django.db.models import F, Q
 
 
+class AssessmentDocument(models.Model):
+    """An uploaded question document acting as the source of truth for document-based assessments."""
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending Processing"
+        PROCESSING = "PROCESSING", "Processing"
+        PROCESSED = "PROCESSED", "Processed"
+        FAILED = "FAILED", "Failed"
+
+    employer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="uploaded_assessment_documents",
+    )
+    file = models.FileField(
+        upload_to="assessment_documents/%Y/%m/",
+        help_text="Uploaded question document file (PDF, DOCX, TXT)",
+    )
+    original_filename = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=10, help_text="File extension / format (pdf, docx, txt)")
+    file_size = models.PositiveIntegerField(default=0, help_text="File size in bytes")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    raw_text = models.TextField(blank=True, default="", help_text="Extracted raw text content from the document")
+    extracted_count = models.PositiveIntegerField(default=0, help_text="Number of questions extracted")
+    error_message = models.TextField(blank=True, default="", help_text="Error message if processing failed")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.original_filename} ({self.get_status_display()})"
+
+    @property
+    def file_size_display(self) -> str:
+        if self.file_size < 1024:
+            return f"{self.file_size} B"
+        elif self.file_size < 1024 * 1024:
+            return f"{self.file_size / 1024:.1f} KB"
+        return f"{self.file_size / (1024 * 1024):.1f} MB"
+
+
 class Question(models.Model):
     """A multiple-choice question bank entry."""
 
@@ -32,6 +80,7 @@ class Question(models.Model):
         CURATED = "CURATED", "Curated"
         IMPORTED = "IMPORTED", "Imported"
         AI_GENERATED = "AI_GENERATED", "AI Generated"
+        DOCUMENT = "DOCUMENT", "Uploaded Document"
 
     class Difficulties(models.TextChoices):
         EASY = "EASY", "Easy"
@@ -67,6 +116,19 @@ class Question(models.Model):
         db_index=True,
     )
     ai_provider = models.CharField(max_length=100, blank=True, default="", help_text="AI provider/model name if AI generated")
+    source_document = models.ForeignKey(
+        AssessmentDocument,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="extracted_questions",
+        help_text="Source document if extracted from an uploaded document",
+    )
+    document_question_num = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Question number in source document",
+    )
     is_reviewed = models.BooleanField(default=True, help_text="Whether question has been reviewed")
     is_approved = models.BooleanField(default=True, help_text="Whether question is approved for tests")
     is_active = models.BooleanField(default=True, db_index=True, help_text="Active status for safe soft-deactivation")
@@ -112,6 +174,21 @@ class AssessmentGroup(models.Model):
     has_coding = models.BooleanField(default=False)
     total_mcq_count = models.PositiveIntegerField(default=0)
     total_coding_count = models.PositiveIntegerField(default=0)
+    question_source = models.CharField(
+        max_length=20,
+        choices=[("BANK", "Question Bank"), ("DOCUMENT", "Uploaded Document")],
+        default="BANK",
+        db_index=True,
+        help_text="Source of questions: global question bank or uploaded document",
+    )
+    source_document = models.ForeignKey(
+        AssessmentDocument,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assessment_groups",
+        help_text="Source document if created from an uploaded question document",
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -204,6 +281,21 @@ class Assessment(models.Model):
         db_index=True,
     )
     has_coding = models.BooleanField(default=False)
+    question_source = models.CharField(
+        max_length=20,
+        choices=[("BANK", "Question Bank"), ("DOCUMENT", "Uploaded Document")],
+        default="BANK",
+        db_index=True,
+        help_text="Source of questions: global question bank or uploaded document",
+    )
+    source_document = models.ForeignKey(
+        AssessmentDocument,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assessments",
+        help_text="Source document if created from an uploaded question document",
+    )
     violation_count = models.PositiveIntegerField(
         default=0,
         help_text="Count of proctoring violations recorded during the assessment",
@@ -453,6 +545,14 @@ class CodingQuestion(models.Model):
         blank=True,
         default="",
         help_text="AI provider/model name if AI generated",
+    )
+    source_document = models.ForeignKey(
+        AssessmentDocument,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="extracted_coding_questions",
+        help_text="Source document if extracted from an uploaded document",
     )
     is_reviewed = models.BooleanField(
         default=True,

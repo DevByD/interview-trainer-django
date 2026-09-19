@@ -10,12 +10,26 @@ from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+import io
+import docx
+
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from accounts.models import CandidateProfile, EmployerProfile
 from assessments.coding_bank import ensure_coding_bank_seeded
+from assessments.document_parser import (
+    extract_text_from_file,
+    parse_questions_from_text,
+    process_uploaded_document,
+    validate_document_file,
+)
+from assessments.forms import AssessmentCreateForm
 from assessments.models import (
     Answer,
     Assessment,
     AssessmentCodingQuestion,
+    AssessmentDocument,
     AssessmentGroup,
     AssessmentQuestion,
     CodingQuestion,
@@ -2356,3 +2370,996 @@ class AssessmentDateTimeAndScheduleWindowTests(TestCase):
         form_eq = AssessmentCreateForm(data=form_data_equal)
         self.assertFalse(form_eq.is_valid())
         self.assertIn("expire_date", form_eq.errors)
+
+
+class DocumentAssessmentCreationTests(TestCase):
+    """
+    Comprehensive test suite for Document-Based Assessment Creation.
+    Covers all 15 specifications:
+      1. PDF upload and extraction
+      2. DOCX upload and extraction
+      3. TXT upload and extraction
+      4. Invalid file rejection (invalid extension, empty file)
+      5. Question and MCQ option extraction (various numbering and label formats)
+      6. Answer extraction (both inline and document-end Answer Key)
+      7. Document upload & preview AJAX endpoint (employer_document_upload_parse)
+      8. Assessment creation from document via form submission
+      9. Strict source isolation: AssessmentQuestion objects belong only to document
+     10. Candidate exam test retrieval: candidate receives only document questions
+     11. Specific test: Document with 10 questions, assessment requests 5 -> gets 5 from document
+     12. Specific test: Document with 5 questions, assessment requests 10 -> fails with exact error
+     13. Unanswered question validation: question without answer rejected until answer provided
+     14. Unauthorized user access rejection for upload endpoint
+     15. Verify existing question bank assessment flow still works without regression
+    """
+
+    def setUp(self):
+        self.client = Client()
+
+        # Seed global question bank questions
+        self.global_q1 = Question.objects.create(
+            section=Question.Sections.LOGICAL,
+            question_text="Global logical question 1",
+            option_a="G1A", option_b="G1B", option_c="G1C", option_d="G1D",
+            correct_answer="A", difficulty=Question.Difficulties.EASY,
+            source_type=Question.SourceTypes.CURATED,
+        )
+        self.global_q2 = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="Global technical question 2",
+            option_a="G2A", option_b="G2B", option_c="G2C", option_d="G2D",
+            correct_answer="B", difficulty=Question.Difficulties.EASY,
+            source_type=Question.SourceTypes.CURATED,
+        )
+
+        # Employer user
+        self.employer_user = User.objects.create_user(
+            username="test_emp@doccorp.com",
+            email="test_emp@doccorp.com",
+            password="Password123!",
+            first_name="Alice",
+        )
+        self.employer_profile = EmployerProfile.objects.create(
+            user=self.employer_user,
+            company="DocCorp",
+        )
+
+        # Candidate user
+        self.cand_user = User.objects.create_user(
+            username="test_cand@applicant.com",
+            email="test_cand@applicant.com",
+            password="Password123!",
+            first_name="Bob",
+        )
+        self.cand_profile = CandidateProfile.objects.create(
+            user=self.cand_user,
+            phone="1234567890",
+            education="B.S. CS",
+            skills="Python, Django",
+        )
+
+        self.tomorrow = timezone.localdate() + timedelta(days=1)
+        self.expire_date = timezone.localdate() + timedelta(days=2)
+
+    def _create_pdf_file(self, filename="sample_questions.pdf", num_questions=3):
+        """Generate a minimal valid PDF containing num_questions."""
+        text_lines = []
+        for i in range(1, num_questions + 1):
+            text_lines.append(f"({i}. What is PDF Question {i}?) Tj\n0 -20 Td")
+            text_lines.append(f"(A. Option A{i}) Tj\n0 -20 Td")
+            text_lines.append(f"(B. Option B{i}) Tj\n0 -20 Td")
+            text_lines.append(f"(C. Option C{i}) Tj\n0 -20 Td")
+            text_lines.append(f"(D. Option D{i}) Tj\n0 -20 Td")
+            text_lines.append(f"(Answer: B) Tj\n0 -20 Td")
+        stream_content = "BT\n/F1 12 Tf\n72 712 Td\n" + "\n".join(text_lines) + "\nET"
+        stream_bytes = stream_content.encode("latin-1")
+        pdf_bytes = f"""%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length {len(stream_bytes)} >>
+stream
+{stream_content}
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000244 00000 n
+0000000405 00000 n
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+500
+%%EOF""".encode("latin-1")
+        return SimpleUploadedFile(filename, pdf_bytes, content_type="application/pdf")
+
+    def _create_docx_file(self, filename="sample_questions.docx", num_questions=3):
+        """Generate a valid DOCX file containing num_questions."""
+        doc = docx.Document()
+        for i in range(1, num_questions + 1):
+            doc.add_paragraph(f"{i}. DOCX Question {i}?")
+            doc.add_paragraph(f"A. Option A of {i}")
+            doc.add_paragraph(f"B. Option B of {i}")
+            doc.add_paragraph(f"C. Option C of {i}")
+            doc.add_paragraph(f"D. Option D of {i}")
+            doc.add_paragraph("Answer: C")
+        bio = io.BytesIO()
+        doc.save(bio)
+        bio.seek(0)
+        return SimpleUploadedFile(
+            filename,
+            bio.read(),
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+    def _create_txt_file(self, filename="sample_questions.txt", num_questions=3, include_answers=True, default_ans="A"):
+        """Generate a valid TXT file containing num_questions."""
+        lines = []
+        for i in range(1, num_questions + 1):
+            lines.append(f"{i}. What is TXT Question {i}?")
+            lines.append(f"A. Option A{i}")
+            lines.append(f"B. Option B{i}")
+            lines.append(f"C. Option C{i}")
+            lines.append(f"D. Option D{i}")
+            if include_answers:
+                lines.append(f"Answer: {default_ans}\n")
+            else:
+                lines.append("")
+        return SimpleUploadedFile(filename, "\n".join(lines).encode("utf-8"), content_type="text/plain")
+
+    def _build_questions_payload(self, num_questions, default_ans="A"):
+        """Helper to build a JSON preview payload matching the format sent by create_assessment.html."""
+        payload = []
+        for i in range(1, num_questions + 1):
+            payload.append({
+                "number": i,
+                "question_text": f"Document Question {i}?",
+                "type": "MCQ",
+                "option_a": f"Choice A{i}",
+                "option_b": f"Choice B{i}",
+                "option_c": f"Choice C{i}",
+                "option_d": f"Choice D{i}",
+                "correct_answer": default_ans,
+                "has_answer": bool(default_ans),
+                "is_selected": True,
+            })
+        return payload
+
+    # 1. PDF upload and extraction
+    def test_01_pdf_upload_and_extraction(self):
+        pdf_file = self._create_pdf_file(num_questions=3)
+        text = extract_text_from_file(pdf_file, "pdf")
+        self.assertTrue(len(text) > 0)
+        parsed = parse_questions_from_text(text)
+        self.assertEqual(len(parsed), 3)
+        q1 = parsed[0]
+        self.assertEqual(q1["number"], 1)
+        self.assertIn("PDF Question 1", q1["question_text"])
+        self.assertEqual(q1["correct_answer"], "B")
+        self.assertEqual(q1["option_a"], "Option A1")
+        self.assertEqual(q1["option_b"], "Option B1")
+
+    # 2. DOCX upload and extraction
+    def test_02_docx_upload_and_extraction(self):
+        docx_file = self._create_docx_file(num_questions=3)
+        text = extract_text_from_file(docx_file, "docx")
+        self.assertTrue(len(text) > 0)
+        parsed = parse_questions_from_text(text)
+        self.assertEqual(len(parsed), 3)
+        q1 = parsed[0]
+        self.assertEqual(q1["number"], 1)
+        self.assertIn("DOCX Question 1", q1["question_text"])
+        self.assertEqual(q1["correct_answer"], "C")
+        self.assertEqual(q1["option_a"], "Option A of 1")
+        self.assertEqual(q1["option_c"], "Option C of 1")
+
+    # 3. TXT upload and extraction
+    def test_03_txt_upload_and_extraction(self):
+        # UTF-8 file
+        txt_file = self._create_txt_file(num_questions=4, default_ans="D")
+        text = extract_text_from_file(txt_file, "txt")
+        self.assertTrue(len(text) > 0)
+        parsed = parse_questions_from_text(text)
+        self.assertEqual(len(parsed), 4)
+        q4 = parsed[3]
+        self.assertEqual(q4["number"], 4)
+        self.assertEqual(q4["correct_answer"], "D")
+
+        # Latin-1 encoded file with special characters
+        latin_content = "1. What is Naïve Bayes?\nA. An algorithm\nB. A database\nC. A server\nD. A network\nAnswer: A\n"
+        latin_file = SimpleUploadedFile("latin.txt", latin_content.encode("latin-1"), content_type="text/plain")
+        latin_text = extract_text_from_file(latin_file, "txt")
+        self.assertIn("Naïve Bayes", latin_text)
+        latin_parsed = parse_questions_from_text(latin_text)
+        self.assertEqual(len(latin_parsed), 1)
+        self.assertEqual(latin_parsed[0]["correct_answer"], "A")
+
+    # 4. Invalid file rejection (invalid extension, empty file)
+    def test_04_invalid_file_rejection(self):
+        # Empty file
+        empty_file = SimpleUploadedFile("empty.txt", b"", content_type="text/plain")
+        is_valid, err, _, _ = validate_document_file(empty_file)
+        self.assertFalse(is_valid)
+        self.assertIn("empty", err.lower())
+
+        # Unsupported file extension
+        exe_file = SimpleUploadedFile("malicious.exe", b"MZ\x90\x00", content_type="application/octet-stream")
+        is_valid, err, _, _ = validate_document_file(exe_file)
+        self.assertFalse(is_valid)
+        self.assertIn("unsupported file format", err.lower())
+
+        # Unsupported CSV
+        csv_file = SimpleUploadedFile("data.csv", b"a,b,c\n1,2,3", content_type="text/csv")
+        is_valid, err, _, _ = validate_document_file(csv_file)
+        self.assertFalse(is_valid)
+
+        # AJAX endpoint rejection for invalid file
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        res = self.client.post(
+            reverse("assessments:employer_document_upload_parse"),
+            {"document_file": exe_file},
+        )
+        self.assertEqual(res.status_code, 400)
+        data = res.json()
+        self.assertEqual(data["status"], "error")
+        self.assertIn("unsupported", data["error"].lower())
+
+    # 5. 10 MB upload limit
+    def test_05_ten_mb_upload_limit(self):
+        oversized = SimpleUploadedFile("big.txt", b"a" * (11 * 1024 * 1024), content_type="text/plain")
+        is_valid, err, _, size = validate_document_file(oversized)
+        self.assertFalse(is_valid)
+        self.assertIn("exceeds maximum allowed size", err)
+
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        res = self.client.post(
+            reverse("assessments:employer_document_upload_parse"),
+            {"document_file": oversized},
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("exceeds maximum allowed size", res.json()["error"])
+
+    # 6. Question parsing (various formats)
+    def test_06_question_parsing(self):
+        varied_text = """
+1. What is Python?
+A. Snake
+B. Programming language
+C. Island
+D. Coffee
+Answer: B
+
+Q2: What is SQL?
+(A) Query language
+(B) Operating system
+(C) Browser
+(D) Hardware
+Ans: A
+
+3) What is HTML?
+[A] Markup language
+[B] Styling sheet
+[C] Compiler
+[D] Database
+Correct Answer: A
+
+Question 4 - What is CSS?
+A - Style sheets
+B - Scripting
+C - System software
+D - Cloud service
+Correct Option: A
+"""
+        parsed = parse_questions_from_text(varied_text)
+        self.assertEqual(len(parsed), 4)
+        self.assertEqual(parsed[0]["number"], 1)
+        self.assertIn("What is Python?", parsed[0]["question_text"])
+        self.assertEqual(parsed[1]["number"], 2)
+        self.assertIn("What is SQL?", parsed[1]["question_text"])
+        self.assertEqual(parsed[2]["number"], 3)
+        self.assertIn("What is HTML?", parsed[2]["question_text"])
+        self.assertEqual(parsed[3]["number"], 4)
+        self.assertIn("What is CSS?", parsed[3]["question_text"])
+
+    # 7. Option parsing (standard and inline option formats)
+    def test_07_option_parsing(self):
+        sample_text = """
+1. Choose the odd one out?
+A) Apple B) Banana C) Carrot D) Mango
+Answer: C
+
+2. Which tag creates a link?
+(A) <p>
+(B) <a>
+(C) <div>
+(D) <link>
+Answer: B
+"""
+        parsed = parse_questions_from_text(sample_text)
+        self.assertEqual(len(parsed), 2)
+        # Inline options test
+        self.assertEqual(parsed[0]["option_a"], "Apple")
+        self.assertEqual(parsed[0]["option_b"], "Banana")
+        self.assertEqual(parsed[0]["option_c"], "Carrot")
+        self.assertEqual(parsed[0]["option_d"], "Mango")
+        # Multiline options test
+        self.assertEqual(parsed[1]["option_a"], "<p>")
+        self.assertEqual(parsed[1]["option_b"], "<a>")
+        self.assertEqual(parsed[1]["option_c"], "<div>")
+        self.assertEqual(parsed[1]["option_d"], "<link>")
+
+    # 8. Inline answer parsing
+    def test_08_inline_answer_parsing(self):
+        inline_doc = """
+1. Question One
+A. Opt1
+B. Opt2
+C. Opt3
+D. Opt4
+Answer: C
+
+2. Question Two
+A. OptA
+B. OptB
+C. OptC
+D. OptD
+Correct: B
+
+3. Question Three
+A. Choice 1
+B. Choice 2
+C. Choice 3
+D. Choice 4
+Ans: D
+"""
+        parsed_inline = parse_questions_from_text(inline_doc)
+        self.assertEqual(len(parsed_inline), 3)
+        self.assertEqual(parsed_inline[0]["correct_answer"], "C")
+        self.assertEqual(parsed_inline[1]["correct_answer"], "B")
+        self.assertEqual(parsed_inline[2]["correct_answer"], "D")
+
+    # 9. End-of-document answer-key parsing
+    def test_09_end_of_document_answer_key_parsing(self):
+        key_doc = """
+1. Question One
+A. Opt1
+B. Opt2
+C. Opt3
+D. Opt4
+
+2. Question Two
+A. OptA
+B. OptB
+C. OptC
+D. OptD
+
+3. Question Three
+A. Choice 1
+B. Choice 2
+C. Choice 3
+D. Choice 4
+
+Answer Key:
+1. B
+2: D
+3 - A
+"""
+        parsed_key = parse_questions_from_text(key_doc)
+        self.assertEqual(len(parsed_key), 3)
+        self.assertEqual(parsed_key[0]["correct_answer"], "B")
+        self.assertEqual(parsed_key[1]["correct_answer"], "D")
+        self.assertEqual(parsed_key[2]["correct_answer"], "A")
+
+    # 10. Preview endpoint (employer_document_upload_parse)
+    def test_10_preview_endpoint(self):
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        txt_file = self._create_txt_file(num_questions=3, default_ans="B")
+        res = self.client.post(
+            reverse("assessments:employer_document_upload_parse"),
+            {"document_file": txt_file},
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["question_count"], 3)
+        self.assertTrue(data["document_id"] > 0)
+        self.assertEqual(len(data["questions"]), 3)
+
+        # Verify question preview structure
+        q_item = data["questions"][0]
+        self.assertEqual(q_item["question_num"], 1)
+        self.assertTrue(q_item["has_answer"])
+        self.assertEqual(q_item["correct_answer"], "B")
+        self.assertEqual(len(q_item["options"]), 4)
+
+        # Verify AssessmentDocument row persisted in DB
+        doc_obj = AssessmentDocument.objects.get(pk=data["document_id"])
+        self.assertEqual(doc_obj.status, AssessmentDocument.Status.PROCESSED)
+        self.assertEqual(doc_obj.extracted_count, 3)
+        self.assertEqual(doc_obj.employer, self.employer_user)
+
+    # 11. Assessment creation from document via form submission
+    def test_11_assessment_creation_from_document(self):
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+
+        # Create a document record
+        txt_file = self._create_txt_file(num_questions=3)
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="test_questions.txt",
+            file_type="txt",
+            file_size=100,
+            status=AssessmentDocument.Status.PROCESSED,
+            raw_text="dummy text",
+            extracted_count=3,
+        )
+
+        payload = self._build_questions_payload(3, default_ans="A")
+        post_data = {
+            "title": "Document Sourced Assessment",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 3,
+            "document_questions_payload": json.dumps(payload),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+        res = self.client.post(reverse("assessments:employer_assessment_create"), post_data)
+        self.assertEqual(res.status_code, 302)
+
+        # Verify AssessmentGroup & Assessment
+        group = AssessmentGroup.objects.filter(employer=self.employer_user).latest("id")
+        self.assertEqual(group.question_source, "DOCUMENT")
+        self.assertEqual(group.source_document, doc)
+        self.assertEqual(group.total_mcq_count, 3)
+
+        assessment = Assessment.objects.filter(group=group).first()
+        self.assertIsNotNone(assessment)
+        self.assertEqual(assessment.question_source, "DOCUMENT")
+        self.assertEqual(assessment.source_document, doc)
+        self.assertEqual(assessment.questions.count(), 3)
+
+    # 12. Document source isolation: AssessmentQuestion objects belong only to document
+    def test_12_document_source_isolation(self):
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+
+        txt_file = self._create_txt_file(num_questions=3)
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="isolated.txt",
+            file_type="txt",
+            file_size=100,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=3,
+        )
+
+        payload = self._build_questions_payload(3, default_ans="B")
+        post_data = {
+            "title": "Strict Isolation Test",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 3,
+            "document_questions_payload": json.dumps(payload),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+        self.client.post(reverse("assessments:employer_assessment_create"), post_data)
+
+        assessment = Assessment.objects.filter(candidate=self.cand_user).latest("id")
+        self.assertEqual(assessment.questions.count(), 3)
+
+        # Verify EVERY linked question belongs to this document
+        for aq in assessment.questions.select_related("question"):
+            self.assertEqual(aq.question.source_type, Question.SourceTypes.DOCUMENT)
+            self.assertEqual(aq.question.source_document, doc)
+            self.assertNotEqual(aq.question.id, self.global_q1.id)
+            self.assertNotEqual(aq.question.id, self.global_q2.id)
+
+        # Zero curated bank questions linked
+        curated_linked_count = AssessmentQuestion.objects.filter(
+            assessment=assessment,
+            question__source_type=Question.SourceTypes.CURATED,
+        ).count()
+        self.assertEqual(curated_linked_count, 0)
+
+    # 13. Candidate receives only document questions
+    def test_13_candidate_receives_only_document_questions(self):
+        # Create document assessment
+        txt_file = self._create_txt_file(num_questions=3)
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="exam_doc.txt",
+            file_type="txt",
+            file_size=100,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=3,
+        )
+
+        payload = self._build_questions_payload(3, default_ans="C")
+        form_data = {
+            "title": "Candidate Portal Exam",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 3,
+            "document_questions_payload": json.dumps(payload),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+        form = AssessmentCreateForm(data=form_data)
+        self.assertTrue(form.is_valid(), form.errors)
+
+        # Create via employer view
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        self.client.post(reverse("assessments:employer_assessment_create"), form_data)
+        assessment = Assessment.objects.filter(candidate=self.cand_user).latest("id")
+
+        # Now test candidate access
+        self.client.login(username="test_cand@applicant.com", password="Password123!")
+
+        # Move assessment start_time to recent past (5 mins ago)
+        assessment.start_time = timezone.now() - timedelta(minutes=5)
+        assessment.expire_time = timezone.now() + timedelta(hours=2)
+        assessment.save(update_fields=["start_time", "expire_time"])
+
+        # PENDING status: instructions view
+        res = self.client.get(reverse("assessments:test_entry", args=[assessment.token]))
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Candidate Portal Exam")
+        self.assertEqual(res.context["question_count"], 3)
+
+        # Start the assessment: ONGOING status
+        assessment.status = Assessment.Status.ONGOING
+        assessment.save(update_fields=["status"])
+
+        res_ongoing = self.client.get(reverse("assessments:test_entry", args=[assessment.token]))
+        self.assertEqual(res_ongoing.status_code, 200)
+
+        # Verify candidate receives exactly the 3 questions from this document
+        questions_in_exam = res_ongoing.context["questions_data"]
+        self.assertEqual(len(questions_in_exam), 3)
+
+        exam_question_ids = [q["id"] for q in questions_in_exam]
+        for q_id in exam_question_ids:
+            q_obj = Question.objects.get(pk=q_id)
+            self.assertEqual(q_obj.source_document, doc)
+            self.assertEqual(q_obj.source_type, Question.SourceTypes.DOCUMENT)
+            # Ensure global question bank questions are completely absent
+            self.assertNotEqual(q_obj.id, self.global_q1.id)
+            self.assertNotEqual(q_obj.id, self.global_q2.id)
+
+    # 14. Requested count cannot exceed document question count
+    def test_14_requested_count_cannot_exceed_document_count(self):
+        txt_file = self._create_txt_file(num_questions=5)
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="doc_five.txt",
+            file_type="txt",
+            file_size=200,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=5,
+        )
+
+        payload = self._build_questions_payload(5, default_ans="A")
+        form_data = {
+            "title": "Exceeding Count Assessment",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 10,  # Requesting 10 from 5!
+            "document_questions_payload": json.dumps(payload),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+
+        form = AssessmentCreateForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("document_question_count", form.errors)
+
+        expected_msg = "Only 5 questions are available in the uploaded document. Please upload a document containing at least 10 questions."
+        self.assertEqual(form.errors["document_question_count"][0], expected_msg)
+
+        # Also verify view returns form error
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        res = self.client.post(reverse("assessments:employer_assessment_create"), form_data)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, expected_msg)
+
+    # 15. Missing-answer validation: question without answer rejected until answer provided
+    def test_15_missing_answer_validation(self):
+        txt_file = self._create_txt_file(num_questions=3, include_answers=False)
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="unanswered.txt",
+            file_type="txt",
+            file_size=150,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=3,
+        )
+
+        # Question 2 is missing an answer
+        payload_missing = self._build_questions_payload(3, default_ans="A")
+        payload_missing[1]["correct_answer"] = ""
+        payload_missing[1]["has_answer"] = False
+
+        form_data = {
+            "title": "Missing Answer Assessment",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 3,
+            "document_questions_payload": json.dumps(payload_missing),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+
+        form = AssessmentCreateForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("document_file", form.errors)
+        self.assertIn("Question 2 requires a correct answer", form.errors["document_file"][0])
+
+        # Provide an answer for question 2 -> now valid
+        payload_fixed = self._build_questions_payload(3, default_ans="A")
+        payload_fixed[1]["correct_answer"] = "C"
+        payload_fixed[1]["has_answer"] = True
+        form_data["document_questions_payload"] = json.dumps(payload_fixed)
+
+        form_valid = AssessmentCreateForm(data=form_data)
+        self.assertTrue(form_valid.is_valid(), form_valid.errors)
+
+    # 16. Unauthorized upload rejection
+    def test_16_unauthorized_upload_rejection(self):
+        txt_file = self._create_txt_file(num_questions=2)
+
+        # Anonymous request is redirected to employer login
+        res_anon = self.client.post(
+            reverse("assessments:employer_document_upload_parse"),
+            {"document_file": txt_file},
+        )
+        self.assertEqual(res_anon.status_code, 302)
+        self.assertIn("login", res_anon.url)
+
+        # Candidate user request is rejected
+        self.client.login(username="test_cand@applicant.com", password="Password123!")
+        res_cand = self.client.post(
+            reverse("assessments:employer_document_upload_parse"),
+            {"document_file": txt_file},
+        )
+        self.assertEqual(res_cand.status_code, 302)
+        self.assertNotIn("employer_document_upload_parse", res_cand.url)
+
+    # 17. Existing question-bank flow still works
+    def test_17_existing_question_bank_flow_still_works(self):
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+
+        form_data = {
+            "title": "Standard Question Bank Flow Assessment",
+            "candidates": [self.cand_user.id],
+            "question_source": "BANK",
+            "sections": ["LOGICAL", "TECHNICAL"],
+            "logical_count": 1,
+            "technical_count": 1,
+            "quant_count": 0,
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+
+        res = self.client.post(reverse("assessments:employer_assessment_create"), form_data)
+        self.assertEqual(res.status_code, 302)
+
+        group = AssessmentGroup.objects.filter(employer=self.employer_user).latest("id")
+        self.assertEqual(group.question_source, "BANK")
+        self.assertIsNone(group.source_document)
+
+        assessment = Assessment.objects.filter(group=group).first()
+        self.assertIsNotNone(assessment)
+        self.assertEqual(assessment.question_source, "BANK")
+        self.assertEqual(assessment.questions.count(), 2)
+
+        # Verify questions are drawn from the curated question bank
+        for aq in assessment.questions.select_related("question"):
+            self.assertEqual(aq.question.source_type, Question.SourceTypes.CURATED)
+            self.assertIsNone(aq.question.source_document)
+
+    # 18. No AI-generated questions inserted into document assessment
+    def test_18_no_ai_generated_questions_inserted(self):
+        # Create AI-generated questions in global bank
+        ai_q1 = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="AI Generated Question: What is LLM?",
+            option_a="Large Language Model", option_b="Low Level Machine",
+            option_c="Logic Layer Module", option_d="None",
+            correct_answer="A", difficulty=Question.Difficulties.MEDIUM,
+            source_type=Question.SourceTypes.AI_GENERATED,
+            ai_provider="gemini-1.5-flash",
+        )
+        ai_q2 = Question.objects.create(
+            section=Question.Sections.LOGICAL,
+            question_text="AI Generated Logic Question",
+            option_a="A1", option_b="B1", option_c="C1", option_d="D1",
+            correct_answer="B", difficulty=Question.Difficulties.EASY,
+            source_type=Question.SourceTypes.AI_GENERATED,
+            ai_provider="gemini-1.5-flash",
+        )
+
+        txt_file = self._create_txt_file(num_questions=4, default_ans="B")
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="no_ai_test.txt",
+            file_type="txt",
+            file_size=200,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=4,
+        )
+
+        payload = self._build_questions_payload(4, default_ans="B")
+        form_data = {
+            "title": "Strict No-AI Document Assessment",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 4,
+            "document_questions_payload": json.dumps(payload),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 60,
+        }
+
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        res = self.client.post(reverse("assessments:employer_assessment_create"), form_data)
+        self.assertEqual(res.status_code, 302)
+
+        assessment = Assessment.objects.filter(candidate=self.cand_user).latest("id")
+        self.assertEqual(assessment.questions.count(), 4)
+
+        # Confirm zero AI-generated questions are in this assessment
+        ai_count = AssessmentQuestion.objects.filter(
+            assessment=assessment,
+            question__source_type=Question.SourceTypes.AI_GENERATED,
+        ).count()
+        self.assertEqual(ai_count, 0)
+
+        # Confirm every single question originates exclusively from the document
+        for aq in assessment.questions.select_related("question"):
+            self.assertEqual(aq.question.source_type, Question.SourceTypes.DOCUMENT)
+            self.assertEqual(aq.question.source_document, doc)
+            self.assertEqual(aq.question.ai_provider, "")
+            self.assertNotEqual(aq.question.id, ai_q1.id)
+            self.assertNotEqual(aq.question.id, ai_q2.id)
+
+    # 19. Executable and disguised executable rejection
+    def test_19_executable_and_disguised_executable_rejection(self):
+        # Fake file disguised as .pdf with MZ executable header
+        fake_pdf = SimpleUploadedFile("fake.pdf", b"MZ\x90\x00\x03\x00\x00\x00", content_type="application/pdf")
+        is_valid, err, _, _ = validate_document_file(fake_pdf)
+        self.assertFalse(is_valid)
+        self.assertIn("executable", err.lower())
+
+        # Executable content type
+        exe_file = SimpleUploadedFile("script.txt", b"echo hello", content_type="application/x-sh")
+        is_valid, err, _, _ = validate_document_file(exe_file)
+        self.assertFalse(is_valid)
+        self.assertIn("executable", err.lower())
+
+    # 20. Candidate cannot submit a question belonging to another assessment
+    def test_20_candidate_cannot_submit_question_belonging_to_another_assessment(self):
+        doc1 = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=self._create_txt_file("doc1.txt", num_questions=1),
+            original_filename="doc1.txt",
+            file_type="txt",
+            file_size=100,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=1,
+        )
+        q_doc1 = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="Doc 1 Legitimate Question",
+            option_a="A", option_b="B", option_c="C", option_d="D",
+            correct_answer="A",
+            source_type=Question.SourceTypes.DOCUMENT,
+            source_document=doc1,
+            document_question_num=1,
+        )
+        assessment1 = Assessment.objects.create(
+            employer=self.employer_user,
+            candidate=self.cand_user,
+            title="Candidate Assessment 1",
+            start_time=timezone.now() - timedelta(minutes=5),
+            expire_time=timezone.now() + timedelta(hours=2),
+            duration_minutes=60,
+            status=Assessment.Status.ONGOING,
+            question_source="DOCUMENT",
+            source_document=doc1,
+        )
+        AssessmentQuestion.objects.create(assessment=assessment1, question=q_doc1, order=1)
+
+        # Another question belonging to a different document/assessment
+        doc2 = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=self._create_txt_file("doc2.txt", num_questions=1),
+            original_filename="doc2.txt",
+            file_type="txt",
+            file_size=100,
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=1,
+        )
+        foreign_q = Question.objects.create(
+            section=Question.Sections.TECHNICAL,
+            question_text="Foreign Question From Another Assessment",
+            option_a="A", option_b="B", option_c="C", option_d="D",
+            correct_answer="B",
+            source_type=Question.SourceTypes.DOCUMENT,
+            source_document=doc2,
+            document_question_num=1,
+        )
+
+        # Candidate logs in
+        self.client.login(username="test_cand@applicant.com", password="Password123!")
+
+        # Attempt to submit answer for foreign question -> MUST fail with 400
+        res_fail = self.client.post(
+            reverse("assessments:test_save_answer", args=[assessment1.token]),
+            data=json.dumps({"question_id": foreign_q.id, "selected_option": "B"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res_fail.status_code, 400)
+        self.assertEqual(res_fail.json().get("error"), "question_not_in_assessment")
+        self.assertFalse(Answer.objects.filter(assessment=assessment1, question=foreign_q).exists())
+
+        # Valid answer submission for question in assessment -> succeeds
+        res_ok = self.client.post(
+            reverse("assessments:test_save_answer", args=[assessment1.token]),
+            data=json.dumps({"question_id": q_doc1.id, "selected_option": "A"}),
+            content_type="application/json",
+        )
+        self.assertEqual(res_ok.status_code, 200)
+        self.assertEqual(res_ok.json().get("status"), "ok")
+
+        # Grade assessment: strictly evaluates only questions assigned to assessment1
+        result = grade_and_complete_assessment(assessment1, {q_doc1.id: "A", foreign_q.id: "B"})
+        self.assertEqual(result.total_questions, 1)
+        self.assertEqual(result.total_correct, 1)
+        self.assertEqual(result.percentage, Decimal("100.00"))
+
+    # 21. Specific scenario: Document contains 5 questions: CSS, HTML, JS, SQL, Python.
+    # Employer requests 3 questions. Candidate receives exactly 3 questions from those 5, and NEVER from outside.
+    def test_21_exact_five_questions_document_selects_three_without_outside_questions(self):
+        five_qs_doc = """1. What is CSS?
+A. Styling
+B. Database
+C. Server
+D. Browser
+Answer: A
+
+2. What is HTML?
+A. Markup
+B. Language
+C. Operating System
+D. Compiler
+Answer: A
+
+3. What is JavaScript?
+A. Scripting
+B. Storage
+C. Kernel
+D. Router
+Answer: A
+
+4. What is SQL?
+A. Query
+B. Graphics
+C. Audio
+D. Hardware
+Answer: A
+
+5. What is Python?
+A. Programming
+B. Network
+C. Switch
+D. Modem
+Answer: A
+"""
+        txt_file = SimpleUploadedFile("web_tech.txt", five_qs_doc.encode("utf-8"), content_type="text/plain")
+        parsed = parse_questions_from_text(five_qs_doc)
+        self.assertEqual(len(parsed), 5)
+
+        doc = AssessmentDocument.objects.create(
+            employer=self.employer_user,
+            file=txt_file,
+            original_filename="web_tech.txt",
+            file_type="txt",
+            file_size=len(five_qs_doc),
+            status=AssessmentDocument.Status.PROCESSED,
+            extracted_count=5,
+        )
+
+        for p in parsed:
+            p["is_selected"] = True
+
+        form_data = {
+            "title": "Web Tech 3 of 5 Assessment",
+            "candidates": [self.cand_user.id],
+            "question_source": "DOCUMENT",
+            "document_id": doc.id,
+            "document_question_count": 3,
+            "document_questions_payload": json.dumps(parsed),
+            "start_date": self.tomorrow,
+            "start_time": time(9, 0),
+            "expire_date": self.expire_date,
+            "expire_time": time(18, 0),
+            "duration_minutes": 30,
+        }
+
+        self.client.login(username="test_emp@doccorp.com", password="Password123!")
+        res = self.client.post(reverse("assessments:employer_assessment_create"), form_data)
+        self.assertEqual(res.status_code, 302)
+
+        assessment = Assessment.objects.filter(candidate=self.cand_user, title="Web Tech 3 of 5 Assessment").latest("id")
+        self.assertEqual(assessment.questions.count(), 3)
+
+        # Verify candidate portal receives exactly 3 questions
+        self.client.login(username="test_cand@applicant.com", password="Password123!")
+        assessment.start_time = timezone.now() - timedelta(minutes=5)
+        assessment.expire_time = timezone.now() + timedelta(hours=2)
+        assessment.status = Assessment.Status.ONGOING
+        assessment.save(update_fields=["start_time", "expire_time", "status"])
+
+        res_exam = self.client.get(reverse("assessments:test_entry", args=[assessment.token]))
+        candidate_qs = res_exam.context["questions_data"]
+        self.assertEqual(len(candidate_qs), 3)
+
+        doc_question_texts = [p["question_text"] for p in parsed]
+        for q in candidate_qs:
+            self.assertIn(q["question_text"], doc_question_texts)
+            q_model = Question.objects.get(pk=q["id"])
+            self.assertEqual(q_model.source_type, Question.SourceTypes.DOCUMENT)
+            self.assertEqual(q_model.source_document, doc)
+            self.assertIsNotNone(q_model.document_question_num)
+            # Never global question bank
+            self.assertNotEqual(q_model.id, self.global_q1.id)
+            self.assertNotEqual(q_model.id, self.global_q2.id)
+            # Never AI question
+            self.assertNotEqual(q_model.source_type, Question.SourceTypes.AI_GENERATED)

@@ -40,6 +40,18 @@
       <span style="color: #64748b; font-weight: 600;">Candidates Assigned:</span><br>
       <strong style="color: #2563eb; font-size: 1.1rem;">{{ total_assigned }} candidates</strong>
     </div>
+    <div>
+      <span style="color: #64748b; font-weight: 600;">Question Source:</span><br>
+      {% if campaign.question_source == "DOCUMENT" and campaign.source_document %}
+        <span class="badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700;">
+          📄 Document ({{ campaign.source_document.original_filename }})
+        </span>
+      {% else %}
+        <span class="badge" style="background: #f1f5f9; color: #475569; font-weight: 700;">
+          🏛️ Question Bank
+        </span>
+      {% endif %}
+    </div>
   </div>
 </div>
 

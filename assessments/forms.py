@@ -1,5 +1,6 @@
 """Forms for creating and configuring assessments with single and bulk candidate assignment."""
 
+import json
 from datetime import datetime, time
 from django import forms
 from django.contrib.auth.models import User
@@ -8,12 +9,51 @@ from django.utils import timezone
 
 from accounts.models import CandidateProfile
 from assessments.coding_bank import ensure_coding_bank_seeded
-from assessments.models import CodingQuestion, Question
+from assessments.document_parser import (
+    process_uploaded_document,
+    parse_questions_from_text,
+    validate_document_file,
+)
+from assessments.models import AssessmentDocument, CodingQuestion, Question
 from assessments.question_bank import ensure_question_bank_seeded
 
 
 class AssessmentCreateForm(forms.Form):
-    """Form to create and schedule assessments with support for single and bulk candidate assignment."""
+    """Form to create and schedule assessments with support for single/bulk candidate assignment and document upload."""
+
+    # Question Source Selection
+    QUESTION_SOURCE_CHOICES = [
+        ("BANK", "Select Existing Questions"),
+        ("DOCUMENT", "Upload Question Document"),
+    ]
+    question_source = forms.ChoiceField(
+        choices=QUESTION_SOURCE_CHOICES,
+        initial="BANK",
+        widget=forms.RadioSelect(attrs={"class": "question-source-radio"}),
+        label="Question Source",
+        required=False,
+    )
+
+    # Document Upload Fields
+    document_file = forms.FileField(
+        label="Upload Question Document",
+        required=False,
+        widget=forms.FileInput(attrs={"accept": ".pdf,.docx,.txt", "class": "form-input-file", "id": "id_document_file"}),
+    )
+    document_id = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(attrs={"id": "id_document_id"}),
+    )
+    document_question_count = forms.IntegerField(
+        label="Number of Questions for Candidates",
+        min_value=1,
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-input", "min": "1", "id": "id_document_question_count"}),
+    )
+    document_questions_payload = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={"id": "id_document_questions_payload"}),
+    )
 
     # Bulk candidate selection (Multiple Candidates)
     candidates = forms.ModelMultipleChoiceField(
@@ -48,7 +88,7 @@ class AssessmentCreateForm(forms.Form):
         widget=forms.CheckboxSelectMultiple(attrs={"class": "section-checkbox"}),
         initial=["LOGICAL", "QUANTITATIVE", "TECHNICAL"],
         label="Assessment Sections",
-        required=True,
+        required=False,
     )
     logical_count = forms.IntegerField(
         label="Logical Questions",
@@ -107,10 +147,11 @@ class AssessmentCreateForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-input", "min": "1"}),
     )
 
-    def __init__(self, *args, initial_candidate=None, initial_candidates=None, **kwargs):
+    def __init__(self, *args, initial_candidate=None, initial_candidates=None, employer=None, **kwargs):
         ensure_question_bank_seeded()
         ensure_coding_bank_seeded()
         super().__init__(*args, **kwargs)
+        self.employer = employer
         now = timezone.localtime(timezone.now())
 
         if not self.is_bound:
@@ -131,6 +172,7 @@ class AssessmentCreateForm(forms.Form):
         cleaned_data = super().clean()
         candidates = cleaned_data.get("candidates")
         candidate = cleaned_data.get("candidate")
+        question_source = cleaned_data.get("question_source") or "BANK"
         sections = cleaned_data.get("sections") or []
         logical_count = cleaned_data.get("logical_count") or 0
         quant_count = cleaned_data.get("quant_count") or 0
@@ -140,6 +182,8 @@ class AssessmentCreateForm(forms.Form):
         expire_date = cleaned_data.get("expire_date")
         expire_time = cleaned_data.get("expire_time")
         duration_minutes = cleaned_data.get("duration_minutes")
+
+        cleaned_data["question_source"] = question_source
 
         # 1. Candidate Selection Resolution (Support both bulk list and single select)
         selected_candidates_list = []
@@ -158,50 +202,135 @@ class AssessmentCreateForm(forms.Form):
 
         cleaned_data["selected_candidates"] = selected_candidates_list
 
-        # 2. Sections and question counts validation
-        if not sections:
-            self.add_error("sections", "Please select at least one assessment section.")
+        # 2. Question Source Handling
+        if question_source == "DOCUMENT":
+            document_id = cleaned_data.get("document_id")
+            doc_file = cleaned_data.get("document_file")
+            payload_str = cleaned_data.get("document_questions_payload", "")
+            doc_instance = None
 
-        section_count_map = {
-            "LOGICAL": (logical_count, "Logical Reasoning", "logical_count"),
-            "QUANTITATIVE": (quant_count, "Quantitative Aptitude", "quant_count"),
-            "TECHNICAL": (technical_count, "Technical Aptitude", "technical_count"),
-        }
+            if document_id:
+                try:
+                    doc_instance = AssessmentDocument.objects.get(pk=document_id)
+                except AssessmentDocument.DoesNotExist:
+                    self.add_error("document_file", "The specified document could not be found.")
+            elif doc_file:
+                is_valid, err, ext, size = validate_document_file(doc_file)
+                if not is_valid:
+                    self.add_error("document_file", err)
+                else:
+                    employer_user = getattr(self, "employer", None)
+                    doc_instance = AssessmentDocument.objects.create(
+                        employer=employer_user,
+                        file=doc_file,
+                        original_filename=doc_file.name,
+                        file_type=ext,
+                        file_size=size,
+                        status=AssessmentDocument.Status.PENDING,
+                    )
+                    success, parse_err, parsed_qs = process_uploaded_document(doc_instance)
+                    if not success:
+                        self.add_error("document_file", parse_err)
 
-        total_selected_questions = 0
-        for sec_key in sections:
-            count, sec_name, field_name = section_count_map[sec_key]
-            if count <= 0:
+            if not doc_instance and not self.errors.get("document_file"):
+                self.add_error("document_file", "Please upload a question document (PDF, DOCX, or TXT).")
+
+            questions_to_use = []
+            if payload_str and payload_str.strip():
+                try:
+                    payload = json.loads(payload_str)
+                    for item in payload:
+                        if item.get("is_selected", True):
+                            questions_to_use.append(item)
+                except Exception as exc:
+                    self.add_error("document_file", f"Invalid questions preview data: {exc}")
+            elif doc_instance:
+                if doc_instance.raw_text:
+                    questions_to_use = parse_questions_from_text(doc_instance.raw_text)
+                else:
+                    success, parse_err, parsed_qs = process_uploaded_document(doc_instance)
+                    if success:
+                        questions_to_use = parsed_qs
+                    else:
+                        self.add_error("document_file", parse_err)
+
+            if not questions_to_use and not self.errors.get("document_file"):
+                self.add_error("document_file", "No questions are selected or available in the document.")
+
+            # Validate each MCQ question has an answer
+            for idx, q in enumerate(questions_to_use, start=1):
+                q_type = q.get("type", "MCQ")
+                if q_type == "MCQ":
+                    ans = (q.get("correct_answer") or "").strip().upper()
+                    if ans not in ("A", "B", "C", "D"):
+                        q_num = q.get("number", idx)
+                        self.add_error(
+                            "document_file",
+                            f"Question {q_num} requires a correct answer. Please specify Option A, B, C, or D before creating the assessment.",
+                        )
+                        break
+
+            total_doc_questions = len(questions_to_use)
+            requested_count = cleaned_data.get("document_question_count")
+            if requested_count is None or requested_count <= 0:
+                requested_count = total_doc_questions
+
+            if requested_count > total_doc_questions:
                 self.add_error(
-                    field_name,
-                    f"Please specify at least 1 question for the selected '{sec_name}' section.",
+                    "document_question_count",
+                    f"Only {total_doc_questions} questions are available in the uploaded document. Please upload a document containing at least {requested_count} questions.",
                 )
-            else:
-                available_count = Question.objects.filter(section=sec_key).count()
-                if count > available_count:
+
+            cleaned_data["document_question_count"] = requested_count
+            cleaned_data["verified_document_questions"] = questions_to_use
+            cleaned_data["assessment_document"] = doc_instance
+
+        else:
+            # question_source == "BANK" (existing flow)
+            if not sections:
+                self.add_error("sections", "Please select at least one assessment section.")
+
+            section_count_map = {
+                "LOGICAL": (logical_count, "Logical Reasoning", "logical_count"),
+                "QUANTITATIVE": (quant_count, "Quantitative Aptitude", "quant_count"),
+                "TECHNICAL": (technical_count, "Technical Aptitude", "technical_count"),
+            }
+
+            total_selected_questions = 0
+            for sec_key in sections:
+                count, sec_name, field_name = section_count_map[sec_key]
+                if count <= 0:
                     self.add_error(
                         field_name,
-                        f"Requested {count} questions for {sec_name}, but only {available_count} questions exist in the question bank.",
+                        f"Please specify at least 1 question for the selected '{sec_name}' section.",
                     )
                 else:
-                    total_selected_questions += count
+                    available_count = Question.objects.filter(section=sec_key).count()
+                    if count > available_count:
+                        self.add_error(
+                            field_name,
+                            f"Requested {count} questions for {sec_name}, but only {available_count} questions exist in the question bank.",
+                        )
+                    else:
+                        total_selected_questions += count
 
-        include_coding = cleaned_data.get("include_coding", False)
-        coding_count = cleaned_data.get("coding_count") or 0
+            include_coding = cleaned_data.get("include_coding", False)
+            coding_count = cleaned_data.get("coding_count") or 0
 
-        if include_coding:
-            if coding_count <= 0:
-                self.add_error("coding_count", "Please specify at least 1 coding question when Coding Assessment is enabled.")
-            else:
-                coding_available = CodingQuestion.objects.count()
-                if coding_count > coding_available:
-                    self.add_error(
-                        "coding_count",
-                        f"Requested {coding_count} coding questions, but only {coding_available} questions exist in the coding question bank.",
-                    )
+            if include_coding:
+                if coding_count <= 0:
+                    self.add_error("coding_count", "Please specify at least 1 coding question when Coding Assessment is enabled.")
+                else:
+                    coding_available = CodingQuestion.objects.count()
+                    if coding_count > coding_available:
+                        self.add_error(
+                            "coding_count",
+                            f"Requested {coding_count} coding questions, but only {coding_available} questions exist in the coding question bank.",
+                        )
 
-        if sections and total_selected_questions <= 0 and not self.errors:
-            raise ValidationError("Assessment must have at least one question assigned.")
+            if sections and total_selected_questions <= 0 and not self.errors:
+                raise ValidationError("Assessment must have at least one question assigned.")
+
 
         # 3. Schedule & Datetime validation
         if start_date and start_time and expire_date and expire_time:

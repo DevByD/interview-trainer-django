@@ -251,6 +251,17 @@
               <strong style="color: #4ade80;">Coding:</strong> {{ group.total_coding_count }} Algorithmic Challenges
             </div>
           {% endif %}
+          {% if group.question_source == "DOCUMENT" and group.source_document %}
+            <div class="campaign-meta-chip" style="background: rgba(99, 102, 241, 0.2); border-color: rgba(129, 140, 248, 0.4);">
+              <span>📄</span>
+              <strong style="color: #a5b4fc;">Source:</strong> Document ({{ group.source_document.original_filename }})
+            </div>
+          {% else %}
+            <div class="campaign-meta-chip">
+              <span>📚</span>
+              <strong>Source:</strong> Question Bank
+            </div>
+          {% endif %}
         </div>
       </div>
 
